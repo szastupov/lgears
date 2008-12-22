@@ -6,3 +6,4 @@ tags
 TAGS
 compiler
 vm
+gmon.out

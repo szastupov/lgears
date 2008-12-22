@@ -1,22 +1,32 @@
 CFLAGS=-Wall -pipe -ggdb
 
-compiler_obj = main.o string_util.o tokenizer.o btree.o memory.o ast.o
-targets = compiler
+compiler_obj = compiler.o string_util.o tokenizer.o btree.o memory.o ast.o
+vm_obj = vm.o
+
+targets = compiler vm
 
 all: $(targets)
 
-%.dep: %.c
+.deps/%.dep: %.c
+	@mkdir -p .deps
 	@set -e; rm -f $@; \
 		$(CC) -M $(CFLAGS) $< > $@; \
 		sed -i 's,\($*\)\.o[ :]*,\1.o $@ : ,g' $@;
 
--include ${compiler_obj:.o=.dep}
+deps = $(foreach o,$(targets:=_obj),$($(o):%.o=.deps/%.dep))
+-include $(deps)
+
+echo-deps:
+	@echo $(deps)
 
 compiler: $(compiler_obj)
 	@$(CC) $^ -o $@ $(LDFLAGS)
 
+vm: $(vm_obj)
+	@$(CC) $^ -o $@ $(LDFLAGS)
+
 clean:
-	rm -f *.o *.dep $(targets)
+	rm -f *.o .deps/*.dep $(targets)
 
 ctags:
 	@ctags *.c *.h

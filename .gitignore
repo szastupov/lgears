@@ -1,0 +1,8 @@
+*.o
+.deps
+.gdb_history
+*.swp
+tags
+TAGS
+compiler
+vm

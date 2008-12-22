@@ -1,5 +1,6 @@
 #ifndef OPCODE_H
 #define OPCODE_H 
+#include <stdint.h>
 
 enum { LOAD_FAST, LOAD_CONST, LOAD_FUNC,
 	FUNC_CALL, LOAD_ENV,
@@ -23,5 +24,17 @@ const char* opcode_name(int code)
 	}
 	return "unknown";
 }
+
+struct func_hdr_s {
+	uint8_t argc;
+	uint32_t locals;
+	uint32_t stack_size;
+	uint32_t offset;
+	uint32_t op_count;
+} __attribute__((__packed__));
+
+#define HDR_OFFSET	4
+#define CODE_START_OFFSET(count) count*sizeof(hdr)+HDR_OFFSET
+#define FUN_SEEK(fd, id) lseek(fd, id*sizeof(hdr)+HDR_OFFSET, SEEK_SET)
 
 #endif /* OPCODE_H */

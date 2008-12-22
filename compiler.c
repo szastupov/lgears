@@ -1,3 +1,8 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <stdio.h>
 #include "ast.h"
 #include "btree.h"
@@ -254,7 +259,7 @@ static void compile(compiler_t *sc, ast_node_t *node)
 		switch (node->tag) {
 		case STRING:
 			{
-				printf("got string %s\n", node->data);
+//				printf("got string %s\n", node->data);
 				inter_const_t *cst = const_new(sc);
 				add_opcode(sc, LOAD_CONST, cst->id, 1);
 				//FIXME populate const
@@ -302,16 +307,56 @@ void dump_const(compiler_t *sc)
 	}
 }
 
+void assemble(compiler_t *sc)
+{
+	struct func_hdr_s hdr;
+	int code_offset = CODE_START_OFFSET(sc->functions.count);
+
+	int fd = creat("/tmp/assembly", S_IRWXU);
+
+	//Write functions count
+	uint32_t fun_count = sc->functions.count;
+	write(fd, &fun_count, HDR_OFFSET);
+
+	list_node_t *cur, *op_cur;
+	list_iter_forward(&sc->functions.list, cur) {
+		inter_func_t *func = container_of(cur, inter_func_t, next);
+
+		//Write function header
+		hdr.argc		= func->argc;
+		hdr.locals		= func->locals;
+		hdr.stack_size	= func->stack_size;
+		hdr.op_count	= func->op_count;
+		hdr.offset		= code_offset;
+		FUN_SEEK(fd, func->id);
+		write(fd, &hdr, sizeof(hdr));
+
+		//Write function opcode
+		lseek(fd, code_offset, SEEK_SET);
+		list_iter_forward(&func->opcodes, op_cur) {
+			inter_opcode_t *code = container_of(op_cur, inter_opcode_t, next);
+			char bcode[2];
+			bcode[0] = code->code;
+			bcode[1] = code->arg;
+			write(fd, bcode, 2);
+		}
+
+		code_offset += hdr.op_count*2;
+	}
+
+	close(fd);
+}
+
 int main()
 {
-	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") \"bcd\"))");
+	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") (lambda () (x \"bcd\"))))");
 	list_node_t *cur;
 	compiler_t sc;
 	memset(&sc, 0, sizeof(sc));
 	list_iter_forward(head, cur) {
 		compile(&sc, AST_NODE(cur));
 	}
-	dump_comp(&sc);
-	dump_const(&sc);
+	assemble(&sc);
+//	dump_comp(&sc);
 	return 0;
 }

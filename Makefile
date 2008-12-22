@@ -1,6 +1,6 @@
-CFLAGS=-Wall -pipe -ggdb
+CFLAGS=-Wall -ggdb
 
-compiler_obj = compiler.o string_util.o tokenizer.o btree.o memory.o ast.o
+compiler_obj = compiler.o string_util.o tokenizer.o btree.o ast.o
 vm_obj = vm.o
 targets = compiler vm
 

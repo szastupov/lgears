@@ -1,4 +1,5 @@
 # vim: syntax=make:
+CFLAGS +=-pipe
 all: $(targets)
 
 .deps/%.dep: %.c

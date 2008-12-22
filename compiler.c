@@ -349,7 +349,7 @@ void assemble(compiler_t *sc)
 
 int main()
 {
-	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") (lambda () (x \"bcd\"))))");
+	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") \"sdfsdf\")");
 	list_node_t *cur;
 	compiler_t sc;
 	memset(&sc, 0, sizeof(sc));

@@ -21,5 +21,6 @@ typedef struct {
 	for (; n != NULL; n = AST_NEXT(n))
 
 list_t* parse_buf(const char *buf);
+void ast_node_free(ast_node_t *node);
 
 #endif /* AST_H */

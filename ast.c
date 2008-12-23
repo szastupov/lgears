@@ -58,6 +58,8 @@ static list_t* build_tree(token_stream_t *ts)
 			}
 		}
 	}
+	if (stack_head(&stack))
+		FATAL("Unclosed scope\n");
 	return head;
 }
 
@@ -74,4 +76,16 @@ list_t* parse_buf(const char *buf)
 	tokenizer_clear(&tz);
 
 	return res;
+}
+
+void ast_node_free(ast_node_t *node)
+{
+	if (node->data)
+		mem_free(node->data);
+
+	list_node_t *cur, *save;
+	list_for_each_safe(&node->childs, cur, save) {
+		ast_node_free(AST_NODE(cur));
+	}
+	mem_free(node);
 }

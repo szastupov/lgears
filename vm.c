@@ -43,13 +43,12 @@ module_t* module_load(const char *path)
 	fstat(fd, &sb);
 
 	/* Read 4 bytes with functions count */
-	uint32_t fun_count = 0;
-	read(fd, &fun_count, HDR_OFFSET);
-	printf("Total functions %d\n", fun_count);
+	struct module_hdr_s mhdr;
+	read(fd, &mhdr, MODULE_HDR_OFFSET);
 	/* Allocate fucntions storage */
-	mod->functions = mem_calloc(fun_count, sizeof(func_t));
+	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 
-	int code_offset = CODE_START_OFFSET(fun_count);
+	int code_offset = CODE_START_OFFSET(mhdr.fun_count);
 	int code_size = sb.st_size - code_offset;
 	/* Allocate code storage and read opcode */
 	mod->code = malloc(code_size);
@@ -58,24 +57,15 @@ module_t* module_load(const char *path)
 
 	int count;
 	struct func_hdr_s hdr;
-	lseek(fd, HDR_OFFSET, SEEK_SET);
-	for (count = 0; count < fun_count; count++) {
+	lseek(fd, MODULE_HDR_OFFSET, SEEK_SET);
+	for (count = 0; count < mhdr.fun_count; count++) {
 		read(fd, &hdr, FUN_HDR_SIZE);
-		printf("Function %d, argc %d, locals %d, stack_size %d, offset %d, op_count %d\n",
-				count, hdr.argc, hdr.locals, hdr.stack_size, hdr.offset, hdr.op_count);
-
 		func_t *func	= &mod->functions[count];
 		func->stack_size	= hdr.stack_size;
 		func->locals	= hdr.locals;
 		func->argc		= hdr.argc;
 		func->op_count	= hdr.op_count;
 		func->opcode	= mod->code + hdr.offset;
-
-		int i;
-		for (i = 0; i < hdr.op_count; i++) {
-			char *bcode = func->opcode + i*2;
-			printf("%d\t%s : %d\n", i, opcode_name(bcode[0]), bcode[1]);
-		}
 	}
 
 	close(fd);

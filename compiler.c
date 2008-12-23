@@ -54,7 +54,7 @@ static inter_func_t* get_func_by_id(compiler_t *sc, int id)
 		FATAL("Function index out of range\n");
 	int i = 0;
 	list_node_t *cur;
-	list_iter_forward(&sc->functions.list, cur) {
+	list_for_each(&sc->functions.list, cur) {
 		if (i == id)
 			break;
 		i++;
@@ -276,7 +276,7 @@ void dump_opcode(inter_func_t *func)
 {
 	printf("\tOpcode:\n");
 	list_node_t *cur;
-	list_iter_forward(&func->opcodes, cur) {
+	list_for_each(&func->opcodes, cur) {
 		inter_opcode_t *code = container_of(cur, inter_opcode_t, next);
 		printf("%d\t%s : %d\n", code->idx, opcode_name(code->code), code->arg);
 	}
@@ -286,7 +286,7 @@ void dump_comp(compiler_t *sc)
 {
 	printf("\nFunctions count: %d\n", sc->functions.count);
 	list_node_t *cur;
-	list_iter_forward(&sc->functions.list, cur) {
+	list_for_each(&sc->functions.list, cur) {
 		inter_func_t *func = container_of(cur, inter_func_t, next);
 		printf("\nFunction %d {\n", func->id);
 		printf("\targc: %d\n", func->argc);
@@ -301,7 +301,7 @@ void dump_const(compiler_t *sc)
 {
 	printf("\nConsts count: %d\n", sc->consts.count);
 	list_node_t *cur;
-	list_iter_forward(&sc->consts.list, cur) {
+	list_for_each(&sc->consts.list, cur) {
 		inter_const_t *cst = container_of(cur, inter_const_t, next);
 		printf("Const %d %s\n", cst->id, cst->data);
 	}
@@ -309,18 +309,20 @@ void dump_const(compiler_t *sc)
 
 void assemble(compiler_t *sc)
 {
-	struct func_hdr_s hdr;
 	int start_offset	= CODE_START_OFFSET(sc->functions.count);
 	int code_offset		= 0;
+	struct module_hdr_s mhdr;
 
 	int fd = creat("/tmp/assembly", S_IRWXU);
 
 	//Write functions count
-	uint32_t fun_count = sc->functions.count;
-	write(fd, &fun_count, HDR_OFFSET);
+	mhdr.fun_count = sc->functions.count;
+	mhdr.entry_point = 0;
+	write(fd, &mhdr, MODULE_HDR_OFFSET);
 
+	struct func_hdr_s hdr;
 	list_node_t *cur, *op_cur;
-	list_iter_forward(&sc->functions.list, cur) {
+	list_for_each(&sc->functions.list, cur) {
 		inter_func_t *func = container_of(cur, inter_func_t, next);
 
 		//Write function header
@@ -334,7 +336,7 @@ void assemble(compiler_t *sc)
 
 		//Write function opcode
 		lseek(fd, code_offset+start_offset, SEEK_SET);
-		list_iter_forward(&func->opcodes, op_cur) {
+		list_for_each(&func->opcodes, op_cur) {
 			inter_opcode_t *code = container_of(op_cur, inter_opcode_t, next);
 			char bcode[2];
 			bcode[0] = code->code;
@@ -350,14 +352,17 @@ void assemble(compiler_t *sc)
 
 int main()
 {
-	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") \"sdfsdf\")");
-	list_node_t *cur;
+	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") \"sdfsdf\"))");
+	list_node_t *cur, *save;
 	compiler_t sc;
 	memset(&sc, 0, sizeof(sc));
-	list_iter_forward(head, cur) {
+	list_for_each_safe(head, cur, save) {
 		compile(&sc, AST_NODE(cur));
+		ast_node_free(AST_NODE(cur));
 	}
+	mem_free(head);
+
 	assemble(&sc);
-//	dump_comp(&sc);
+	dump_comp(&sc);
 	return 0;
 }

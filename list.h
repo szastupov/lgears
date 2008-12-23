@@ -29,11 +29,14 @@ static inline void list_append(list_t *lst,
 		list_head(lst) = new;
 }
 
-#define list_iter_forward(lst, cur)	\
+#define list_for_each(lst, cur)	\
 	for (cur = list_head(lst); cur != NULL; cur = (cur)->next)
 
-#define node_iter_forward(cur)	\
-	for (; cur; cur = cur->next)
+#define node_next(n) (n ? (n)->next : NULL)
+
+#define list_for_each_safe(lst, cur, save)				\
+	for (cur = list_head(lst), save = node_next(cur);	\
+			cur != NULL; cur = save, save = node_next(cur))
 
 typedef list_t stack_t;
 

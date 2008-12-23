@@ -33,9 +33,14 @@ struct func_hdr_s {
 	uint32_t op_count;
 } __attribute__((__packed__));
 
-#define HDR_OFFSET	4
+struct module_hdr_s {
+	uint32_t fun_count;
+	uint32_t entry_point;
+} __attribute__((__packed__));
+
+#define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)
 #define FUN_HDR_SIZE sizeof(struct func_hdr_s)
-#define CODE_START_OFFSET(count) count * FUN_HDR_SIZE + HDR_OFFSET
-#define FUN_SEEK(fd, id) lseek(fd, id * FUN_HDR_SIZE + HDR_OFFSET, SEEK_SET)
+#define CODE_START_OFFSET(count) count * FUN_HDR_SIZE + MODULE_HDR_OFFSET
+#define FUN_SEEK(fd, id) lseek(fd, id * FUN_HDR_SIZE + MODULE_HDR_OFFSET, SEEK_SET)
 
 #endif /* OPCODE_H */

@@ -34,7 +34,8 @@ struct func_hdr_s {
 } __attribute__((__packed__));
 
 #define HDR_OFFSET	4
-#define CODE_START_OFFSET(count) count*sizeof(hdr)+HDR_OFFSET
-#define FUN_SEEK(fd, id) lseek(fd, id*sizeof(hdr)+HDR_OFFSET, SEEK_SET)
+#define FUN_HDR_SIZE sizeof(struct func_hdr_s)
+#define CODE_START_OFFSET(count) count * FUN_HDR_SIZE + HDR_OFFSET
+#define FUN_SEEK(fd, id) lseek(fd, id * FUN_HDR_SIZE + HDR_OFFSET, SEEK_SET)
 
 #endif /* OPCODE_H */

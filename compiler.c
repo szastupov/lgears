@@ -310,7 +310,8 @@ void dump_const(compiler_t *sc)
 void assemble(compiler_t *sc)
 {
 	struct func_hdr_s hdr;
-	int code_offset = CODE_START_OFFSET(sc->functions.count);
+	int start_offset	= CODE_START_OFFSET(sc->functions.count);
+	int code_offset		= 0;
 
 	int fd = creat("/tmp/assembly", S_IRWXU);
 
@@ -329,10 +330,10 @@ void assemble(compiler_t *sc)
 		hdr.op_count	= func->op_count;
 		hdr.offset		= code_offset;
 		FUN_SEEK(fd, func->id);
-		write(fd, &hdr, sizeof(hdr));
+		write(fd, &hdr, FUN_HDR_SIZE);
 
 		//Write function opcode
-		lseek(fd, code_offset, SEEK_SET);
+		lseek(fd, code_offset+start_offset, SEEK_SET);
 		list_iter_forward(&func->opcodes, op_cur) {
 			inter_opcode_t *code = container_of(op_cur, inter_opcode_t, next);
 			char bcode[2];

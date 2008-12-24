@@ -272,12 +272,32 @@ static void compile(compiler_t *sc, ast_node_t *node)
 	}
 }
 
+void compiler_clear(compiler_t *sc)
+{
+	list_node_t *cur, *save;
+	list_for_each_safe(&sc->functions.list, cur, save) {
+		inter_func_t *func = container_of(cur, inter_func_t, next);
+
+		list_node_t *op_save;
+		list_for_each_safe(&func->opcodes, cur, op_save) {
+			inter_opcode_t *code = container_of(cur, inter_opcode_t, next);
+			free(code);
+		}
+
+		free(func);
+	}
+
+	list_for_each_safe(&sc->consts.list, cur, save) {
+		inter_const_t *cst = container_of(cur, inter_const_t, next);
+		free(cst);
+	}
+}
+
 void dump_opcode(inter_func_t *func)
 {
 	printf("\tOpcode:\n");
-	list_node_t *cur;
-	list_for_each(&func->opcodes, cur) {
-		inter_opcode_t *code = container_of(cur, inter_opcode_t, next);
+	inter_opcode_t *code;
+	list_for_each_entry(&func->opcodes, code, next) {
 		printf("%d\t%s : %d\n", code->idx, opcode_name(code->code), code->arg);
 	}
 }
@@ -285,9 +305,8 @@ void dump_opcode(inter_func_t *func)
 void dump_comp(compiler_t *sc)
 {
 	printf("\nFunctions count: %d\n", sc->functions.count);
-	list_node_t *cur;
-	list_for_each(&sc->functions.list, cur) {
-		inter_func_t *func = container_of(cur, inter_func_t, next);
+	inter_func_t *func;
+	list_for_each_entry(&sc->functions.list, func, next) {
 		printf("\nFunction %d {\n", func->id);
 		printf("\targc: %d\n", func->argc);
 		printf("\tlocals: %d\n", func->locals);
@@ -300,9 +319,8 @@ void dump_comp(compiler_t *sc)
 void dump_const(compiler_t *sc)
 {
 	printf("\nConsts count: %d\n", sc->consts.count);
-	list_node_t *cur;
-	list_for_each(&sc->consts.list, cur) {
-		inter_const_t *cst = container_of(cur, inter_const_t, next);
+	inter_const_t *cst;
+	list_for_each_entry(&sc->consts.list, cst, next) {
 		printf("Const %d %s\n", cst->id, cst->data);
 	}
 }
@@ -321,9 +339,8 @@ void assemble(compiler_t *sc)
 	write(fd, &mhdr, MODULE_HDR_OFFSET);
 
 	struct func_hdr_s hdr;
-	list_node_t *cur, *op_cur;
-	list_for_each(&sc->functions.list, cur) {
-		inter_func_t *func = container_of(cur, inter_func_t, next);
+	inter_func_t *func;
+	list_for_each_entry(&sc->functions.list, func, next) {
 
 		//Write function header
 		hdr.argc		= func->argc;
@@ -336,8 +353,8 @@ void assemble(compiler_t *sc)
 
 		//Write function opcode
 		lseek(fd, code_offset+start_offset, SEEK_SET);
-		list_for_each(&func->opcodes, op_cur) {
-			inter_opcode_t *code = container_of(op_cur, inter_opcode_t, next);
+		inter_opcode_t *code;
+		list_for_each_entry(&func->opcodes, code, next) {
 			char bcode[2];
 			bcode[0] = code->code;
 			bcode[1] = code->arg;
@@ -364,5 +381,6 @@ int main()
 
 	assemble(&sc);
 	dump_comp(&sc);
+	compiler_clear(&sc);
 	return 0;
 }

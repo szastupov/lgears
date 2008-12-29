@@ -16,28 +16,28 @@ typedef struct {
 	int locals;			/**< Size of local memory */
 	int id;				/**< Function id (index in func table)*/
 	int op_count;		/**< Count of operations */
-} inter_func_t;
+} sc_func_t;
 
 typedef struct {
 	list_node_t next;	/**< Next opcode */
 	int idx;			/**< Index relative to function */
 	int code;			/**< id of code */
 	int arg;			/**< argument */
-} inter_opcode_t;
+} sc_opcode_t;
 
 typedef struct {
 	list_node_t next;	/**< Next constant */
 	int id;				/**< Constant id in table */
 	int type;
 	char *data;
-} inter_const_t;
+} sc_const_t;
 
-typedef struct env_s {
-	struct env_s *parent;	/**< Pointer on parent env */
+typedef struct sc_env_s {
+	struct sc_env_s *parent;	/**< Pointer on parent env */
 	tree_node_t	*tbl;		/**< symbol table */
-	inter_func_t *func;		/**< function of current env */
-	inter_func_t *top;		/**< top function */
-} env_t;
+	sc_func_t *func;		/**< function of current env */
+	sc_func_t *top;		/**< top function */
+} sc_env_t;
 
 typedef struct {
 	int count;
@@ -51,7 +51,7 @@ typedef struct {
 }
 
 typedef struct {
-	env_t *env_stack;
+	sc_env_t *sc_env_stack;
 	area_table functions;
 	area_table consts;
 } compiler_t;

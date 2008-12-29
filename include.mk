@@ -1,4 +1,3 @@
-# vim: syntax=make:
 CFLAGS +=-pipe
 
 .PHONY: clean echo-deps ctags all
@@ -11,7 +10,7 @@ all: $(targets)
 		$(CC) -M $(CFLAGS) $< > $@; \
 		sed -i 's,\($*\)\.o[ :]*,\1.o $@ : ,g' $@;
 
-deps = $(foreach o,$(targets:=_obj),$($(o):%.o=.deps/%.dep))
+deps := $(foreach o,$(targets:=_obj),$($(o):%.o=.deps/%.dep))
 -include $(deps)
 
 define target_template

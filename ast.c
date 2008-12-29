@@ -41,9 +41,8 @@ static list_t* build_tree(token_stream_t *ts)
 		case SCOPE_CLOSE:
 			if (stack_head(&stack))
 				stack_pop(&stack);
-			else {
+			else
 				FATAL("Unexpected scope close\n");
-			}
 			break;
 		default:
 			if (stack_head(&stack))
@@ -53,9 +52,8 @@ static list_t* build_tree(token_stream_t *ts)
 				if (ts->res)
 					node->data = strdup(ts->res);
 				add_child(node);
-			} else {
+			} else
 				FATAL("Symbols not in scope\n");
-			}
 		}
 	}
 	if (stack_head(&stack))

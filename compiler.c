@@ -11,11 +11,11 @@
 
 #define MAX(a,b) (a > b) ? a : b
 
-inter_opcode_t* add_opcode(compiler_t *sc,
+static sc_opcode_t* add_opcode(compiler_t *sc,
 		int opcode, int arg, int stack_use)
 {
-	inter_func_t *func = sc->env_stack->func;
-	inter_opcode_t *code = type_alloc(inter_opcode_t);
+	sc_func_t *func = sc->sc_env_stack->func;
+	sc_opcode_t *code = type_alloc(sc_opcode_t);
 	code->code = opcode;
 	code->arg = arg;
 	code->idx = func->op_count;
@@ -27,28 +27,28 @@ inter_opcode_t* add_opcode(compiler_t *sc,
 	return code;
 }
 
-int next_opcode_idx(compiler_t *sc)
+static int next_opcode_idx(compiler_t *sc)
 {
-	return sc->env_stack->func->op_count;
+	return sc->sc_env_stack->func->op_count;
 }
 
-static inter_func_t* function_new(compiler_t *sc)
+static sc_func_t* function_new(compiler_t *sc)
 {
-	inter_func_t *func = type_alloc(inter_func_t);
+	sc_func_t *func = type_alloc(sc_func_t);
 	AREA_APPEND(sc->functions, func);
 
 	return func;
 }
 
-static inter_const_t* const_new(compiler_t *sc)
+static sc_const_t* const_new(compiler_t *sc)
 {
-	inter_const_t *cst = type_alloc(inter_const_t);
+	sc_const_t *cst = type_alloc(sc_const_t);
 	AREA_APPEND(sc->consts, cst);
 
 	return cst;
 }
 
-static inter_func_t* get_func_by_id(compiler_t *sc, int id)
+static sc_func_t* get_func_by_id(compiler_t *sc, int id)
 {
 	if (id >= sc->functions.count)
 		FATAL("Function index out of range\n");
@@ -60,37 +60,37 @@ static inter_func_t* get_func_by_id(compiler_t *sc, int id)
 		i++;
 	}
 
-	return container_of(cur, inter_func_t, next);
+	return container_of(cur, sc_func_t, next);
 }
 
-static env_t* env_new(env_t *parent)
+static sc_env_t* sc_env_new(sc_env_t *parent)
 {
-	env_t *env	= type_alloc(env_t);
+	sc_env_t *env	= type_alloc(sc_env_t);
 	env->tbl	= NULL;
 	env->parent	= parent;
 
 	return env;
 }
 
-static void env_free(env_t *env)
+static void sc_env_free(sc_env_t *env)
 {
 	tree_free(env->tbl);
 	mem_free(env);
 }
 
-static void env_stack_push(compiler_t *sc)
+static void sc_env_stack_push(compiler_t *sc)
 {
-	sc->env_stack = env_new(sc->env_stack);
+	sc->sc_env_stack = sc_env_new(sc->sc_env_stack);
 }
 
-static void env_stack_pop(compiler_t *sc)
+static void sc_env_stack_pop(compiler_t *sc)
 {
-	env_t *tmp = sc->env_stack;
-	sc->env_stack = tmp->parent;
-	env_free(tmp);
+	sc_env_t *tmp = sc->sc_env_stack;
+	sc->sc_env_stack = tmp->parent;
+	sc_env_free(tmp);
 }
 
-static void env_define(env_t *env, const char *name,
+static void sc_env_define(sc_env_t *env, const char *name,
 		int type, int idx)
 {
 	load_t *load = type_alloc(load_t);
@@ -101,7 +101,7 @@ static void env_define(env_t *env, const char *name,
 	tree_node_insert(&env->tbl, &load->node);
 }
 
-load_t *env_lookup(env_t *env, const char *arg)
+static load_t *sc_env_lookup(sc_env_t *env, const char *arg)
 {
 	if (!env)
 		return NULL;
@@ -111,7 +111,7 @@ load_t *env_lookup(env_t *env, const char *arg)
 		return container_of(node, load_t, node);
 	}
 
-	return env_lookup(env->parent, arg);
+	return sc_env_lookup(env->parent, arg);
 }
 
 /*
@@ -122,25 +122,25 @@ load_t *env_lookup(env_t *env, const char *arg)
 static int compile_func(compiler_t *sc,
 		ast_node_t *args, ast_node_t *body)
 {
-	inter_func_t *func = function_new(sc);
-	inter_func_t *top = NULL;
+	sc_func_t *func = function_new(sc);
+	sc_func_t *top = NULL;
 	int closure = 0;
 
-	if (sc->env_stack) {
+	if (sc->sc_env_stack) {
 		closure = 1;	//We are a closure
-		top = sc->env_stack->top;
+		top = sc->sc_env_stack->top;
 	} else
 		top = func; //We are a top function
 
-	env_stack_push(sc);
-	sc->env_stack->func = func;
-	sc->env_stack->top = top;
+	sc_env_stack_push(sc);
+	sc->sc_env_stack->func = func;
+	sc->sc_env_stack->top = top;
 
 	if (closure)
 		add_opcode(sc, LOAD_ENV, NO_ARG, 0);
 
 	ast_iter_forward(args) {
-		env_define(sc->env_stack, args->data,
+		sc_env_define(sc->sc_env_stack, args->data,
 				LOAD_FAST, top->locals);
 		func->argc++;
 		top->locals++;
@@ -150,7 +150,7 @@ static int compile_func(compiler_t *sc,
 		compile(sc, body);
 
 	add_opcode(sc, RETURN, NO_ARG, 0);
-	env_stack_pop(sc);
+	sc_env_stack_pop(sc);
 
 	return func->id;
 }
@@ -159,7 +159,7 @@ static load_t* compile_named(compiler_t *sc, ast_node_t *node)
 {
 	if (!node->data)
 		FATAL("empty node\n");
-	load_t *lc = env_lookup(sc->env_stack, node->data);
+	load_t *lc = sc_env_lookup(sc->sc_env_stack, node->data);
 
 	if (!lc)
 		FATAL("variable `%s' not found", node->data);
@@ -190,7 +190,7 @@ static void compile_call(compiler_t *sc, ast_node_t *node)
 	 * If the function is local then we can validate it here
 	 */
 	if (load->type == LOAD_FUNC) {
-		inter_func_t *func = get_func_by_id(sc, load->idx);
+		sc_func_t *func = get_func_by_id(sc, load->idx);
 		if (func->argc != argc)
 			FATAL("function `%s' require %d arguments, but %d are passed\n",
 					node->data, func->argc, argc);
@@ -201,7 +201,7 @@ static void compile_call(compiler_t *sc, ast_node_t *node)
 
 static void compile_if(compiler_t *sc, ast_node_t *node)
 {
-	inter_opcode_t *if_code, *finish_code;
+	sc_opcode_t *if_code, *finish_code;
 
 	/* compile predicate */
 	compile(sc, node);
@@ -240,7 +240,7 @@ static void compile(compiler_t *sc, ast_node_t *node)
 			node = AST_NEXT(node);
 			if (AST_CHILD(node)) {
 				int idx = compile_func(sc, AST_NEXT(AST_CHILD(node)), AST_NEXT(node));
-				env_define(sc->env_stack,
+				sc_env_define(sc->sc_env_stack,
 						AST_CHILD(node)->data, LOAD_FUNC, idx);
 			} else
 				FATAL("fixme, i can't define non functions\n");
@@ -260,7 +260,7 @@ static void compile(compiler_t *sc, ast_node_t *node)
 		case STRING:
 			{
 //				printf("got string %s\n", node->data);
-				inter_const_t *cst = const_new(sc);
+				sc_const_t *cst = const_new(sc);
 				add_opcode(sc, LOAD_CONST, cst->id, 1);
 				//FIXME populate const
 			}
@@ -272,15 +272,15 @@ static void compile(compiler_t *sc, ast_node_t *node)
 	}
 }
 
-void compiler_clear(compiler_t *sc)
+static void compiler_clear(compiler_t *sc)
 {
 	list_node_t *cur, *save;
 	list_for_each_safe(&sc->functions.list, cur, save) {
-		inter_func_t *func = container_of(cur, inter_func_t, next);
+		sc_func_t *func = container_of(cur, sc_func_t, next);
 
 		list_node_t *op_save;
 		list_for_each_safe(&func->opcodes, cur, op_save) {
-			inter_opcode_t *code = container_of(cur, inter_opcode_t, next);
+			sc_opcode_t *code = container_of(cur, sc_opcode_t, next);
 			free(code);
 		}
 
@@ -288,15 +288,15 @@ void compiler_clear(compiler_t *sc)
 	}
 
 	list_for_each_safe(&sc->consts.list, cur, save) {
-		inter_const_t *cst = container_of(cur, inter_const_t, next);
+		sc_const_t *cst = container_of(cur, sc_const_t, next);
 		free(cst);
 	}
 }
 
-void dump_opcode(inter_func_t *func)
+void dump_opcode(sc_func_t *func)
 {
 	printf("\tOpcode:\n");
-	inter_opcode_t *code;
+	sc_opcode_t *code;
 	list_for_each_entry(&func->opcodes, code, next) {
 		printf("%d\t%s : %d\n", code->idx, opcode_name(code->code), code->arg);
 	}
@@ -305,7 +305,7 @@ void dump_opcode(inter_func_t *func)
 void dump_comp(compiler_t *sc)
 {
 	printf("\nFunctions count: %d\n", sc->functions.count);
-	inter_func_t *func;
+	sc_func_t *func;
 	list_for_each_entry(&sc->functions.list, func, next) {
 		printf("\nFunction %d {\n", func->id);
 		printf("\targc: %d\n", func->argc);
@@ -319,7 +319,7 @@ void dump_comp(compiler_t *sc)
 void dump_const(compiler_t *sc)
 {
 	printf("\nConsts count: %d\n", sc->consts.count);
-	inter_const_t *cst;
+	sc_const_t *cst;
 	list_for_each_entry(&sc->consts.list, cst, next) {
 		printf("Const %d %s\n", cst->id, cst->data);
 	}
@@ -333,13 +333,13 @@ void assemble(compiler_t *sc)
 
 	int fd = creat("/tmp/assembly", S_IRWXU);
 
-	//Write functions count
+	//Write main module header
 	mhdr.fun_count = sc->functions.count;
 	mhdr.entry_point = 0;
 	write(fd, &mhdr, MODULE_HDR_OFFSET);
 
 	struct func_hdr_s hdr;
-	inter_func_t *func;
+	sc_func_t *func;
 	list_for_each_entry(&sc->functions.list, func, next) {
 
 		//Write function header
@@ -353,7 +353,7 @@ void assemble(compiler_t *sc)
 
 		//Write function opcode
 		lseek(fd, code_offset+start_offset, SEEK_SET);
-		inter_opcode_t *code;
+		sc_opcode_t *code;
 		list_for_each_entry(&func->opcodes, code, next) {
 			char bcode[2];
 			bcode[0] = code->code;

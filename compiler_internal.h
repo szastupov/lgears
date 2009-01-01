@@ -1,5 +1,7 @@
 #ifndef COMPILER_INTERNAL_H
 #define COMPILER_INTERNAL_H 
+#include "btree.h"
+#include "ast.h"
 
 typedef struct {
 	tree_node_t node;
@@ -56,6 +58,20 @@ typedef struct {
 	area_table consts;
 } compiler_t;
 
-static void compile(compiler_t *sc, ast_node_t *node);
+sc_opcode_t* add_opcode(compiler_t *sc,
+		int opcode, int arg, int stack_use);
+
+int next_opcode_idx(compiler_t *sc);
+sc_func_t* function_new(compiler_t *sc);
+sc_const_t* const_new(compiler_t *sc);
+sc_func_t* get_func_by_id(compiler_t *sc, int id);
+
+sc_env_t* sc_env_new(sc_env_t *parent);
+void sc_env_free(sc_env_t *env);
+void sc_env_stack_push(compiler_t *sc);
+void sc_env_stack_pop(compiler_t *sc);
+void sc_env_define(sc_env_t *env, const char *name,
+		int type, int idx);
+load_t *sc_env_lookup(sc_env_t *env, const char *arg);
 
 #endif /* COMPILER_INTERNAL_H */

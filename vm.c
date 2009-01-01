@@ -45,7 +45,7 @@ module_t* module_load(const char *path)
 	/* Read 4 bytes with functions count */
 	struct module_hdr_s mhdr;
 	read(fd, &mhdr, MODULE_HDR_OFFSET);
-	/* Allocate fucntions storage */
+	/* Allocate functions storage */
 	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 
 	int code_offset = CODE_START_OFFSET(mhdr.fun_count);

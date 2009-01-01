@@ -27,7 +27,7 @@ echo-deps:
 	@echo $(deps)
 
 clean:
-	rm -f $(all_objs) .deps/*.dep $(targets) gmon.out
+	rm -f $(all_objs) $(deps) $(targets) gmon.out
 
 ctags:
 	@ctags *.c *.h

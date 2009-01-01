@@ -10,6 +10,8 @@ const pattern_descr_t pat_table[] = {
 	{ "export",		EXPORT },
 	{ "\"",			STRING, TOKEN_INCLUSIVE|TOKEN_COPY },
 	{ "if",			IF_STMT },
+	{ "and",		AND_STMT },
+	{ "or",			OR_STMT },
 	{ NULL }
 };
 
@@ -58,6 +60,7 @@ static list_t* build_tree(token_stream_t *ts)
 	}
 	if (stack_head(&stack))
 		FATAL("Unclosed scope\n");
+
 	return head;
 }
 

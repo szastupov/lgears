@@ -3,7 +3,9 @@
 #include "list.h"
 
 enum { SCOPE_OPEN, SCOPE_CLOSE, DEFINATION,
-	LAMBDA, STRING, NUMBER, LIBRARY, EXPORT, IF_STMT };
+	LAMBDA, STRING, NUMBER, LIBRARY, EXPORT, IF_STMT,
+	AND_STMT, OR_STMT
+};
 
 typedef struct {
 	list_node_t node;
@@ -17,8 +19,7 @@ typedef struct {
 #define AST_NEXT(n)		AST_NODE((n)->node.next)
 #define AST_SECOND(n)	AST_NODE((n)->node.next->next)
 
-#define ast_iter_forward(n) \
-	for (; n != NULL; n = AST_NEXT(n))
+#define ast_iter_forward(n) for (; n != NULL; n = AST_NEXT(n))
 
 list_t* parse_buf(const char *buf);
 void ast_node_free(ast_node_t *node);

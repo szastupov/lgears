@@ -40,9 +40,11 @@ static inline void list_prepend(list_t *lst,
 #define list_for_each(lst, cur)	\
 	for (cur = list_head(lst); cur != NULL; cur = (cur)->next)
 
+#define list_entry(ptr, type, member) ((ptr != NULL) ? container_of(ptr, type, member) : NULL)
+
 #define list_for_each_entry(lst, iter, member)							\
 	for (iter = container_of(list_head(lst), typeof(*iter), member);	\
-			&iter->member != NULL; iter = container_of((iter)->member.next, typeof(*iter), member))
+			iter != NULL; iter = list_entry((iter)->member.next, typeof(*iter), member))
 
 #define node_next(n) (n ? (n)->next : NULL)
 
@@ -74,8 +76,10 @@ static inline void stack_pop(stack_t *stack)
 	stack_head(stack) = next;
 }
 
+#define stack_cast(node) list_entry(node, stack_itm_t, lst)
+
 #define stack_head_ptr(stack)	\
-	container_of(stack_head(stack), stack_itm_t, lst)->ptr;
+	stack_cast(stack_head(stack))->ptr;
 
 #define stack_head_itm(stack, type)	\
 	(type*)stack_head_ptr(stack)

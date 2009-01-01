@@ -221,6 +221,29 @@ static void compile_if(compiler_t *sc, ast_node_t *node)
 	finish_code->arg = next_opcode_idx(sc);
 }
 
+static void compile_and_or(compiler_t *sc, ast_node_t *node, int code)
+{
+	stack_t tmp;
+	memset(&tmp, 0, sizeof(stack_t));
+	sc_opcode_t *opcode = NULL;
+
+	ast_iter_forward(node) {
+		compile(sc, node);
+		opcode = add_opcode(sc, code, NO_ARG, -1);
+		stack_push(&tmp, opcode);
+	}
+
+	int finish = next_opcode_idx(sc);
+
+	list_node_t *cur, *save;
+	list_for_each_safe(&tmp, cur, save) {
+		stack_itm_t *itm = stack_cast(cur);
+		opcode = itm->ptr;
+		opcode->arg = finish;
+		mem_free(itm);
+	}
+}
+
 /*
  * Main compile dispatcher
  */
@@ -247,8 +270,15 @@ static void compile(compiler_t *sc, ast_node_t *node)
 			break;
 
 		case IF_STMT:
-			node = AST_NEXT(node);
-			compile_if(sc, node);
+			compile_if(sc, AST_NEXT(node));
+			break;
+
+		case AND_STMT:
+			compile_and_or(sc, AST_NEXT(node), JUMP_IF_FALSE);
+			break;
+
+		case OR_STMT:
+			compile_and_or(sc, AST_NEXT(node), JUMP_IF_TRUE);
 			break;
 
 		default:
@@ -369,7 +399,8 @@ void assemble(compiler_t *sc)
 
 int main()
 {
-	list_t *head = parse_buf("(lambda (x y) (if (x) (y \"a\") \"sdfsdf\"))");
+//	list_t *head = parse_buf("(lambda (x y z c) (if (and x y) (y \"a\") \"sdfsdf\"))");
+	list_t *head = parse_buf("(lambda (a b c d) (and a b c d))");
 	list_node_t *cur, *save;
 	compiler_t sc;
 	memset(&sc, 0, sizeof(sc));

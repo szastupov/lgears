@@ -2,9 +2,11 @@
 #define OPCODE_H 
 #include <stdint.h>
 
-enum { LOAD_FAST, LOAD_CONST, LOAD_FUNC,
+enum {
+	LOAD_FAST, LOAD_CONST, LOAD_FUNC,
 	FUNC_CALL, LOAD_ENV,
-	JUMP_IF_FALSE, JUMP_TO, RETURN };
+	JUMP_IF_FALSE, JUMP_IF_TRUE, JUMP_TO, RETURN,
+};
 
 #define NO_ARG -1
 
@@ -19,6 +21,7 @@ const char* opcode_name(int code)
 		OP_CASE(FUNC_CALL);
 		OP_CASE(LOAD_ENV);
 		OP_CASE(JUMP_IF_FALSE);
+		OP_CASE(JUMP_IF_TRUE);
 		OP_CASE(JUMP_TO);
 		OP_CASE(RETURN);
 	}

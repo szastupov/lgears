@@ -2,9 +2,10 @@
 #define AST_H 
 #include "list.h"
 
-enum { SCOPE_OPEN, SCOPE_CLOSE, DEFINATION,
+enum {
+	SCOPE_OPEN, SCOPE_CLOSE, DEFINATION,
 	LAMBDA, STRING, NUMBER, LIBRARY, EXPORT, IF_STMT,
-	AND_STMT, OR_STMT
+	AND_STMT, OR_STMT, NOT_OP
 };
 
 typedef struct {

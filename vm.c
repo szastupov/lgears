@@ -7,6 +7,7 @@
 
 #include "memory.h"
 #include "opcode.h"
+#include "types.h"
 
 typedef struct {
 	int stack_size;
@@ -21,11 +22,9 @@ typedef struct {
 	func_t *functions;
 } module_t;
 
-typedef void* obj_t;
-
 typedef struct {
-	obj_t *locals;
 	void **opstack;
+	obj_t *locals;
 	int op_stack_idx;
 	int cmd_counter;
 	func_t *code;

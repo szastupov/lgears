@@ -130,8 +130,10 @@ static void compile_and_or(compiler_t *sc, ast_node_t *node, int code)
 	/* Compile body */
 	ast_iter_forward(node) {
 		compile(sc, node);
-		opcode = add_opcode(sc, code, NO_ARG, -1);
-		stack_push(&tmp, opcode);
+		if (AST_NEXT(node)) {
+			opcode = add_opcode(sc, code, NO_ARG, -1);
+			stack_push(&tmp, opcode);
+		}
 	}
 
 	int finish = next_opcode_idx(sc);
@@ -181,6 +183,11 @@ static void compile(compiler_t *sc, ast_node_t *node)
 
 		case OR_STMT:
 			compile_and_or(sc, AST_NEXT(node), JUMP_IF_TRUE);
+			break;
+
+		case NOT_OP:
+			compile(sc, AST_NEXT(node));
+			add_opcode(sc, UNARY_NOT, NO_ARG, 1);
 			break;
 
 		default:

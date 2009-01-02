@@ -3,9 +3,16 @@
 #include <stdint.h>
 
 enum {
-	LOAD_FAST, LOAD_CONST, LOAD_FUNC,
-	FUNC_CALL, LOAD_ENV,
-	JUMP_IF_FALSE, JUMP_IF_TRUE, JUMP_TO, RETURN,
+	LOAD_FAST,	/**< Load object local to frame */
+	LOAD_CONST,	/**< Load object from constant area */
+	LOAD_FUNC,	/**< Load object from functions table */
+	FUNC_CALL,	/**< Call func */
+	LOAD_ENV,	/**< Load env */
+	JUMP_IF_FALSE,	/**< Jump to code on false */
+	JUMP_IF_TRUE,	/**< Jump to code on true */
+	JUMP_TO,		/**< Non-conditional jump */
+	RETURN,			/**< Return from frame */
+	UNARY_NOT,		/**< Unary not */
 };
 
 #define NO_ARG -1
@@ -24,6 +31,7 @@ const char* opcode_name(int code)
 		OP_CASE(JUMP_IF_TRUE);
 		OP_CASE(JUMP_TO);
 		OP_CASE(RETURN);
+		OP_CASE(UNARY_NOT);
 	}
 	return "unknown";
 }

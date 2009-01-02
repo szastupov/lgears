@@ -12,6 +12,7 @@ const pattern_descr_t pat_table[] = {
 	{ "if",			IF_STMT },
 	{ "and",		AND_STMT },
 	{ "or",			OR_STMT },
+	{ "not",		NOT_OP },
 	{ NULL }
 };
 

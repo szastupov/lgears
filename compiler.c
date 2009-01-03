@@ -71,7 +71,7 @@ static void compile_call(compiler_t *sc, ast_node_t *node)
 	 * We need to check passed arguments at compile and run time.
 	 * Compile time: check only if we know that the function came from a func area
 	 * Run time: pass counted argc to a function call, if mismatch - throw exception
-	 * run time check may guarantee that function will not cirrupt the stack
+	 * run time check may guarantee that function will not corrupt the stack
 	 */
 	int argc = 0;
 	ast_node_t *arg = AST_NEXT(node);
@@ -91,7 +91,7 @@ static void compile_call(compiler_t *sc, ast_node_t *node)
 					node->data, func->argc, argc);
 	}
 
-	add_opcode(sc,	FUNC_CALL, argc, -argc);
+	add_opcode(sc,	FUNC_CALL, argc, -argc+1);
 }
 
 static void compile_if(compiler_t *sc, ast_node_t *node)
@@ -100,7 +100,7 @@ static void compile_if(compiler_t *sc, ast_node_t *node)
 
 	/* compile predicate */
 	compile(sc, node);
-	if_code = add_opcode(sc, JUMP_IF_FALSE, NO_ARG, -1);
+	if_code = add_opcode(sc, JUMP_IF_FALSE, NO_ARG, 0);
 
 	/* compile if-clause */
 	compile(sc, AST_NEXT(node));
@@ -131,7 +131,7 @@ static void compile_and_or(compiler_t *sc, ast_node_t *node, int code)
 	ast_iter_forward(node) {
 		compile(sc, node);
 		if (AST_NEXT(node)) {
-			opcode = add_opcode(sc, code, NO_ARG, -1);
+			opcode = add_opcode(sc, code, NO_ARG, 0);
 			stack_push(&tmp, opcode);
 		}
 	}
@@ -159,8 +159,18 @@ static void compile(compiler_t *sc, ast_node_t *node)
 		node = AST_CHILD(node);
 		switch (node->tag) {
 		case LAMBDA:
-			node = AST_NEXT(node);
-			compile_func(sc, AST_CHILD(node), AST_NEXT(node));
+			{
+				node = AST_NEXT(node);
+				int idx = compile_func(sc, AST_CHILD(node), AST_NEXT(node));
+				if (sc->sc_env_stack)
+					add_opcode(sc, LOAD_FUNC, idx, 1);
+			}
+			break;
+
+		case SCOPE_OPEN:
+			compile(sc, node);
+			compile(sc, AST_NEXT(node));
+//			compile_call(sc, AST_NEXT(node));
 			break;
 
 		case DEFINATION:
@@ -187,7 +197,7 @@ static void compile(compiler_t *sc, ast_node_t *node)
 
 		case NOT_OP:
 			compile(sc, AST_NEXT(node));
-			add_opcode(sc, UNARY_NOT, NO_ARG, 1);
+			add_opcode(sc, UNARY_NOT, NO_ARG, 0);
 			break;
 
 		default:
@@ -308,8 +318,9 @@ void assemble(compiler_t *sc)
 
 int main()
 {
-//	list_t *head = parse_buf("(lambda (x y z c) (if (and x y) (y \"a\") \"sdfsdf\"))");
-	list_t *head = parse_buf("(lambda (a b c d) (if (and a b c d) a))");
+//	list_t *head = parse_buf("(lambda (a b c d) (if (not (and a b c d)) a))");
+//	list_t *head = parse_buf("(lambda (a) (lambda () a))");
+	list_t *head = parse_buf("((lambda (a) (a)) (lambda ()))");
 	list_node_t *cur, *save;
 	compiler_t sc;
 	memset(&sc, 0, sizeof(sc));

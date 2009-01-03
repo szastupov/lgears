@@ -7,6 +7,7 @@
  */
 
 typedef void* obj_t;
+#define OBJ_CAST(o) (*(obj_t*)o)
 
 #define TAG_SIZE	3
 #define MAX_LONG	__WORDSIZE-TAG_SIZE
@@ -37,6 +38,16 @@ DEFINE_TYPE(func_ptr_t, long val:MAX_LONG);
 #define INIT_PTR(i, v) { (i)->tag = id_ptr; (i)->val = v; }
 #define INIT_INT(i, v) { (i)->tag = id_int; (i)->val = v; }
 #define INIT_CHAR(i, v) { (i)->tag = id_char; (i)->val = v; }
-#define INIT_FUNC_PTR(i, v) { (i)->tag = id_func_ptr; (i)->val = v; }
+#define INIT_FUNC_PTR(i, v) { (i)->tag = id_func_ptr; (i)->val = (long)v; }
+
+#define GET_FUNC(obj) (func_t*)(long)((func_ptr_t*)&obj)->val
+#define GET_INT(obj) ((int_t*)&obj)->val
+#define INT_CAST(obj) ((int_t*)obj)
+#define IS_FALSE(obj) (INT_CAST(obj)->tag == id_int && INT_CAST(obj)->val == 0)
+
+static inline int is_false(obj_t obj)
+{
+	return INT_CAST(&obj)->tag == id_int && GET_INT(obj) == 0;
+}
 
 #endif /* TYPES_H */

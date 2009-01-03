@@ -5,7 +5,7 @@ vm_obj = vm.o
 #lexer_obj = lexer.o
 targets = compiler vm# lexer
 
-#vm: CFLAGS += -pg
-#vm: LDFLAGS += -pg
+vm: CFLAGS += -pg
+vm: LDFLAGS += -pg
 
 include include.mk

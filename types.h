@@ -11,13 +11,14 @@ typedef union {
 	void *ptr;
 } obj_t;
 
-#define OBJ_CAST(o) (*(obj_t*)o)
-
 #define NUM_VAL_SIZE	__WORDSIZE-5
-typedef struct {
-	unsigned int tag:2;
-	unsigned int shift:3;
-	unsigned long val:NUM_VAL_SIZE;
+typedef union {
+	struct {
+		unsigned int tag:2;
+		unsigned int shift:3;
+		unsigned long val:NUM_VAL_SIZE;
+	};
+	void *ptr;
 } num_t;
 
 static long max_num = ((long)2 << (NUM_VAL_SIZE - 1)) - 1;
@@ -48,12 +49,11 @@ enum { id_ptr, id_int, id_char, id_func_ptr };
 #define INIT_CHAR(i, v) { (i)->tag = id_char; (i)->val = v; }
 #define INIT_FUNC_PTR(i, v) { (i)->tag = id_func_ptr; num_set(i, (long)v); }
 
-#define GET_FUNC(obj) (func_t*)(long)GET_INT(obj)
-#define GET_INT(obj) num_get((num_t*)&obj)
-
 static inline int is_false(obj_t obj)
 {
-	return obj.tag == id_int && GET_INT(obj) == 0;
+	num_t n;
+	n.ptr = obj.ptr;
+	return obj.tag == id_int && num_get(&n) == 0;
 }
 
 #endif /* TYPES_H */

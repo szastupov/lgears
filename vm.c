@@ -72,11 +72,11 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	int i;
 	for (i = 0; i < frame->func->argc; i++) {
 		num_t t;
-		INIT_INT(&t, 1);
-		frame->locals[i] = OBJ_CAST(&t);
+		INIT_INT(&t, i+2);
+		frame->locals[i].ptr = t.ptr;
 	}
 
-#define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++] = n
+#define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
 #define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
 #define STACK_POP() frame->opstack[--frame->op_stack_idx]
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
@@ -93,7 +93,7 @@ next_cmd:
 
 		switch (op_code) {
 		case LOAD_FAST:
-			STACK_PUSH(frame->locals[op_arg]);
+			STACK_PUSH(frame->locals[op_arg].ptr);
 			break;
 
 		case JUMP_IF_FALSE:
@@ -116,7 +116,7 @@ next_cmd:
 			if (is_false(STACK_POP())) {
 				num_t t;
 				INIT_INT(&t, 0);
-				STACK_PUSH(OBJ_CAST(&t));
+				STACK_PUSH(t.ptr);
 			}
 			break;
 
@@ -126,13 +126,15 @@ next_cmd:
 				printf("loaded func %p\n", func);
 				num_t fp;
 				INIT_FUNC_PTR(&fp, func);
-				STACK_PUSH(OBJ_CAST(&fp));
+				STACK_PUSH(fp.ptr);
 			}
 			break;
 
 		case FUNC_CALL:
 			{
-				func_t *func = GET_FUNC(STACK_POP());
+				num_t n;
+				n.ptr = STACK_POP().ptr;
+				func_t *func = (func_t*)(unsigned long)n.val;
 				if (func->argc != op_arg)
 					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 				frame = frame_create(func, frame);
@@ -147,11 +149,14 @@ next_cmd:
 				frame_t *parent = frame->prev;
 				frame_destroy(frame);
 				if (parent) {
-					STACK_PUSH_ON(parent, ret);
+					STACK_PUSH_ON(parent, ret.ptr);
 					frame = parent;
 				} else {
-//					printf("Result %p\n", ret);
-					printf("Result %p\n", (void*)(unsigned long)GET_INT(ret));
+					num_t n;
+					n.ptr = ret.ptr;
+					printf("Result %p\n", (void*)(unsigned long)n.val);
+//					printf("Result %ld\n", num_get(&n));
+//					printf("Result %p\n", ret.ptr);
 					return;
 				}
 			}
@@ -217,6 +222,7 @@ void module_free(module_t *module)
 
 int main()
 {
+	printf("SIzes num %ld, obj %ld\n", sizeof(num_t), sizeof(obj_t));
 	module_t *mod = module_load("/tmp/assembly");
 	vm_thread_t *thread = type_alloc(vm_thread_t);
 	eval_thread(thread, mod);

@@ -71,7 +71,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 	int i;
 	for (i = 0; i < frame->func->argc; i++) {
-		int_t t;
+		num_t t;
 		INIT_INT(&t, 1);
 		frame->locals[i] = OBJ_CAST(&t);
 	}
@@ -114,7 +114,7 @@ next_cmd:
 
 		case UNARY_NOT:
 			if (is_false(STACK_POP())) {
-				int_t t;
+				num_t t;
 				INIT_INT(&t, 0);
 				STACK_PUSH(OBJ_CAST(&t));
 			}
@@ -123,7 +123,8 @@ next_cmd:
 		case LOAD_FUNC:
 			{
 				func_t *func = load_func(module, op_arg);
-				func_ptr_t fp;
+				printf("loaded func %p\n", func);
+				num_t fp;
 				INIT_FUNC_PTR(&fp, func);
 				STACK_PUSH(OBJ_CAST(&fp));
 			}
@@ -149,7 +150,8 @@ next_cmd:
 					STACK_PUSH_ON(parent, ret);
 					frame = parent;
 				} else {
-					printf("Result %p\n", ret);
+//					printf("Result %p\n", ret);
+					printf("Result %p\n", (void*)(unsigned long)GET_INT(ret));
 					return;
 				}
 			}

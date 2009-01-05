@@ -8,6 +8,7 @@
 #include "memory.h"
 #include "opcode.h"
 #include "types.h"
+#include "heap.h"
 
 typedef struct {
 	int stack_size;
@@ -32,6 +33,12 @@ typedef struct frame_s {
 	int		step;
 	int		op_stack_idx;
 } frame_t;
+
+typedef struct {
+	frame_t *frame_stack;
+	heap_t heap;
+} vm_thread_t;
+
 
 func_t* load_func(module_t *module, int index)
 {
@@ -58,9 +65,29 @@ void frame_destroy(frame_t *frame)
 	mem_free(frame);
 }
 
-typedef struct {
-	frame_t *frame_stack;
-} vm_thread_t;
+unsigned long get_int(obj_t obj)
+{
+	num_t n;
+	n.ptr = obj.ptr;
+	return n.val;
+}
+
+void print_obj(obj_t obj)
+{
+	switch (obj.tag) {
+	case id_ptr:
+		printf("ptr: %p\n", (void*)get_int(obj));
+		break;
+	case id_int:
+		printf("int: %ld\n", get_int(obj));
+		break;
+	case id_func_ptr:
+		printf("func: %p\n", (void*)get_int(obj));
+		break;
+	default:
+		printf("unknown obj\n");
+	}
+}
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
@@ -72,7 +99,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	int i;
 	for (i = 0; i < frame->func->argc; i++) {
 		num_t t;
-		INIT_INT(&t, i+2);
+		INIT_INT(t, i+2);
 		frame->locals[i].ptr = t.ptr;
 	}
 
@@ -112,10 +139,15 @@ next_cmd:
 			}
 			break;
 
+		case JUMP_TO:
+			frame->step = op_arg;
+			printf("jumping to %d\n", op_arg);
+			goto next_cmd;
+
 		case UNARY_NOT:
 			if (is_false(STACK_POP())) {
 				num_t t;
-				INIT_INT(&t, 0);
+				INIT_INT(t, 0);
 				STACK_PUSH(t.ptr);
 			}
 			break;
@@ -126,6 +158,7 @@ next_cmd:
 				printf("loaded func %p\n", func);
 				num_t fp;
 				INIT_FUNC_PTR(&fp, func);
+//				INIT_FUNC_PTR(&fp, 1844674407370955161);
 				STACK_PUSH(fp.ptr);
 			}
 			break;
@@ -137,8 +170,14 @@ next_cmd:
 				func_t *func = (func_t*)(unsigned long)n.val;
 				if (func->argc != op_arg)
 					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-				frame = frame_create(func, frame);
-				thread->frame_stack = frame;
+				frame_t *new_frame = frame_create(func, frame);
+				thread->frame_stack = new_frame;
+
+				int i;
+				for (i = 0; i < func->argc; i++)
+					frame->locals[i].ptr = STACK_POP().ptr;
+				frame = new_frame;
+
 				goto next_cmd;
 			}
 			break;
@@ -152,11 +191,7 @@ next_cmd:
 					STACK_PUSH_ON(parent, ret.ptr);
 					frame = parent;
 				} else {
-					num_t n;
-					n.ptr = ret.ptr;
-					printf("Result %p\n", (void*)(unsigned long)n.val);
-//					printf("Result %ld\n", num_get(&n));
-//					printf("Result %p\n", ret.ptr);
+					print_obj(ret);
 					return;
 				}
 			}
@@ -220,13 +255,27 @@ void module_free(module_t *module)
 	free(module);
 }
 
+void vm_thread_init(vm_thread_t *thread)
+{
+	thread->frame_stack = NULL;
+	heap_init(&thread->heap);
+}
+
+void vm_thread_destroy(vm_thread_t *thread)
+{
+	heap_destroy(&thread->heap);
+}
+
 int main()
 {
 	printf("SIzes num %ld, obj %ld\n", sizeof(num_t), sizeof(obj_t));
 	module_t *mod = module_load("/tmp/assembly");
-	vm_thread_t *thread = type_alloc(vm_thread_t);
-	eval_thread(thread, mod);
+
+	vm_thread_t thread;
+	vm_thread_init(&thread);
+	eval_thread(&thread, mod);
+	vm_thread_destroy(&thread);
+
 	module_free(mod);
-	mem_free(thread);
 	return 0;
 }

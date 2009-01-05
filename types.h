@@ -1,59 +1,87 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-/**
- * @file types.h
- * @brief Primitive types defination
+/*
+ * Primitive types that fit in word size
  */
 
+/**
+ * @brief Base object
+ */
 typedef union {
-	unsigned int tag:2;
-	void *ptr;
+	unsigned int tag:2;	/**< Type tag */
+	void *ptr;			/**< Pointer for casting */
 } obj_t;
 
-#define NUM_VAL_SIZE	__WORDSIZE-5
+#define NUM_VAL_SIZE	__WORDSIZE-4
+/**
+ * @brief Basic numeric type
+ *
+ * Because we loose 2 bits for type tag,
+ * num_t contain shift bits
+ */
 typedef union {
 	struct {
-		unsigned int tag:2;
-		unsigned int shift:3;
-		unsigned long val:NUM_VAL_SIZE;
+		unsigned int tag:2;				/**< Type tag */
+		unsigned int shift:2;			/**< Shift bits */
+		unsigned long val:NUM_VAL_SIZE;	/**< Value */
 	};
-	void *ptr;
+	void *ptr;		/*< Pointer for casting */
 } num_t;
 
-static long max_num = ((long)2 << (NUM_VAL_SIZE - 1)) - 1;
+static const long max_num = ((long)2 << (NUM_VAL_SIZE - 1)) - 1;
 
-inline static void num_set(num_t *num, unsigned int val)
+/**
+ * @rief set value for num_t
+ *
+ * if val does not more that max_num - we shift it
+ */
+inline static void num_set(num_t *num, unsigned long val)
 {
 	num->shift = 0;
 	if (val >= max_num) {
-		int i;
-		for (i = 1; i <= 6; i++) {
-			val >>= 1;
-			if (val <= max_num) {
-				num->shift = i;
+		for (num->shift = 1; num->shift <= 3; 
+				num->shift++)
+		{
+			val >>= 2;
+			if (val <= max_num)
 				break;
-			}
 		}
 		printf("set with shift %d\n", num->shift);
-		printf("reduced to %lu\n", (unsigned long)num->val);
 	}
 	num->val = val;
+	if (num->shift)
+		printf("reduced to %lu\n", (unsigned long)num->val);
 }
 
-#define num_get(num) ((num)->val << (num)->shift)
+/**
+ * @brief Get numeric value
+ */
+#define num_get(num) (unsigned long)(num.shift ? num.val << ((num).shift*2) : num.val)
 
-enum { id_ptr, id_int, id_char, id_func_ptr };
+/**
+ * @brief Basic type ids
+ */
+enum {
+	id_ptr,		/**< Pointer on a heap-allocated object */
+	id_int,		/**< Integer */
+	id_char,	/**< Character */
+	id_func_ptr	/**< Function pointer */
+};
 
-#define INIT_INT(i, v) { (i)->tag = id_int; num_set(i, v); }
+#define INIT_INT(i, v) { i.tag = id_int; num_set(&i, v); }
 #define INIT_CHAR(i, v) { (i)->tag = id_char; (i)->val = v; }
-#define INIT_FUNC_PTR(i, v) { (i)->tag = id_func_ptr; num_set(i, (long)v); }
+#define INIT_FUNC_PTR(i, v) { (i)->tag = id_func_ptr; num_set(i, (unsigned long)v); }
 
 static inline int is_false(obj_t obj)
 {
 	num_t n;
 	n.ptr = obj.ptr;
-	return obj.tag == id_int && num_get(&n) == 0;
+	return obj.tag == id_int && num_get(n) == 0;
 }
+
+/*
+ * For heap types see heap.h
+ */
 
 #endif /* TYPES_H */

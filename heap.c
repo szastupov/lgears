@@ -1,21 +1,10 @@
-#include "memory.h"
 #include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
+#include "memory.h"
+#include "heap.h"
 
-typedef struct {
-	void *page;
-	void *pos;
-	int page_size;
-	int blocks;
-} fresh_heap_t;
-
-typedef struct {
-	short reached:1;
-	short size:15;
-} block_hdr_t;
-
-void fresh_heap_init(fresh_heap_t *heap)
+static void copy_heap_init(copy_heap_t *heap)
 {
 	heap->page_size = sysconf(_SC_PAGE_SIZE);
 	heap->page = mmap(NULL, heap->page_size,
@@ -27,7 +16,12 @@ void fresh_heap_init(fresh_heap_t *heap)
 	heap->blocks = 0;
 }
 
-void* fresh_heap_alloc(fresh_heap_t *heap, size_t size)
+static void copy_heap_destroy(copy_heap_t *heap)
+{
+	munmap(heap->page, heap->page_size);
+}
+
+static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 {
 	block_hdr_t *hdr = heap->pos;
 	hdr->reached = 0;
@@ -41,30 +35,88 @@ void* fresh_heap_alloc(fresh_heap_t *heap, size_t size)
 	return res;
 }
 
-void fresh_heap_traverse(fresh_heap_t *heap)
+static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 {
-	int i;
-	void *p = heap->page;
-	for (i = 0; i < heap->blocks; i++) {
-		block_hdr_t *hdr = p;
-		p += sizeof(*hdr);
-		printf("Block %d, reached %d, size %d, memory %p\n",
-				i, hdr->reached, hdr->size, p);
-		p += hdr->size;
-	}
+	void *res = heap->pos;
+	memcpy(res, p, size);
+	heap->pos += size;
+	heap->blocks++;
+	return res;
 }
 
+static void copy_heap_clear(copy_heap_t *heap)
+{
+	heap->pos = heap->page;
+	heap->blocks = 0;
+}
+
+void heap_init(heap_t *heap)
+{
+	heap->from = &heap->heaps[0];
+	heap->to = &heap->heaps[1];
+	copy_heap_init(heap->from);
+	copy_heap_init(heap->to);
+}
+
+void heap_destroy(heap_t *heap)
+{
+	copy_heap_destroy(heap->from);
+	copy_heap_destroy(heap->to);
+}
+
+void heap_swap(heap_t *heap)
+{
+	copy_heap_clear(heap->from);
+	copy_heap_t *tmp = heap->from;
+	heap->from = heap->to;
+	heap->to = tmp;
+}
+
+void* heap_alloc(heap_t *heap, int size)
+{
+	return copy_heap_alloc(heap->from, size);
+}
+
+void heap_mark(heap_t *heap, obj_t *obj)
+{
+	if (obj->tag != id_ptr)
+		return;
+	num_t num;
+	num.ptr = obj->ptr;
+
+	void *p = (void*)(unsigned long)num_get(num);
+	p -= sizeof(block_hdr_t);
+	block_hdr_t *hdr = p;
+	hdr->reached = 1;
+
+	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+sizeof(block_hdr_t));
+	num_set(&num, (unsigned long)new_pos);
+	obj->ptr = num.ptr;
+}
+
+#if 0
 int main()
 {
-	/*
-	fresh_heap_t heap;
-	fresh_heap_init(&heap);
-`
-	int i;
-	for (i = 0; i < 30; i++)
-		printf("%p\n", fresh_heap_alloc(&heap, 4+i));
+	heap_t heap;
+	heap_init(&heap);
 
-	fresh_heap_traverse(&heap);
-	*/
+	int i;
+	num_t n;
+	for (i = 0; i < 30; i++) {
+		void *p = heap_alloc(&heap, 4+i);
+		num_set(&n, (unsigned long)p);
+		printf("%p\n", p);
+	}
+	obj_t obj;
+	obj.ptr = n.ptr;
+	printf("Was %p\n", (void*)num_get(n));
+	heap_mark(&heap, &obj);
+	n.ptr = obj.ptr;
+	printf("Become %p\n", (void*)num_get(n));
+	heap_swap(&heap);
+
+	heap_destroy(&heap);
+
 	return 0;
 }
+#endif

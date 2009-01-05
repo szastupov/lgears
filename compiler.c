@@ -65,8 +65,6 @@ static load_t* compile_named(compiler_t *sc, ast_node_t *node)
 
 static void compile_call(compiler_t *sc, ast_node_t *node)
 {
-	load_t *load = compile_named(sc, node);
-
 	/*
 	 * We need to check passed arguments at compile and run time.
 	 * Compile time: check only if we know that the function came from a func area
@@ -80,6 +78,8 @@ static void compile_call(compiler_t *sc, ast_node_t *node)
 		compile(sc, arg);
 		argc++;
 	}
+
+	load_t *load = compile_named(sc, node);
 
 	/*
 	 * If the function is local then we can validate it here
@@ -319,6 +319,7 @@ void assemble(compiler_t *sc)
 int main()
 {
 //	list_t *head = parse_buf("(lambda (a b c d) (if (not (and a b c d)) a))");
+//	list_t *head = parse_buf("(lambda (a b) (if a a b))");
 	list_t *head = parse_buf("(lambda (a) (lambda () a))");
 //	list_t *head = parse_buf("((lambda (a) (a)) (lambda ()))");
 	list_node_t *cur, *save;

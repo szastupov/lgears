@@ -11,11 +11,11 @@
 #endif
 #define align_up(s)	(((s)+balign) & ~balign)
 
-#define BHDR_ZIZE sizeof(block_hdr_t)
+#define BHDR_SIZE sizeof(block_hdr_t)
 
 static void copy_heap_reset(copy_heap_t *heap)
 {
-	int pad = align_up(BHDR_ZIZE)-BHDR_ZIZE;
+	int pad = align_up(BHDR_SIZE)-BHDR_SIZE;
 	heap->pos = heap->page + pad;
 	heap->free_mem = heap->page_size - pad;
 	heap->blocks = 0;
@@ -37,23 +37,38 @@ static void copy_heap_destroy(copy_heap_t *heap)
 	munmap(heap->page, heap->page_size);
 }
 
+/*
+ * All pointers should be aligned by wordsize
+ * Assume that pos is always aligned address - BHDR_SIZE
+ */
 static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 {
-	size_t need = align_up(size+BHDR_ZIZE);
-	if (need > heap->free_mem) {
-		printf("out of free mem on heap (need %ld)\n", need);
+	size_t minimal = size+BHDR_SIZE;
+	if (minimal > heap->free_mem) {
+		printf("out of free mem on heap (need %ld)\n", minimal);
 		return NULL;
 	}
 
+	size_t required = align_up(minimal)-BHDR_SIZE;
+
 	block_hdr_t *hdr = heap->pos;
 	hdr->reached = 0;
-	hdr->size = size;
-	heap->pos += sizeof(block_hdr_t);
+	heap->pos += BHDR_SIZE;
+	heap->free_mem -= BHDR_SIZE;
+	/*
+	 * Align size to required if we have enaught memory
+	 */
+	if (required <= heap->free_mem) {
+		hdr->size = required;
+		heap->free_mem -= required;
+	} else {
+		hdr->size = size;
+		heap->free_mem = 0;
+	}
 	void *res = heap->pos;
 
-	heap->pos += need-BHDR_ZIZE;
+	heap->pos += hdr->size;
 	heap->blocks++;
-	heap->free_mem -= need;
 
 	return res;
 }
@@ -99,11 +114,25 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	void *p = ptr_get(&ptr);
 	p -= sizeof(block_hdr_t);
 	block_hdr_t *hdr = p;
+
+	if (hdr->reached)
+		return;
 	hdr->reached = 1;
 
+	/*
+	 * Copy object to second heap and update pointer
+	 */
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+sizeof(block_hdr_t));
 	ptr_set(&ptr, (unsigned long)new_pos);
 	obj->ptr = ptr.ptr;
+
+	/*
+	 * If type provide visit function - call it
+	 */
+	heap_obj_hdr_t *ohdr = new_pos;
+	void *object = new_pos+sizeof(heap_obj_hdr_t);
+	if (ohdr->type->visit)
+		ohdr->type->visit(visitor, object);
 }
 
 void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)

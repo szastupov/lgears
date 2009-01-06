@@ -309,8 +309,8 @@ int main()
 	eval_thread(&thread, mod);
 
 	int i;
-	for (i = 0; i < 20; i++) {
-		printf("%p\n", heap_alloc(&thread.heap, 500));
+	for (i = 0; i < 30; i++) {
+		printf("%p\n", heap_alloc(&thread.heap, 502));
 	}
 
 	vm_thread_destroy(&thread);

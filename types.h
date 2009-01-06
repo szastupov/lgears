@@ -82,4 +82,8 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
+typedef struct {
+	type_t *type;
+} heap_obj_hdr_t;
+
 #endif /* TYPES_H */

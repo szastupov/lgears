@@ -65,24 +65,21 @@ void frame_destroy(frame_t *frame)
 	mem_free(frame);
 }
 
-unsigned long get_int(obj_t obj)
+void* ptr_from_obj(obj_t obj)
 {
-	num_t n;
-	n.ptr = obj.ptr;
-	return n.val;
+	ptr_t p;
+	p.ptr = obj.ptr;
+	return ptr_get(&p);
 }
 
 void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
 	case id_ptr:
-		printf("ptr: %p\n", (void*)get_int(obj));
-		break;
-	case id_int:
-		printf("int: %ld\n", get_int(obj));
+		printf("ptr: %p\n", ptr_from_obj(obj));
 		break;
 	case id_func_ptr:
-		printf("func: %p\n", (void*)get_int(obj));
+		printf("func: %p\n", ptr_from_obj(obj));
 		break;
 	default:
 		printf("unknown obj\n");
@@ -96,19 +93,12 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			thread->frame_stack);
 	frame_t *frame = thread->frame_stack;
 
-	int i;
-	for (i = 0; i < frame->func->argc; i++) {
-		num_t t;
-		INIT_INT(t, i+2);
-		frame->locals[i].ptr = t.ptr;
-	}
-
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
 #define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
 #define STACK_POP() frame->opstack[--frame->op_stack_idx]
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
 
-	register int op_code, op_arg;
+	int op_code, op_arg;
 	char *code;
 	while (frame->step < frame->func->op_count) {
 next_cmd:
@@ -146,28 +136,28 @@ next_cmd:
 
 		case UNARY_NOT:
 			if (is_false(STACK_POP())) {
-				num_t t;
-				INIT_INT(t, 0);
-				STACK_PUSH(t.ptr);
+				fixnum_t n;
+				fixnum_init(n, 0);
+				STACK_PUSH(n.ptr);
 			}
 			break;
 
 		case LOAD_FUNC:
 			{
-				func_t *func = load_func(module, op_arg);
+//				func_t *func = load_func(module, op_arg);
+				func_t *func = (void*)0x1999999999999990;
 				printf("loaded func %p\n", func);
-				num_t fp;
-				INIT_FUNC_PTR(&fp, func);
-//				INIT_FUNC_PTR(&fp, 1844674407370955161);
+				ptr_t fp;
+				init_func_ptr(fp, func);
 				STACK_PUSH(fp.ptr);
 			}
 			break;
 
 		case FUNC_CALL:
 			{
-				num_t n;
-				n.ptr = STACK_POP().ptr;
-				func_t *func = (func_t*)(unsigned long)n.val;
+				ptr_t fp;
+				fp.ptr = STACK_POP().ptr;
+				func_t *func = ptr_get(&fp);
 				if (func->argc != op_arg)
 					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 				frame_t *new_frame = frame_create(func, frame);
@@ -268,14 +258,19 @@ void vm_thread_destroy(vm_thread_t *thread)
 
 int main()
 {
-	printf("SIzes num %ld, obj %ld\n", sizeof(num_t), sizeof(obj_t));
 	module_t *mod = module_load("/tmp/assembly");
 
 	vm_thread_t thread;
 	vm_thread_init(&thread);
-	eval_thread(&thread, mod);
-	vm_thread_destroy(&thread);
 
+	eval_thread(&thread, mod);
+
+	int i;
+	for (i = 0; i < 10; i++) {
+		printf("%p\n", heap_alloc(&thread.heap, 16));
+	}
+
+	vm_thread_destroy(&thread);
 	module_free(mod);
 	return 0;
 }

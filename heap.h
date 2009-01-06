@@ -19,6 +19,7 @@ typedef struct {
 } copy_heap_t;
 
 typedef struct {
+	visitor_t visitor;
 	copy_heap_t heaps[2];
 	copy_heap_t *from, *to;
 } heap_t;
@@ -27,12 +28,5 @@ void heap_init(heap_t *heap);
 void heap_destroy(heap_t *heap);
 void* heap_alloc(heap_t *heap, int size);
 void heap_swap(heap_t *heap);
-void heap_mark(heap_t *heap, obj_t *obj);
-
-typedef struct {
-	const char *name;
-	void (*destructor)(void*);
-	void (*visit)(heap_t*, void*);
-} heap_type_t;
 
 #endif /* HEAP_H */

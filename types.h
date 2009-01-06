@@ -9,55 +9,9 @@
  * @brief Base object
  */
 typedef union {
-	unsigned int tag:2;	/**< Type tag */
+	unsigned int tag:3;	/**< Type tag */
 	void *ptr;			/**< Pointer for casting */
 } obj_t;
-
-#define NUM_VAL_SIZE	__WORDSIZE-4
-/**
- * @brief Basic numeric type
- *
- * Because we loose 2 bits for type tag,
- * num_t contain shift bits
- */
-typedef union {
-	struct {
-		unsigned int tag:2;				/**< Type tag */
-		unsigned int shift:2;			/**< Shift bits */
-		unsigned long val:NUM_VAL_SIZE;	/**< Value */
-	};
-	void *ptr;		/*< Pointer for casting */
-} num_t;
-
-static const long max_num = ((long)2 << (NUM_VAL_SIZE - 1)) - 1;
-
-/**
- * @rief set value for num_t
- *
- * if val does not more that max_num - we shift it
- */
-inline static void num_set(num_t *num, unsigned long val)
-{
-	num->shift = 0;
-	if (val >= max_num) {
-		for (num->shift = 1; num->shift <= 3; 
-				num->shift++)
-		{
-			val >>= 2;
-			if (val <= max_num)
-				break;
-		}
-		printf("set with shift %d\n", num->shift);
-	}
-	num->val = val;
-	if (num->shift)
-		printf("reduced to %lu\n", (unsigned long)num->val);
-}
-
-/**
- * @brief Get numeric value
- */
-#define num_get(num) (unsigned long)(num.shift ? num.val << ((num).shift*2) : num.val)
 
 /**
  * @brief Basic type ids
@@ -69,19 +23,57 @@ enum {
 	id_func_ptr	/**< Function pointer */
 };
 
-#define INIT_INT(i, v) { i.tag = id_int; num_set(&i, v); }
-#define INIT_CHAR(i, v) { (i)->tag = id_char; (i)->val = v; }
-#define INIT_FUNC_PTR(i, v) { (i)->tag = id_func_ptr; num_set(i, (unsigned long)v); }
+typedef union {
+	struct {
+		unsigned tag:3;
+		unsigned long addr:__WORDSIZE-3;
+	};
+	void *ptr;
+} ptr_t;
+
+#define ptr_set(p,a) (p)->addr = (unsigned long)a >> 3
+#define ptr_get(p) (void*)(unsigned long)((p)->addr << 3)
+#define ptr_init(p, a) { (p)->tag = id_ptr; ptr_set(p, a); }
+#define init_func_ptr(i, v) { (i).tag = id_func_ptr; ptr_set(&i, v); }
+
+typedef union {
+	struct {
+		unsigned tag:3;
+#if __WORDSIZE == 64
+		int val;
+#else
+		short val;
+#endif
+	};
+	void *ptr;
+} fixnum_t;
+
+#define fixnum_init(n,v) { (n).tag = id_int; (n).val = v; }
+
+typedef union {
+	struct {
+		unsigned tag:3;
+		char c;
+	};
+	void *ptr;
+} char_t;
 
 static inline int is_false(obj_t obj)
 {
-	num_t n;
+	fixnum_t n;
 	n.ptr = obj.ptr;
-	return obj.tag == id_int && num_get(n) == 0;
+	return obj.tag == id_int && n.val == 0;
 }
 
-/*
- * For heap types see heap.h
- */
+typedef struct visitor_s {
+	void (*visit)(struct visitor_s*, obj_t*);
+	void *user_data;
+} visitor_t;
+
+typedef struct {
+	const char *name;
+	void (*destructor)(void*);
+	void (*visit)(visitor_t*, void*);
+} type_t;
 
 #endif /* TYPES_H */

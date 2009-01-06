@@ -50,20 +50,6 @@ static void copy_heap_clear(copy_heap_t *heap)
 	heap->blocks = 0;
 }
 
-void heap_init(heap_t *heap)
-{
-	heap->from = &heap->heaps[0];
-	heap->to = &heap->heaps[1];
-	copy_heap_init(heap->from);
-	copy_heap_init(heap->to);
-}
-
-void heap_destroy(heap_t *heap)
-{
-	copy_heap_destroy(heap->from);
-	copy_heap_destroy(heap->to);
-}
-
 void heap_swap(heap_t *heap)
 {
 	copy_heap_clear(heap->from);
@@ -77,46 +63,39 @@ void* heap_alloc(heap_t *heap, int size)
 	return copy_heap_alloc(heap->from, size);
 }
 
-void heap_mark(heap_t *heap, obj_t *obj)
+static void heap_mark(visitor_t *visitor, obj_t *obj)
 {
+	heap_t *heap = visitor->user_data;
+
 	if (obj->tag != id_ptr)
 		return;
-	num_t num;
-	num.ptr = obj->ptr;
 
-	void *p = (void*)(unsigned long)num_get(num);
+	ptr_t ptr;
+	ptr.ptr = obj->ptr;
+
+	void *p = ptr_get(&ptr);
 	p -= sizeof(block_hdr_t);
 	block_hdr_t *hdr = p;
 	hdr->reached = 1;
 
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+sizeof(block_hdr_t));
-	num_set(&num, (unsigned long)new_pos);
-	obj->ptr = num.ptr;
+	ptr_set(&ptr, (unsigned long)new_pos);
+	obj->ptr = ptr.ptr;
 }
 
-#if 0
-int main()
+void heap_init(heap_t *heap)
 {
-	heap_t heap;
-	heap_init(&heap);
+	heap->from = &heap->heaps[0];
+	heap->to = &heap->heaps[1];
+	copy_heap_init(heap->from);
+	copy_heap_init(heap->to);
 
-	int i;
-	num_t n;
-	for (i = 0; i < 30; i++) {
-		void *p = heap_alloc(&heap, 4+i);
-		num_set(&n, (unsigned long)p);
-		printf("%p\n", p);
-	}
-	obj_t obj;
-	obj.ptr = n.ptr;
-	printf("Was %p\n", (void*)num_get(n));
-	heap_mark(&heap, &obj);
-	n.ptr = obj.ptr;
-	printf("Become %p\n", (void*)num_get(n));
-	heap_swap(&heap);
-
-	heap_destroy(&heap);
-
-	return 0;
+	heap->visitor.visit = heap_mark;
+	heap->visitor.user_data = heap;
 }
-#endif
+
+void heap_destroy(heap_t *heap)
+{
+	copy_heap_destroy(heap->from);
+	copy_heap_destroy(heap->to);
+}

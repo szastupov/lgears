@@ -13,6 +13,14 @@
 
 #define BHDR_ZIZE sizeof(block_hdr_t)
 
+static void copy_heap_reset(copy_heap_t *heap)
+{
+	int pad = align_up(BHDR_ZIZE)-BHDR_ZIZE;
+	heap->pos = heap->page + pad;
+	heap->free_mem = heap->page_size - pad;
+	heap->blocks = 0;
+}
+
 static void copy_heap_init(copy_heap_t *heap)
 {
 	heap->page_size = sysconf(_SC_PAGE_SIZE);
@@ -21,11 +29,7 @@ static void copy_heap_init(copy_heap_t *heap)
 	if (heap->page == MAP_FAILED)
 		FATAL("failed to mmap page: %s\n", strerror(errno));
 
-	/*
-	 * Set pos in order to return an aligned pointer
-	 */
-	heap->pos = heap->page + align_up(BHDR_ZIZE)-BHDR_ZIZE;
-	heap->blocks = 0;
+	copy_heap_reset(heap);
 }
 
 static void copy_heap_destroy(copy_heap_t *heap)
@@ -35,16 +39,21 @@ static void copy_heap_destroy(copy_heap_t *heap)
 
 static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 {
+	size_t need = align_up(size+BHDR_ZIZE);
+	if (need > heap->free_mem) {
+		printf("out of free mem on heap (need %ld)\n", need);
+		return NULL;
+	}
+
 	block_hdr_t *hdr = heap->pos;
 	hdr->reached = 0;
 	hdr->size = size;
 	heap->pos += sizeof(block_hdr_t);
 	void *res = heap->pos;
 
-	size_t move = align_up(size+BHDR_ZIZE)-BHDR_ZIZE;
-
-	heap->pos += move;
+	heap->pos += need-BHDR_ZIZE;
 	heap->blocks++;
+	heap->free_mem -= need;
 
 	return res;
 }
@@ -58,15 +67,9 @@ static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 	return res;
 }
 
-static void copy_heap_clear(copy_heap_t *heap)
-{
-	heap->pos = heap->page;
-	heap->blocks = 0;
-}
-
 void heap_swap(heap_t *heap)
 {
-	copy_heap_clear(heap->from);
+	copy_heap_reset(heap->from);
 	copy_heap_t *tmp = heap->from;
 	heap->from = heap->to;
 	heap->to = tmp;
@@ -74,7 +77,13 @@ void heap_swap(heap_t *heap)
 
 void* heap_alloc(heap_t *heap, int size)
 {
-	return copy_heap_alloc(heap->from, size);
+	void *res = copy_heap_alloc(heap->from, size);
+	if (!res) {
+		heap->vm_inspect(&heap->visitor, heap->vm);
+		heap_swap(heap);
+		res = copy_heap_alloc(heap->from, size);
+	}
+	return res;
 }
 
 static void heap_mark(visitor_t *visitor, obj_t *obj)
@@ -97,7 +106,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	obj->ptr = ptr.ptr;
 }
 
-void heap_init(heap_t *heap)
+void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
 {
 	heap->from = &heap->heaps[0];
 	heap->to = &heap->heaps[1];
@@ -106,6 +115,8 @@ void heap_init(heap_t *heap)
 
 	heap->visitor.visit = heap_mark;
 	heap->visitor.user_data = heap;
+	heap->vm_inspect = vm_inspect;
+	heap->vm = vm;
 }
 
 void heap_destroy(heap_t *heap)

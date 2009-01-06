@@ -72,11 +72,31 @@ void* ptr_from_obj(obj_t obj)
 	return ptr_get(&p);
 }
 
+int fixnum_from_obj(obj_t obj)
+{
+	fixnum_t f;
+	f.ptr = obj.ptr;
+	return f.val;
+}
+
+char char_from_obj(obj_t obj)
+{
+	char_t c;
+	c.ptr = obj.ptr;
+	return c.c;
+}
+
 void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
 	case id_ptr:
 		printf("ptr: %p\n", ptr_from_obj(obj));
+		break;
+	case id_fixnum:
+		printf("fixnum: %d\n", fixnum_from_obj(obj));
+		break;
+	case id_char:
+		printf("char: %c\n", char_from_obj(obj));
 		break;
 	case id_func_ptr:
 		printf("func: %p\n", ptr_from_obj(obj));
@@ -92,6 +112,14 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			load_func(module, module->entry_point),
 			thread->frame_stack);
 	frame_t *frame = thread->frame_stack;
+
+
+	int i;
+	for (i = 0; i < frame->func->locals; i++) {
+		fixnum_t n;
+		fixnum_init(n, i);
+		frame->locals[i].ptr = n.ptr;
+	}
 
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
 #define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
@@ -144,8 +172,8 @@ next_cmd:
 
 		case LOAD_FUNC:
 			{
-//				func_t *func = load_func(module, op_arg);
-				func_t *func = (void*)0x1999999999999990;
+				func_t *func = load_func(module, op_arg);
+//				func_t *func = (void*)0x7f21e4cf0008;
 				printf("loaded func %p\n", func);
 				ptr_t fp;
 				init_func_ptr(fp, func);
@@ -176,6 +204,7 @@ next_cmd:
 			{
 				obj_t ret = STACK_POP();
 				frame_t *parent = frame->prev;
+				thread->frame_stack = parent;
 				frame_destroy(frame);
 				if (parent) {
 					STACK_PUSH_ON(parent, ret.ptr);
@@ -245,10 +274,24 @@ void module_free(module_t *module)
 	free(module);
 }
 
+static void vm_inspect(visitor_t *visitor, void *self)
+{
+	vm_thread_t *thread = self;
+
+	frame_t *cur_frame = thread->frame_stack;
+	while (cur_frame) {
+		int i;
+		for (i = 0; i < cur_frame->func->locals; i++)
+			visitor->visit(visitor, &cur_frame->locals[i]);
+		for (i = 0; i < cur_frame->op_stack_idx; i++)
+			visitor->visit(visitor, &cur_frame->opstack[i]);
+	}
+}
+
 void vm_thread_init(vm_thread_t *thread)
 {
 	thread->frame_stack = NULL;
-	heap_init(&thread->heap);
+	heap_init(&thread->heap, vm_inspect, thread);
 }
 
 void vm_thread_destroy(vm_thread_t *thread)
@@ -266,8 +309,8 @@ int main()
 	eval_thread(&thread, mod);
 
 	int i;
-	for (i = 0; i < 10; i++) {
-		printf("%p\n", heap_alloc(&thread.heap, 16));
+	for (i = 0; i < 20; i++) {
+		printf("%p\n", heap_alloc(&thread.heap, 500));
 	}
 
 	vm_thread_destroy(&thread);

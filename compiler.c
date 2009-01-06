@@ -319,8 +319,8 @@ void assemble(compiler_t *sc)
 int main()
 {
 //	list_t *head = parse_buf("(lambda (a b c d) (if (not (and a b c d)) a))");
-//	list_t *head = parse_buf("(lambda (a b) (if a a b))");
-	list_t *head = parse_buf("(lambda (a) (lambda () a))");
+	list_t *head = parse_buf("(lambda (a b) (if a a b))");
+//	list_t *head = parse_buf("(lambda (a) (lambda () a))");
 //	list_t *head = parse_buf("((lambda (a) (a)) (lambda ()))");
 	list_node_t *cur, *save;
 	compiler_t sc;

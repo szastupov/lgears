@@ -4,6 +4,15 @@
 #include "memory.h"
 #include "heap.h"
 
+#if __WORDSIZE == 64
+#define balign 7
+#else
+#define balign 3
+#endif
+#define align_up(s)	(((s)+balign) & ~balign)
+
+#define BHDR_ZIZE sizeof(block_hdr_t)
+
 static void copy_heap_init(copy_heap_t *heap)
 {
 	heap->page_size = sysconf(_SC_PAGE_SIZE);
@@ -12,7 +21,10 @@ static void copy_heap_init(copy_heap_t *heap)
 	if (heap->page == MAP_FAILED)
 		FATAL("failed to mmap page: %s\n", strerror(errno));
 
-	heap->pos = heap->page;
+	/*
+	 * Set pos in order to return an aligned pointer
+	 */
+	heap->pos = heap->page + align_up(BHDR_ZIZE)-BHDR_ZIZE;
 	heap->blocks = 0;
 }
 
@@ -27,9 +39,11 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 	hdr->reached = 0;
 	hdr->size = size;
 	heap->pos += sizeof(block_hdr_t);
-
 	void *res = heap->pos;
-	heap->pos += size;
+
+	size_t move = align_up(size+BHDR_ZIZE)-BHDR_ZIZE;
+
+	heap->pos += move;
 	heap->blocks++;
 
 	return res;

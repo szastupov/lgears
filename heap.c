@@ -20,11 +20,7 @@
 #include "memory.h"
 #include "heap.h"
 
-#if __WORDSIZE == 64
 #define balign 7
-#else
-#define balign 3
-#endif
 #define align_up(s)	(((s)+balign) & ~balign)
 
 #define BHDR_SIZE sizeof(block_hdr_t)

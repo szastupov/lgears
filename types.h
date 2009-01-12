@@ -19,6 +19,11 @@
 
 /*
  * Primitive types that fit in word size
+ *
+ * All primitive types has a 3-bit type tag.
+ * In order to fit a pointer in __WORDSIZE-3, we have to shift pointer value, so
+ * it means that pointers should be at least 8 bytes aligned. VM heaps do that,
+ * glibc malloc too. Need to check it on other systems...
  */
 
 #define TYPE_TAG unsigned tag:3;

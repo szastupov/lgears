@@ -1,4 +1,4 @@
-CFLAGS +=-pipe
+CFLAGS += -pipe
 
 .PHONY: clean echo-deps ctags all
 

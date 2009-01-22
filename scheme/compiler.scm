@@ -122,10 +122,12 @@
   (compile (make-env) node))
 
 (let ([res (start-compile
-			 `(lambda (x y) (if x x (+ y 1)))
+			 ;			 `(lambda (x y) (if x x (+ y 1)))
+			 ''(one two three three)
 			 )])
   (display "ILR: ")
   (display res)
   (newline)
   (display "Assembly: ")
-  (assemble res))
+  (assemble res)
+  )

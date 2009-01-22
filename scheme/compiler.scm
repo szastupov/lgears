@@ -2,6 +2,7 @@
 (import (rnrs)
 		(syntax-rules)
 		(assembly)
+		(opcode)
 		(trace))
 
 ;;

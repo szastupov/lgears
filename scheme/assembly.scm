@@ -21,9 +21,13 @@
 		  (sym-table-count-set! stbl (+ res 1))
 		  res))))
 
-  (define (assemble tree)
+  (define (assemble root)
 	(let ([undefs (make-sym-table)]
 		  [symbols (make-sym-table)])
-	  (display tree)
+
+	  (define (dispatch node)
+		(display node))
+
+	  (dispatch root)
 	  ))
   )

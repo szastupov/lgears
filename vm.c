@@ -22,7 +22,7 @@
 #include <stdio.h>
 
 #include "memory.h"
-#include "opcode.h"
+#include "bytecode.h"
 #include "types.h"
 #include "heap.h"
 

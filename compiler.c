@@ -20,7 +20,7 @@
 #include <unistd.h>
 
 #include <stdio.h>
-#include "opcode.h"
+#include "bytecode.h"
 #include "compiler_internal.h"
 
 static void compile(compiler_t *sc, ast_node_t *node);

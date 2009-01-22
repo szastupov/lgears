@@ -7,12 +7,12 @@
 	  table
 	  (mutable count))
 	(protocol
-	  (lambda (p)
-		(lambda () (p (make-eq-hashtable) 0)))))
+	  (lambda (new)
+		(lambda () (new (make-eq-hashtable) 0)))))
 
   (define (sym-table-insert stbl sym)
 	(let* ([tbl (sym-table-table stbl)]
-		  [res (hashtable-ref tbl sym #f)])
+		   [res (hashtable-ref tbl sym #f)])
 	  (if res
 		res
 		(begin
@@ -26,5 +26,4 @@
 		  [symbols (make-sym-table)])
 	  (display tree)
 	  ))
-
   )

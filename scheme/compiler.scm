@@ -1,7 +1,8 @@
 #!r6rs
 (import (rnrs)
 		(syntax-rules)
-		(assembly))
+		(assembly)
+		(trace))
 
 ;;
 ;; Compiler todo
@@ -15,22 +16,21 @@
 
 ;; Environment of current-compiling function
 (define-record-type env
-  (fields
-	parent
-	tbl)
+  (fields parent tbl)
   (protocol
-	(lambda (p)
-	  (lambda (prev)
-		(p prev (make-eq-hashtable))))))
-
-(define (make-env-with-args prev args)
-  (let* ([env (make-env prev)]
-		 [tbl (env-tbl env)])
-	(fold-left (lambda (idx arg)
-				 (hashtable-set! tbl arg (cons 'LOCAL idx))
-				 (+ idx 1))
-			   0 args)
-	env))
+	(lambda (new)
+	  (case-lambda
+		(()
+		 (new '() (make-eq-hashtable)))
+		((prev)
+		 (new prev (make-eq-hashtable)))
+		((prev args)
+		 (let ([ntbl (make-eq-hashtable)])
+		   (fold-left (lambda (idx arg)
+						(hashtable-set! ntbl arg (cons 'LOCAL idx))
+						(+ idx 1))
+					  0 args)
+		   (new prev ntbl)))))))
 
 (define (env-lookup env name)
   (if (null? env)
@@ -46,7 +46,7 @@
 	   seq))
 
 (define (compile-func parent args body)
-  (let* ([env (make-env-with-args parent args)]
+  (let* ([env (make-env parent args)]
 		 [compiled (compile-seq env body)])
 	`(FUNC ,@compiled)))
 
@@ -74,12 +74,11 @@
 (define (compile-macro node)
   (let ([name (car node)]
 		[ttype (caadr node)]
-		[tbody (cdadr node)]
-		)
+		[tbody (cdadr node)])
 	(case ttype
 	  [(syntax-rules)
 	   (syntax-rules-compile name tbody)]
-	  [else (error "Unknown transformer" ttype)])))
+	  [else (error 'compile-macro "Unknown transformer" ttype)])))
 
 (define (trquote qv)
   (if (null? qv)
@@ -119,7 +118,7 @@
 			  (cons 'UNDEF node))))))
 
 (define (start-compile node)
-  (compile (make-env '()) node))
+  (compile (make-env) node))
 
 (let ([res (start-compile
 			 `(lambda (x y) (if x x (+ y 1)))

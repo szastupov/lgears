@@ -15,6 +15,7 @@
 #define UNARY_NOT	9
 
 #define OP_CASE(code) case code: return #code
+
 const char* opcode_name(int code)
 {
 	switch (code) {
@@ -31,4 +32,5 @@ const char* opcode_name(int code)
 	}
 	return "unknown";
 }
+
 #endif

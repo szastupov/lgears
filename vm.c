@@ -90,8 +90,7 @@ void* ptr_from_obj(obj_t obj)
 
 int fixnum_from_obj(obj_t obj)
 {
-	fixnum_t f;
-	f.ptr = obj.ptr;
+	fixnum_t f = { .ptr = obj.ptr };
 	return f.val;
 }
 
@@ -324,10 +323,10 @@ int main()
 
 	eval_thread(&thread, mod);
 
-	int i;
-	for (i = 0; i < 30; i++) {
-		printf("%p\n", heap_alloc(&thread.heap, 502));
-	}
+//	int i;
+//	for (i = 0; i < 30; i++) {
+//		printf("%p\n", heap_alloc(&thread.heap, 502));
+//	}
 
 	vm_thread_destroy(&thread);
 	module_free(mod);

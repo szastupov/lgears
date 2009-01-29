@@ -68,8 +68,8 @@ static inline void _mem_free(const char *file, int line,
 		const char *func, void *p)
 {
 	if (!p)
-		FATAL("Attempt to free pointer 0x%lx at %s:%d, func %s\n",
-				(unsigned long)p, file, line, func);
+		FATAL("Attempt to free pointer %p at %s:%d, func %s\n",
+				p, file, line, func);
 	free(p);
 }
 

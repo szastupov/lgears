@@ -27,7 +27,7 @@
 		((prev args)
 		 (let ([ntbl (make-eq-hashtable)])
 		   (fold-left (lambda (idx arg)
-						(hashtable-set! ntbl arg (cons 'LOCAL idx))
+						(hashtable-set! ntbl arg `(LOAD_LOCAL . ,idx))
 						(+ idx 1))
 					  0 args)
 		   (new prev ntbl)))))))
@@ -57,6 +57,7 @@
 		(sym-table-count-set! stbl (+ res 1))
 		res))))
 
+; Translate quotation to functions
 (define (trquote qv)
   (if (null? qv)
 	''()
@@ -69,7 +70,8 @@
 
 (define (start-compile root)
   (let ([undefs (make-sym-table)]
-		[symbols (make-sym-table)])
+		[symbols (make-sym-table)]
+		[funcs '()])
 
 	(define (compile-seq env seq)
 	  (map (lambda (x)
@@ -131,13 +133,14 @@
 			  (let ([res (env-lookup env node)])
 				(if res
 				  res
-				  `(LOAD_UNDEF ,(sym-table-insert undefs node)))))))
+				  (cons 'LOAD_UNDEF (sym-table-insert undefs node)))))))
 
-	(compile (make-env) root)))
+	(compile (make-env) root)
+	))
 
 (let ([res (start-compile
-			 ;			 			 `(lambda (x y) (if x x (+ y 1)))
-			 ''(one two three three)
+			 `(lambda (x y) (if x x (+ y 1)))
+;			 ''(one two three three)
 			 )])
   (display "ILR: ")
   (display res)

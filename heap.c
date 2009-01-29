@@ -120,8 +120,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	if (obj->tag != id_ptr)
 		return;
 
-	ptr_t ptr;
-	ptr.ptr = obj->ptr;
+	ptr_t ptr = { .ptr = obj->ptr };
 
 	void *p = ptr_get(&ptr);
 	p -= sizeof(block_hdr_t);

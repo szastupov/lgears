@@ -134,7 +134,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * Copy object to the second heap and update pointer
 	 */
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+sizeof(block_hdr_t));
-	ptr_set(&ptr, (unsigned long)new_pos);
+	ptr_set(&ptr, new_pos);
 	obj->ptr = ptr.ptr;
 
 	/*

@@ -27,18 +27,22 @@
 		((prev args)
 		 (let ([ntbl (make-eq-hashtable)])
 		   (fold-left (lambda (idx arg)
-						(hashtable-set! ntbl arg `(LOAD_LOCAL . ,idx))
+						(hashtable-set! ntbl arg idx)
 						(+ idx 1))
 					  0 args)
 		   (new prev ntbl)))))))
 
 (define (env-lookup env name)
-  (if (null? env)
-	#f
-	(let ([res (hashtable-ref (env-tbl env) name #f)])
-	  (if res
-		res
-		(env-lookup (env-parent env) name)))))
+  (let loop ([step 0]
+			 [cur-env env])
+	(if (null? cur-env)
+	  #f
+	  (let ([res (hashtable-ref (env-tbl cur-env) name #f)])
+		(if res
+		  (if (zero? step)
+			`(LOAD_LOCAL ,res)
+			`(LOAD_PARENT ,step ,res))
+		  (loop (+ step 1) (env-parent cur-env)))))))
 
 (define-record-type sym-table
   (fields table (mutable count))
@@ -70,8 +74,7 @@
 
 (define (start-compile root)
   (let ([undefs (make-sym-table)]
-		[symbols (make-sym-table)]
-		[funcs '()])
+		[symbols (make-sym-table)])
 
 	(define (compile-seq env seq)
 	  (map (lambda (x)
@@ -139,8 +142,9 @@
 	))
 
 (let ([res (start-compile
-			 `(lambda (x y) (if x x (+ y 1)))
-;			 ''(one two three three)
+			 ;'(lambda (x y) (lambda (z) (+ x y z)))
+			 '(lambda (x y) (if x x (+ y 1)))
+			 ;''(one two three three)
 			 )])
   (display "ILR: ")
   (display res)

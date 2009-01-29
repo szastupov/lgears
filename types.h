@@ -47,6 +47,15 @@ enum {
 	id_func_ptr	/**< Function pointer */
 };
 
+/**
+ * @brief Tagged poiner repesintation
+ *
+ * Assuming that pointer is 8-byte aligned,
+ * we can use 3 bits for type tag.
+ * This type used for both heap and func pointers but
+ * use different tags.
+ * Use helper macros to init, get and set pointer value.
+ */
 typedef union {
 	struct {
 		TYPE_TAG;
@@ -99,6 +108,9 @@ typedef struct visitor_s {
 
 typedef void (*visitor_fun)(visitor_t*, void*);
 
+/**
+ * @brief Type description for heap-allocated types
+ */
 typedef struct {
 	const char *name;
 	void (*destructor)(void*);
@@ -106,7 +118,7 @@ typedef struct {
 } type_t;
 
 /*
- * Heap allocated objects always has a hobj_hdr_t
+ * Heap allocated objects always has a hobj_hdr_t header
  * with pointer on type_t type info
  */
 

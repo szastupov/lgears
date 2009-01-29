@@ -54,12 +54,17 @@
   (let* ([tbl (sym-table-table stbl)]
 		 [res (hashtable-ref tbl sym #f)])
 	(if res
-	  res
 	  (begin
 		(set! res (sym-table-count stbl))
 		(hashtable-set! tbl sym res)
 		(sym-table-count-set! stbl (+ res 1))
-		res))))
+		res))
+	  sym ;FIXME
+	  ))
+
+(define (self-eval? x)
+  (or (number? x)
+	  (string? x)))
 
 ; Translate quotation to functions
 (define (trquote qv)
@@ -67,10 +72,26 @@
 	''()
 	(let ([head (car qv)])
 	  `(cons ,(cond  ((pair? head) (trquote head))
-					 ((number? head) head)
+					 ((self-eval? head) head)
 					 (else `(quote ,head)))
 			 ,(trquote (cdr qv))))))
 
+; Translate quoasiquotation to functions
+(define (trquasiquote qv)
+  (if (null? qv)
+	''()
+	(let ([head (car qv)])
+	  `(cons ,(cond ((pair? head)
+					  (case (car head)
+						[(unquote)
+						 (cadr head)]
+						[(unquote-splicing)
+						 (cadr head)]
+						[else
+						  (trquote head)]))
+					 ((self-eval? head) head)
+					 (else `(quote ,head)))
+			 ,(trquasiquote (cdr qv))))))
 
 (define (start-compile root)
   (let ([undefs (make-sym-table)]
@@ -116,18 +137,31 @@
 		   (syntax-rules-compile name tbody)]
 		  [else (error 'compile-macro "Unknown transformer" ttype)])))
 
+	(define (compile-quote env qv transform)
+	  (if (pair? qv)
+		(compile env (transform qv))
+		`(LOAD_SYM ,(sym-table-insert symbols qv))))
+
 	(define (compile env node)
 	  (cond ((pair? node)
 			 (case (car node)
-			   [(lambda)	(compile-func env (cadr node) (cddr node))]
-			   [(if)		(compile-if env (cdr node))]
-			   [(begin)		(compile-seq env (cdr node))]
-			   [(define-syntax)	(compile-macro (cdr node))]
-			   [(quote)		(let ([qv (cadr node)])
-							  (if (pair? qv)
-								(compile env (trquote qv))
-								`(LOAD_SYM ,(sym-table-insert undefs qv))))]
-			   [else		(compile-call env node)]))
+			   [(lambda)
+				(compile-func env (cadr node) (cddr node))]
+			   [(if)
+				(compile-if env (cdr node))]
+			   [(begin)
+				(compile-seq env (cdr node))]
+			   [(define-syntax)
+				(compile-macro (cdr node))]
+			   [(quote)
+				(compile-quote env (cadr node) trquote)]
+			   [(quasiquote)
+				(compile-quote env (cadr node) trquasiquote)]
+			   [(define)
+				(if (pair? (cadr node))
+				  (compile-func env (cdadr node) (cddr node)))]
+			   [else
+				 (compile-call env node)]))
 			((number? node)
 			 (cons 'NUMBER node))
 			((string? node)
@@ -143,8 +177,9 @@
 
 (let ([res (start-compile
 			 ;'(lambda (x y) (lambda (z) (+ x y z)))
-			 '(lambda (x y) (if x x (+ y 1)))
-			 ;''(one two three three)
+			 ;'(define (foo x y) (if x x (foo y 1)))
+			 ;''(one two three four)
+			 '`(one ,@two three "four")
 			 )])
   (display "ILR: ")
   (display res)

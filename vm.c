@@ -328,11 +328,10 @@ int main()
 
 	eval_thread(&thread, mod);
 
-	int i;
-	for (i = 0; i < 30; i++) {
-//		printf("%p\n", heap_alloc(&thread.heap, 502));
-		printf("%p\n", string(&thread.heap, "foo"));
-	}
+//	int i;
+//	for (i = 0; i < 30; i++) {
+//		printf("%p\n", string(&thread.heap, "foo"));
+//	}
 
 	vm_thread_destroy(&thread);
 	module_free(mod);

@@ -16,6 +16,7 @@
  */
 #ifndef TYPES_H
 #define TYPES_H
+#include <stdlib.h>
 
 /*
  * Primitive types that fit in word size
@@ -57,6 +58,7 @@ typedef union {
 #define ptr_set(p,a) (p)->addr = (unsigned long)a >> 2
 #define ptr_get(p) (void*)(unsigned long)((p)->addr << 2)
 #define ptr_init(p, a) { (p)->tag = id_ptr; ptr_set(p, a); }
+#define return_ptr(a) { ptr_t res; ptr_init(&res, a); return res.ptr; }
 #define init_func_ptr(i, v) { (i).tag = id_func_ptr; ptr_set(&i, v); }
 
 typedef union {
@@ -103,8 +105,13 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
+/*
+ * Heap allocated objects always has a hobj_hdr_t
+ * with pointer on type_t type info
+ */
+
 typedef struct {
-	type_t *type;
-} heap_obj_hdr_t;
+	const type_t *type;
+} hobj_hdr_t;
 
 #endif /* TYPES_H */

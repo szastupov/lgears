@@ -131,7 +131,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	hdr->reached = 1;
 
 	/*
-	 * Copy object to second heap and update pointer
+	 * Copy object to the second heap and update pointer
 	 */
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+sizeof(block_hdr_t));
 	ptr_set(&ptr, (unsigned long)new_pos);
@@ -140,8 +140,8 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	/*
 	 * If type provide visit function - call it
 	 */
-	heap_obj_hdr_t *ohdr = new_pos;
-	void *object = new_pos+sizeof(heap_obj_hdr_t);
+	hobj_hdr_t *ohdr = new_pos;
+	void *object = new_pos+sizeof(hobj_hdr_t);
 	if (ohdr->type->visit)
 		ohdr->type->visit(visitor, object);
 }

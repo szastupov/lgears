@@ -25,6 +25,9 @@
 #include "bytecode.h"
 #include "types.h"
 #include "heap.h"
+#include "primitives.h"
+
+typedef struct module_s module_t;
 
 typedef struct {
 	int stack_size;
@@ -32,14 +35,15 @@ typedef struct {
 	int argc;
 	int op_count;
 	char *opcode;
+	module_t *module;
 } func_t;
 
-typedef struct {
+struct module_s {
 	char *code;
 	func_t *functions;
 	int entry_point;
 	int fun_count;
-} module_t;
+};
 
 typedef struct frame_s {
 	struct frame_s *prev;
@@ -187,7 +191,7 @@ next_cmd:
 
 		case LOAD_FUNC:
 			{
-				func_t *func = load_func(module, op_arg);
+				func_t *func = load_func(func->module, op_arg);
 //				func_t *func = (void*)0x7f21e4cf0008;
 				printf("loaded func %p\n", func);
 				ptr_t fp;
@@ -276,6 +280,7 @@ module_t* module_load(const char *path)
 		func->argc		= hdr.argc;
 		func->op_count	= hdr.op_count;
 		func->opcode	= mod->code + hdr.offset;
+		func->module	= mod;
 	}
 
 	close(fd);
@@ -323,10 +328,11 @@ int main()
 
 	eval_thread(&thread, mod);
 
-//	int i;
-//	for (i = 0; i < 30; i++) {
+	int i;
+	for (i = 0; i < 30; i++) {
 //		printf("%p\n", heap_alloc(&thread.heap, 502));
-//	}
+		printf("%p\n", string(&thread.heap, "foo"));
+	}
 
 	vm_thread_destroy(&thread);
 	module_free(mod);

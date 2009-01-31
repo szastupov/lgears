@@ -42,8 +42,9 @@ typedef union {
  */
 enum {
 	id_ptr,		/**< Pointer on a heap-allocated object */
-	id_fixnum,		/**< Integer */
+	id_fixnum,	/**< Integer */
 	id_char,	/**< Character */
+	id_bool,	/**< Boolean */
 	id_func_ptr	/**< Function pointer */
 };
 
@@ -94,11 +95,20 @@ typedef union {
 
 #define char_init(c,v) { (c).tag = id_char; (c).val = v; }
 
+typedef union {
+	struct {
+		TYPE_TAG;
+		short val;
+	};
+	void *ptr;
+} bool_t;
+
+#define bool_init(b,v) { (b).tag = id_bool; (b).val = v; }
+
 static inline int is_false(obj_t obj)
 {
-	fixnum_t n;
-	n.ptr = obj.ptr;
-	return obj.tag == id_fixnum && n.val == 0;
+	bool_t b = { .ptr = obj.ptr };
+	return obj.tag == id_bool && b.val == 0;
 }
 
 typedef struct visitor_s {

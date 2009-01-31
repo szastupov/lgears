@@ -187,8 +187,8 @@
 (let ((res (start-compile
 			 ;'(lambda (x y) (lambda (z) (+ x y z)))
 			 ;'(define (foo x y) (if x x (foo y 1)))
-			 ''(one two three four)
-			 ;'`(one ,two three "four")
+			 ;''(one two three four)
+			 '`(one ,two three "four")
 			 )))
   (display "ILR: ")
   (display res)

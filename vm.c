@@ -105,6 +105,12 @@ char char_from_obj(obj_t obj)
 	return c.c;
 }
 
+int bool_from_obj(obj_t obj)
+{
+	bool_t b = { .ptr = obj.ptr };
+	return b.val;
+}
+
 void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
@@ -113,6 +119,9 @@ void print_obj(obj_t obj)
 		break;
 	case id_fixnum:
 		printf("fixnum: %d\n", fixnum_from_obj(obj));
+		break;
+	case id_bool:
+		printf("bool: #%c\n", bool_from_obj(obj) ? 't' : 'f');
 		break;
 	case id_char:
 		printf("char: %c\n", char_from_obj(obj));
@@ -183,9 +192,9 @@ next_cmd:
 
 		case UNARY_NOT:
 			if (is_false(STACK_POP())) {
-				fixnum_t n;
-				fixnum_init(n, 0);
-				STACK_PUSH(n.ptr);
+				bool_t b;
+				bool_init(b, 0);
+				STACK_PUSH(b.ptr);
 			}
 			break;
 

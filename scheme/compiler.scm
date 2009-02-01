@@ -16,21 +16,21 @@
 
 ;; Environment of current-compiling function
 (define-record-type env
-  (fields parent tbl)
+  (fields parent tbl argc)
   (protocol
 	(lambda (new)
 	  (case-lambda
 		(()
-		 (new '() (make-eq-hashtable)))
+		 (new '() (make-eq-hashtable) 0))
 		((prev)
-		 (new prev (make-eq-hashtable)))
+		 (new prev (make-eq-hashtable) 0))
 		((prev args)
-		 (let ((ntbl (make-eq-hashtable)))
-		   (fold-left (lambda (idx arg)
-						(hashtable-set! ntbl arg idx)
-						(+ idx 1))
-					  0 args)
-		   (new prev ntbl)))))))
+		 (let* ((ntbl (make-eq-hashtable))
+				(nargc (fold-left (lambda (idx arg)
+									(hashtable-set! ntbl arg idx)
+									(+ idx 1))
+								  0 args)))
+		   (new prev ntbl nargc)))))))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -185,10 +185,10 @@
 	))
 
 (let ((res (start-compile
-			 ;'(lambda (x y) (lambda (z) (+ x y z)))
+			 '(lambda (x . y) (lambda (z) (+ x y z)))
 			 ;'(define (foo x y) (if x x (foo y 1)))
 			 ;''(one two three four)
-			 '`(one ,two three "four")
+			 ;'`(one ,two three "four")
 			 )))
   (display "ILR: ")
   (display res)

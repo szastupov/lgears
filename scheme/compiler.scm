@@ -5,13 +5,10 @@
 		(trace))
 
 ;;
-;; Compiler todo
-;;	* Expand macros
-;;	* Determine, does function use parent env (continuatin) or not (simple func)
-;;	* Generate intermediate assembly reprsesentation and send it to assembler
-;;	* Compile backquotes
-;;	* Detect dot-notation and decide apply method
-;;	* Determine and compile tail-calls
+;; What to redesign:
+;; * Firstly, body should be scaned for define keyword, delaying right-hand expansion
+;;	see get-defines for example
+;; * When bindings for define created, compile ever
 
 
 ;; Environment of current-compiling function
@@ -102,6 +99,16 @@
 		(else
 		  (trquasiquote head))))))
 
+(define (get-defines lst)
+  (define (defination? x)
+	(eq? (car x) 'define))
+  (map (lambda (def)
+		 (let ((name (cadr def)))
+		   (if (pair? name)
+			 (car name)
+			 name)))
+	   (filter defination? lst)))
+
 (define (start-compile root)
   (let ((undefs (make-sym-table))
 		(symbols (make-sym-table)))
@@ -185,7 +192,7 @@
 	))
 
 (let ((res (start-compile
-			 '(lambda (x . y) (lambda (z) (+ x y z)))
+			 '(lambda (x y) (lambda (z) (+ x y z)))
 			 ;'(define (foo x y) (if x x (foo y 1)))
 			 ;''(one two three four)
 			 ;'`(one ,two three "four")

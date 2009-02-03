@@ -1,1 +1,3 @@
 Education experiment on implementing scheme vm and compiler.
+
+C-sources (see the corresponding make targer) of the compiler is obsolete, and will be deleted. The new compiler is located in 'scheme' directory. Yep, lgears is going to be self-hosting.

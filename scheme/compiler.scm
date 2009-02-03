@@ -4,16 +4,9 @@
 		(opcode)
 		(trace))
 
-;;
-;; What to redesign:
-;; * Firstly, body should be scaned for define keyword, delaying right-hand expansion
-;;	see get-defines for example
-;; * When bindings for define created, compile ever
-
-
 ;; Environment of current-compiling function
 (define-record-type env
-  (fields parent tbl argc)
+  (fields parent tbl (mutable size))
   (protocol
 	(lambda (new)
 	  (case-lambda
@@ -22,12 +15,16 @@
 		((prev)
 		 (new prev (make-eq-hashtable) 0))
 		((prev args)
-		 (let* ((ntbl (make-eq-hashtable))
-				(nargc (fold-left (lambda (idx arg)
-									(hashtable-set! ntbl arg idx)
-									(+ idx 1))
-								  0 args)))
-		   (new prev ntbl nargc)))))))
+		 (let ((ntbl (make-eq-hashtable)))
+		   (new prev ntbl (fold-left (lambda (idx arg)
+									   (hashtable-set! ntbl arg idx)
+									   (+ idx 1))
+									 0 args))))))))
+
+(define (env-define env name)
+  (let ((size (env-size env)))
+	(hashtable-set! (env-tbl env) name size)
+	(env-size-set! env (+ size 1))))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -99,28 +96,32 @@
 		(else
 		  (trquasiquote head))))))
 
-(define (get-defines lst)
-  (define (defination? x)
-	(eq? (car x) 'define))
-  (map (lambda (def)
-		 (let ((name (cadr def)))
-		   (if (pair? name)
-			 (car name)
-			 name)))
-	   (filter defination? lst)))
-
 (define (start-compile root)
   (let ((undefs (make-sym-table))
 		(symbols (make-sym-table)))
 
-	(define (compile-seq env seq)
-	  (map (lambda (x)
-			 (compile env x))
-		   seq))
+	(define (compile-body env body)
+	  (define (defination? x)
+		(and (pair? x) (eq? (car x) 'define)))
+	  (define (defination-name def)
+		(let ((name (cadr def)))
+		  (if (pair? name)
+			(car name)
+			name)))
+	  (for-each (lambda (def) (env-define env (defination-name def)))
+				(filter defination? body))
+	  (map (lambda (expr)
+			 (if (defination? expr)
+			   `(SET ,(env-lookup env (defination-name expr))
+				 ,(if (pair? (cadr expr))
+					(compile-func env (cdadr expr) (cddr expr))
+					(compile env (caddr expr))))
+			   (compile env expr)))
+		   body))
 
 	(define (compile-func parent args body)
 	  (let* ((env (make-env parent args))
-			 (compiled (compile-seq env body)))
+			 (compiled (compile-body env body)))
 		`(FUNC ,@compiled)))
 
 	(define (compile-if env node)
@@ -158,6 +159,11 @@
 		(compile env (transform qv))
 		`(LOAD_SYM ,(sym-table-insert symbols qv))))
 
+	(define (compile-seq env seq)
+	  (map (lambda (x)
+			 (compile env x))
+		   seq))
+
 	(define (compile env node)
 	  (cond ((pair? node)
 			 (case (car node)
@@ -174,8 +180,7 @@
 			   ((quasiquote)
 				(compile-quote env (cadr node) trquasiquote))
 			   ((define)
-				(if (pair? (cadr node))
-				  (compile-func env (cdadr node) (cddr node))))
+				(error 'compile "misplaced defination"))
 			   (else
 				 (compile-call env node))))
 			((number? node)
@@ -188,12 +193,15 @@
 				  res
 				  (cons 'LOAD_UNDEF (sym-table-insert undefs node)))))))
 
-	(compile (make-env) root)
+	(compile-func (make-env) '() root)
 	))
 
 (let ((res (start-compile
-			 '(lambda (x y) (lambda (z) (+ x y z)))
-			 ;'(define (foo x y) (if x x (foo y 1)))
+			 '(
+			   (define (foo n) (bar n))
+			   (define (bar n) (foo n))
+			   )
+			 ;'((lambda (x y) (x y)) (lambda (z) z))
 			 ;''(one two three four)
 			 ;'`(one ,two three "four")
 			 )))

@@ -4,6 +4,20 @@
 		(opcode)
 		(trace))
 
+(define (set-func-args! ntbl args)
+  (let loop ((idx 0) (lst args))
+	(cond
+	  ((null? lst)
+	   idx)
+	  ((symbol? lst)
+	   (hashtable-set! ntbl lst idx)
+	   (+ idx 1))
+	  ((pair? lst)
+	   (hashtable-set! ntbl (car lst) idx)
+	   (loop (+ idx 1) (cdr lst)))
+	  (else
+		(error 'make-env "unexpected" lst)))))
+
 ;; Environment of current-compiling function
 (define-record-type env
   (fields parent tbl (mutable size))
@@ -12,14 +26,9 @@
 	  (case-lambda
 		(()
 		 (new '() (make-eq-hashtable) 0))
-		((prev)
-		 (new prev (make-eq-hashtable) 0))
 		((prev args)
 		 (let ((ntbl (make-eq-hashtable)))
-		   (new prev ntbl (fold-left (lambda (idx arg)
-									   (hashtable-set! ntbl arg idx)
-									   (+ idx 1))
-									 0 args))))))))
+		   (new prev ntbl (set-func-args! ntbl args))))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
@@ -113,9 +122,9 @@
 	  (map (lambda (expr)
 			 (if (defination? expr)
 			   `(SET ,(env-lookup env (defination-name expr))
-				 ,(if (pair? (cadr expr))
-					(compile-func env (cdadr expr) (cddr expr))
-					(compile env (caddr expr))))
+					 ,(if (pair? (cadr expr))
+						(compile-func env (cdadr expr) (cddr expr))
+						(compile env (caddr expr))))
 			   (compile env expr)))
 		   body))
 
@@ -198,7 +207,7 @@
 
 (let ((res (start-compile
 			 '(
-			   (define (foo n) (bar n))
+			   (define foo (lambda n (bar n)))
 			   (define (bar n) (foo n))
 			   )
 			 ;'((lambda (x y) (x y)) (lambda (z) z))

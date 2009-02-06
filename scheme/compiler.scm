@@ -1,7 +1,7 @@
 #!r6rs
 (import (rnrs)
 		(syntax-rules)
-		(opcode)
+		(assembly)
 		(trace))
 
 (define (set-func-args! ntbl args)
@@ -43,8 +43,8 @@
 	  (let ((res (hashtable-ref (env-tbl cur-env) name #f)))
 		(if res
 		  (if (zero? step)
-			`(LOAD_LOCAL ,res)
-			`(LOAD_PARENT ,step ,res))
+			`(LOCAL ,res)
+			`(PARENT ,step ,res))
 		  (loop (+ step 1) (env-parent cur-env)))))))
 
 (define-record-type sym-table
@@ -57,6 +57,7 @@
   (let* ((tbl (sym-table-table stbl))
 		 (res (hashtable-ref tbl sym #f)))
 	(if res
+	  res
 	  (begin
 		(set! res (sym-table-count stbl))
 		(hashtable-set! tbl sym res)
@@ -64,6 +65,17 @@
 		res))
 	sym ;FIXME
 	))
+
+;; Return list of keys sorted by value (index)
+;;
+;; As order of returned hash values is not specified, we have
+;; to guaranty that everything is ok.
+(define (symtable->list stbl)
+  (let-values (((keys vals) (hashtable-entries (sym-table-table stbl))))
+	(map (lambda (x)
+		   (symbol->string (car x)))
+		 (list-sort (lambda (x y) (< (cdr x) (cdr y)))
+					(vector->list (vector-map cons keys vals))))))
 
 (define (self-eval? x)
   (or (number? x)
@@ -121,10 +133,10 @@
 				(filter defination? body))
 	  (map (lambda (expr)
 			 (if (defination? expr)
-			   `(SET ,(env-lookup env (defination-name expr))
-					 ,(if (pair? (cadr expr))
-						(compile-func env (cdadr expr) (cddr expr))
-						(compile env (caddr expr))))
+			   `(DEFINE ,(env-lookup env (defination-name expr))
+						,(if (pair? (cadr expr))
+						   (compile-func env (cdadr expr) (cddr expr))
+						   (compile env (caddr expr))))
 			   (compile env expr)))
 		   body))
 
@@ -173,6 +185,13 @@
 			 (compile env x))
 		   seq))
 
+	(define (compile-assigment env node)
+	  (let* ((name (car node))
+			 (slot (env-lookup env name)))
+		(if (not slot)
+		  (error 'compile-assigment "undefined variable" name)
+		  `(SET ,slot ,(compile env (cadr node))))))
+
 	(define (compile env node)
 	  (cond ((pair? node)
 			 (case (car node)
@@ -190,6 +209,8 @@
 				(compile-quote env (cadr node) trquasiquote))
 			   ((define)
 				(error 'compile "misplaced defination"))
+			   ((set!)
+				(compile-assigment env (cdr node)))
 			   (else
 				 (compile-call env node))))
 			((number? node)
@@ -202,13 +223,16 @@
 				  res
 				  (cons 'LOAD_UNDEF (sym-table-insert undefs node)))))))
 
-	(compile-func (make-env) '() root)
-	))
+	(let ((entry-point (compile-func (make-env) '() root)))
+	  `((undefs	,(symtable->list undefs))
+		(symbols ,(symtable->list symbols))
+		(code ,entry-point)))))
 
 (let ((res (start-compile
 			 '(
 			   (define foo (lambda n (bar n)))
 			   (define (bar n) (foo n))
+			   (set! foo (+ (display 'blabla) 12))
 			   )
 			 ;'((lambda (x y) (x y)) (lambda (z) z))
 			 ;''(one two three four)
@@ -217,4 +241,8 @@
   (display "ILR: ")
   (display res)
   (newline)
+  (display "Assembply output:\n")
+  (let ((port (open-file-output-port "/tmp/assembly" (file-options no-fail))))
+	(assemble res port)
+	(close-output-port port))
   )

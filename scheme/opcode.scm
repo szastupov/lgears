@@ -1,7 +1,6 @@
 (library (opcode)
   (export oplist oplist-for-each opcode)
-  (import (rnrs)
-		  (slib format))
+  (import (rnrs))
 
   (define (oplist-for-each func oplist)
 	(fold-left (lambda (idx op)

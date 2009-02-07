@@ -45,10 +45,16 @@ struct module_s {
 	int fun_count;
 };
 
+typedef struct {
+	hobj_hdr_t hdr;
+	int size;
+	obj_t *objects;
+} env_t;
+
 typedef struct frame_s {
 	struct frame_s *prev;
 	obj_t	*opstack;
-	obj_t	*locals;
+	env_t	*env;
 	func_t	*func;
 	int		step;
 	int		op_stack_idx;
@@ -59,6 +65,29 @@ typedef struct {
 	heap_t heap;
 } vm_thread_t;
 
+static void env_visit(visitor_t *vs, void *data)
+{
+	env_t *env = data;
+	int i;
+	for (i = 0; i < env->size; i++)
+		vs->visit(vs, &env->objects[i]);
+}
+
+const type_t env_type = {
+	.name = "env",
+	.visit = env_visit
+};
+
+env_t* env_new(heap_t *heap, int size)
+{
+	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size);
+	env_t *env = mem;
+	env->objects = mem+sizeof(env_t);
+	env->size = size;
+	env->hdr.type = &env_type;
+
+	return env;
+}
 
 func_t* load_func(module_t *module, int index)
 {
@@ -67,28 +96,25 @@ func_t* load_func(module_t *module, int index)
 	return &module->functions[index];
 }
 
-frame_t* frame_create(func_t *func, frame_t *parent)
+frame_t* frame_create(func_t *func, frame_t *parent, heap_t *heap)
 {
 	frame_t *frame = type_alloc(frame_t);
 	frame->prev = parent;
 	frame->opstack = mem_calloc(func->stack_size, sizeof(obj_t));
-	frame->locals = mem_calloc(func->locals, sizeof(obj_t));
 	frame->func = func;
-
+	frame->env = env_new(heap, func->locals);
 	return frame;
 }
 
 void frame_destroy(frame_t *frame)
 {
 	mem_free(frame->opstack);
-	mem_free(frame->locals);
 	mem_free(frame);
 }
 
 void* ptr_from_obj(obj_t obj)
 {
-	ptr_t p;
-	p.ptr = obj.ptr;
+	ptr_t p = { .ptr = obj.ptr };
 	return ptr_get(&p);
 }
 
@@ -100,8 +126,7 @@ int fixnum_from_obj(obj_t obj)
 
 char char_from_obj(obj_t obj)
 {
-	char_t c;
-	c.ptr = obj.ptr;
+	char_t c = { .ptr = obj.ptr };
 	return c.c;
 }
 
@@ -138,7 +163,8 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	thread->frame_stack = frame_create(
 			load_func(module, module->entry_point),
-			thread->frame_stack);
+			thread->frame_stack,
+			&thread->heap);
 	frame_t *frame = thread->frame_stack;
 
 
@@ -146,7 +172,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	for (i = 0; i < frame->func->locals; i++) {
 		fixnum_t n;
 		fixnum_init(n, i);
-		frame->locals[i].ptr = n.ptr;
+		frame->env->objects[i].ptr = n.ptr;
 	}
 
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
@@ -166,7 +192,7 @@ next_cmd:
 
 		switch (op_code) {
 		case LOAD_FAST:
-			STACK_PUSH(frame->locals[op_arg].ptr);
+			STACK_PUSH(frame->env->objects[op_arg].ptr);
 			break;
 
 		case JUMP_IF_FALSE:
@@ -216,12 +242,12 @@ next_cmd:
 				func_t *func = ptr_get(&fp);
 				if (func->argc != op_arg)
 					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-				frame_t *new_frame = frame_create(func, frame);
+				frame_t *new_frame = frame_create(func, frame, &thread->heap);
 				thread->frame_stack = new_frame;
 
 				int i;
 				for (i = 0; i < func->argc; i++)
-					frame->locals[i].ptr = STACK_POP().ptr;
+					frame->env->objects[i].ptr = STACK_POP().ptr;
 				frame = new_frame;
 
 				goto next_cmd;
@@ -310,10 +336,21 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	frame_t *cur_frame = thread->frame_stack;
 	while (cur_frame) {
 		int i;
-		for (i = 0; i < cur_frame->func->locals; i++)
-			visitor->visit(visitor, &cur_frame->locals[i]);
+
+		/*
+		 * We need to update env pointer if needed
+		 * FIXME cleanup this ugly code
+		 */
+		ptr_t ptr;
+		ptr_init(&ptr, &cur_frame->env);
+		obj_t tmp = { .ptr = ptr.ptr };
+		visitor->visit(visitor, &tmp);
+		ptr.ptr = tmp.ptr;
+		cur_frame->env = ptr_get(&ptr);
+
 		for (i = 0; i < cur_frame->op_stack_idx; i++)
 			visitor->visit(visitor, &cur_frame->opstack[i]);
+		cur_frame = cur_frame->prev;
 	}
 }
 
@@ -336,11 +373,6 @@ int main()
 	vm_thread_init(&thread);
 
 	eval_thread(&thread, mod);
-
-//	int i;
-//	for (i = 0; i < 30; i++) {
-//		printf("%p\n", string(&thread.heap, "foo"));
-//	}
 
 	vm_thread_destroy(&thread);
 	module_free(mod);

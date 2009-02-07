@@ -27,8 +27,8 @@
 
 
 typedef struct {
-	unsigned short reached:1;
-	unsigned short size:15;
+	unsigned short size;;
+	void *forward;
 } block_hdr_t;
 
 typedef struct {
@@ -72,5 +72,6 @@ void heap_destroy(heap_t *heap);
  * @return ponter to allocated memory
  */
 void* heap_alloc(heap_t *heap, int size);
+void* heap_alloc0(heap_t *heap, int size);
 
 #endif /* HEAP_H */

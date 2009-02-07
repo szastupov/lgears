@@ -6,6 +6,8 @@ targets = compiler vm
 
 include include.mk
 
+# FIXME
+# Add mzscheme variant
 r6rs = ypsilon --sitelib=./scheme
 
 regen-opcode:

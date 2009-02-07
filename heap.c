@@ -64,7 +64,7 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 	size_t required = align_up(minimal)-BHDR_SIZE;
 
 	block_hdr_t *hdr = heap->pos;
-	hdr->reached = 0;
+	hdr->forward = NULL;
 	heap->pos += BHDR_SIZE;
 	heap->free_mem -= BHDR_SIZE;
 	/*
@@ -81,6 +81,8 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 
 	heap->pos += hdr->size;
 	heap->blocks++;
+
+	printf("allocated %d bytes\n", hdr->size);
 
 	return res;
 }
@@ -113,6 +115,13 @@ void* heap_alloc(heap_t *heap, int size)
 	return res;
 }
 
+void* heap_alloc0(heap_t *heap, int size)
+{
+	void *ptr = heap_alloc(heap, size);
+	memset(ptr, 0, size);
+	return ptr;
+}
+
 static void heap_mark(visitor_t *visitor, obj_t *obj)
 {
 	heap_t *heap = visitor->user_data;
@@ -123,17 +132,26 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	ptr_t ptr = { .ptr = obj->ptr };
 
 	void *p = ptr_get(&ptr);
-	p -= sizeof(block_hdr_t);
+	p -= BHDR_SIZE;
 	block_hdr_t *hdr = p;
 
-	if (hdr->reached)
+	/*
+	 * Use forward pointer if object already moved
+	 */
+	if (hdr->forward) {
+		ptr_set(&ptr, hdr->forward);
+		obj->ptr = ptr.ptr;
 		return;
-	hdr->reached = 1;
+	}
 
 	/*
 	 * Copy object to the second heap and update pointer
 	 */
-	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+sizeof(block_hdr_t));
+	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+BHDR_SIZE);
+	hdr->forward = new_pos + BHDR_SIZE; // Forward pointer from old memory to new
+	hdr = new_pos;
+	hdr->forward = NULL;
+	new_pos += BHDR_SIZE;
 	ptr_set(&ptr, new_pos);
 	obj->ptr = ptr.ptr;
 

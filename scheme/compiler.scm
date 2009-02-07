@@ -1,8 +1,7 @@
 #!r6rs
 (import (rnrs)
 		(syntax-rules)
-		(assembly)
-		(trace))
+		(assembly))
 
 (define (set-func-args! ntbl args)
   (let loop ((idx 0) (lst args))

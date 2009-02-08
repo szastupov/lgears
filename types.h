@@ -45,7 +45,8 @@ enum {
 	id_fixnum,	/**< Integer */
 	id_char,	/**< Character */
 	id_bool,	/**< Boolean */
-	id_func_ptr	/**< Function pointer */
+	id_func_ptr,/**< Function pointer */
+	id_symbol	/**< Symbol pointer */
 };
 
 /**
@@ -70,6 +71,7 @@ typedef union {
 #define ptr_init(p, a) { (p)->tag = id_ptr; ptr_set(p, a); }
 #define return_ptr(a) { ptr_t res; ptr_init(&res, a); return res.ptr; }
 #define init_func_ptr(i, v) { (i).tag = id_func_ptr; ptr_set(&i, v); }
+#define symbol_init(i, v) { (i).tag = id_symbol; ptr_set(&i, v); }
 
 typedef union {
 	struct {

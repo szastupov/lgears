@@ -26,6 +26,7 @@
 #include "types.h"
 #include "heap.h"
 #include "primitives.h"
+#include "hash.h"
 
 typedef struct module_s module_t;
 
@@ -63,6 +64,7 @@ typedef struct frame_s {
 typedef struct {
 	frame_t *frame_stack;
 	heap_t heap;
+	hash_table_t sym_table;
 } vm_thread_t;
 
 static void env_visit(visitor_t *vs, void *data)
@@ -87,6 +89,16 @@ env_t* env_new(heap_t *heap, int size)
 	env->hdr.type = &env_type;
 
 	return env;
+}
+
+void* symbol_get(hash_table_t *tbl, const char *str)
+{
+	void *res = hash_table_lookup(tbl, str);
+	if (!res) {
+		res = strdup(str);
+		hash_table_insert(tbl, res, res);
+	}
+	return res;
 }
 
 func_t* load_func(module_t *module, int index)
@@ -227,7 +239,7 @@ next_cmd:
 		case LOAD_FUNC:
 			{
 				func_t *func = load_func(func->module, op_arg);
-//				func_t *func = (void*)0x7f21e4cf0008;
+				//func_t *func = (void*)0x7f21e4cf0008;
 				printf("loaded func %p\n", func);
 				ptr_t fp;
 				init_func_ptr(fp, func);
@@ -304,7 +316,7 @@ module_t* module_load(const char *path)
 	/* Allocate functions storage */
 	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 	mod->fun_count = mhdr.fun_count;
-//	mod->entry_point = mhdr.entry_point;
+	//mod->entry_point = mhdr.entry_point;
 
 
 	char *import = mem_alloc(mhdr.import_size);
@@ -374,6 +386,7 @@ void vm_thread_init(vm_thread_t *thread)
 {
 	thread->frame_stack = NULL;
 	heap_init(&thread->heap, vm_inspect, thread);
+	hash_table_init(&thread->sym_table, string_hash, string_equal);
 }
 
 void vm_thread_destroy(vm_thread_t *thread)

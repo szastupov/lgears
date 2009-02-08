@@ -222,8 +222,6 @@
 
 (let ((res (start-compile
 			 '(
-			   (define foo (lambda n (bar n)))
-			   (define (bar n) (if n (foo 'zoo n) (display 'none)))
 			   (display 'dododo)
 			   )
 			 ;'('(one two three four))

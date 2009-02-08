@@ -1,6 +1,6 @@
 CFLAGS += -Wall -ggdb
 
-vm_obj = vm.o heap.o primitives.o
+vm_obj = vm.o heap.o primitives.o hash.o
 targets = vm
 
 include include.mk

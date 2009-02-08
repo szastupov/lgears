@@ -31,7 +31,7 @@ typedef struct module_s module_t;
 
 typedef struct {
 	int stack_size;
-	int locals;
+	int env_size;
 	int argc;
 	int op_count;
 	char *opcode;
@@ -102,7 +102,7 @@ frame_t* frame_create(func_t *func, frame_t *parent, heap_t *heap)
 	frame->prev = parent;
 	frame->opstack = mem_calloc(func->stack_size, sizeof(obj_t));
 	frame->func = func;
-	frame->env = env_new(heap, func->locals);
+	frame->env = env_new(heap, func->env_size);
 	return frame;
 }
 
@@ -169,7 +169,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 
 	int i;
-	for (i = 0; i < frame->func->locals; i++) {
+	for (i = 0; i < frame->func->env_size; i++) {
 		fixnum_t n;
 		fixnum_init(n, i);
 		frame->env->objects[i].ptr = n.ptr;
@@ -278,6 +278,17 @@ next_cmd:
 	}
 }
 
+void print_strings(const char *str, int size)
+{
+	int i;
+	for (i = 0; i < size; i++, str++) {
+		if (*str == 0)
+			printf("\n");
+		else
+			printf("%c", *str);
+	}
+}
+
 module_t* module_load(const char *path)
 {
 	int fd = open(path, O_RDONLY);
@@ -286,36 +297,39 @@ module_t* module_load(const char *path)
 
 	module_t *mod = type_alloc(module_t);
 
-	struct stat sb;
-	fstat(fd, &sb);
-
-	/* Read 4 bytes with functions count */
+	/* Read module header */
 	struct module_hdr_s mhdr;
 	read(fd, &mhdr, MODULE_HDR_OFFSET);
+
 	/* Allocate functions storage */
 	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 	mod->fun_count = mhdr.fun_count;
-	mod->entry_point = mhdr.entry_point;
+//	mod->entry_point = mhdr.entry_point;
 
-	int code_offset = CODE_START_OFFSET(mhdr.fun_count);
-	int code_size = sb.st_size - code_offset;
-	/* Allocate code storage and read opcode */
-	mod->code = malloc(code_size);
-	lseek(fd, code_offset, SEEK_SET);
-	read(fd, mod->code, code_size);
+
+	char *import = mem_alloc(mhdr.import_size);
+	read(fd, import, mhdr.import_size);
+	print_strings(import, mhdr.import_size);
+	printf("\n");
+	mem_free(import);
+
+	char *symbols = mem_alloc(mhdr.symbols_size);
+	read(fd, symbols, mhdr.symbols_size);
+	print_strings(symbols, mhdr.symbols_size);
+	mem_free(symbols);
 
 	int count;
 	struct func_hdr_s hdr;
-	lseek(fd, MODULE_HDR_OFFSET, SEEK_SET);
 	for (count = 0; count < mhdr.fun_count; count++) {
 		read(fd, &hdr, FUN_HDR_SIZE);
-		func_t *func	= &mod->functions[count];
-		func->stack_size	= hdr.stack_size;
-		func->locals	= hdr.locals;
-		func->argc		= hdr.argc;
-		func->op_count	= hdr.op_count;
-		func->opcode	= mod->code + hdr.offset;
-		func->module	= mod;
+		func_t *func = &mod->functions[count];
+		func->env_size = hdr.env_size;
+		func->argc = hdr.argc;
+		func->stack_size = hdr.stack_size;
+		func->op_count = hdr.op_count;
+		func->opcode = mem_alloc(hdr.op_count * 2);
+		read(fd, func->opcode, hdr.op_count * 2);
+		func->module = mod;
 	}
 
 	close(fd);
@@ -324,9 +338,11 @@ module_t* module_load(const char *path)
 
 void module_free(module_t *module)
 {
-	free(module->code);
-	free(module->functions);
-	free(module);
+	int i;
+	for (i = 0; i < module->fun_count; i++)
+		mem_free(module->functions[i].opcode);
+	mem_free(module->functions);
+	mem_free(module);
 }
 
 static void vm_inspect(visitor_t *visitor, void *self)

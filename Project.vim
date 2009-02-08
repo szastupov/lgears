@@ -1,1 +1,1 @@
-map <F5> :!./compiler<CR>
+map <F5> :!./vm<CR>

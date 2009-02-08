@@ -20,16 +20,16 @@
 #include <stdint.h>
 
 struct func_hdr_s {
-	uint8_t argc;
-	uint32_t locals;
+	uint32_t env_size;
+	uint32_t argc;
 	uint32_t stack_size;
-	uint32_t offset;
 	uint32_t op_count;
 } __attribute__((__packed__));
 
 struct module_hdr_s {
+	uint32_t import_size;
+	uint32_t symbols_size;
 	uint32_t fun_count;
-	uint32_t entry_point;
 } __attribute__((__packed__));
 
 #define NO_ARG -1

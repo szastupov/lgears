@@ -20,15 +20,16 @@
 
 ;; Environment of current-compiling function
 (define-record-type env
-  (fields parent tbl (mutable size))
+  (fields parent tbl (mutable size) argc)
   (protocol
 	(lambda (new)
 	  (case-lambda
 		(()
-		 (new '() (make-eq-hashtable) 0))
+		 (new '() (make-eq-hashtable) 0 0))
 		((prev args)
-		 (let ((ntbl (make-eq-hashtable)))
-		   (new prev ntbl (set-func-args! ntbl args))))))))
+		 (let* ((ntbl (make-eq-hashtable))
+				(nargc (set-func-args! ntbl args)))
+		   (new prev ntbl nargc nargc)))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
@@ -62,9 +63,7 @@
 		(set! res (sym-table-count stbl))
 		(hashtable-set! tbl sym res)
 		(sym-table-count-set! stbl (+ res 1))
-		res))
-	;sym
-	))
+		res))))
 
 ;; Return list of keys sorted by value (index)
 ;;
@@ -125,7 +124,8 @@
 	(define (compile-func parent args body)
 	  (let* ((env (make-env parent args))
 			 (compiled (compile-body env body)))
-		`(LOAD_FUNC ,(store-push! code-store compiled) 1)))
+		`(LOAD_FUNC ,(store-push! code-store
+								  (list compiled (env-size env) (env-argc env))) 1)))
 
 	(define (compile-if env node)
 	  (let ((pred (compile env (car node)))

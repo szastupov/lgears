@@ -52,7 +52,7 @@ static int compile_func(compiler_t *sc,
 
 	ast_iter_forward(args) {
 		sc_env_define(sc->sc_env_stack, args->data,
-				LOAD_FAST, top->locals);
+				LOAD_LOCAL, top->locals);
 		func->argc++;
 		top->locals++;
 	}

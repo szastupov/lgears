@@ -8,9 +8,11 @@
 				 (+ idx 1))
 			   0 oplist))
 
-  (define oplist '(LOAD_FAST LOAD_CONST LOAD_FUNC FUNC_CALL
-							 LOAD_ENV JUMP_IF_FALSE JUMP_IF_TRUE 
-							 JUMP_TO RETURN UNARY_NOT))
+  (define oplist '(
+				   LOAD_CONST LOAD_FUNC LOAD_PARENT LOAD_LOCAL LOAD_SYM
+				   LOAD_IMORT LOAD_ENV
+				   JUMP_IF_FALSE JUMP_IF_TRUE  JUMP_TO JUMP_FORWARD
+				   FUNC_CALL RETURN UNARY_NOT SET_LOCAL))
 
   (define (make-opcode-table)
 	(let ([tbl (make-eq-hashtable)])

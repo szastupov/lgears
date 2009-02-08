@@ -2,10 +2,25 @@
   (export assemble)
   (import (rnrs) (opcode))
 
-  (define-record-type func
-	(fields id argc
-	  (mutable stack-size)
-	  (mutable stack-usage)))
+  (define (assemble-code code)
+	(let ((mem (make-bytevector (* 2 (length code)))))
+	  (display "Assembling " ) (display code) (newline)
+	  (cons mem 
+			(let loop ((cur code)
+					   (stack-use 0)
+					   (stack-size 0)
+					   (shift 0))
+			  (if (null? cur)
+				stack-size
+				(let* ((cmd (car cur))
+					   (nuse (+ stack-use (caddr cmd))))
+				  (bytevector-u8-set! mem shift (opcode (car cmd)))
+				  (bytevector-s8-set! mem (+ 1 shift) (cadr cmd))
+				  (loop (cdr cur)
+						nuse
+						(max nuse stack-size)
+						(+ shift 2))))))))
+
 
   (define (assemble root port)
 	(define (write-strings strings)
@@ -16,13 +31,14 @@
 				  strings)
 		(- (port-position port) oldpos)))
 
-	(let ((undefs (assq 'undefs root))
-		  (symbols (assq 'symbols root))
-		  (code (assq 'code root)))
+	(let ((undefs		(cadr (assq 'undefs root)))
+		  (symbols	(cadr (assq 'symbols root)))
+		  (code		(cadr (assq 'code root))))
+	  (for-each assemble-code code)
 	  (set-port-position! port 8)
 	  (let ((header (make-bytevector 8)))
-		(bytevector-u32-native-set! header 0 (write-strings (cadr undefs)))
-		(bytevector-u32-native-set! header 4 (write-strings (cadr symbols)))
+		(bytevector-u32-native-set! header 0 (write-strings undefs))
+		(bytevector-u32-native-set! header 4 (write-strings symbols))
 		(set-port-position! port 0)
 		(put-bytevector port header))
 	  ))

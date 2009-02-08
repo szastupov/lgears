@@ -191,7 +191,7 @@ next_cmd:
 				frame->step, opcode_name(op_code), op_arg);
 
 		switch (op_code) {
-		case LOAD_FAST:
+		case LOAD_LOCAL:
 			STACK_PUSH(frame->env->objects[op_arg].ptr);
 			break;
 

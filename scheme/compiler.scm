@@ -1,6 +1,7 @@
 #!r6rs
 (import (rnrs)
 		(syntax-rules)
+		(quotes)
 		(assembly))
 
 (define (set-func-args! ntbl args)
@@ -42,7 +43,7 @@
 	  (let ((res (hashtable-ref (env-tbl cur-env) name #f)))
 		(if res
 		  (if (zero? step)
-			`(LOCAL ,res)
+			`(LOCAL . ,res)
 			`(PARENT ,step ,res))
 		  (loop (+ step 1) (env-parent cur-env)))))))
 
@@ -62,7 +63,7 @@
 		(hashtable-set! tbl sym res)
 		(sym-table-count-set! stbl (+ res 1))
 		res))
-	sym ;FIXME
+	;sym
 	))
 
 ;; Return list of keys sorted by value (index)
@@ -76,49 +77,28 @@
 		 (list-sort (lambda (x y) (< (cdr x) (cdr y)))
 					(vector->list (vector-map cons keys vals))))))
 
-(define (self-eval? x)
-  (or (number? x)
-	  (string? x)
-	  (char? x)
-	  (boolean? x)))
 
-; Common transquote routine
-(define (trquote-common qv pfunc)
-  (cons 'list 
-		(let loop ((cur qv))
-		  (cond ((null? cur)
-				 '())
-				((pair? cur)
-				 (cons (let ((head (car cur)))
-						 (cond ((pair? head)
-								(pfunc head))
-							   ((self-eval? head)
-								head)
-							   (else `(quote ,(car cur)))))
-					   (loop (cdr cur))))
-				(else cur)))))
+(define-record-type store
+  (fields (mutable head) (mutable count))
+  (protocol
+	(lambda (new)
+	  (lambda () (new '() 0)))))
 
-; Translate quotation to functions
-(define (trquote qv)
-  (trquote-common qv trquote))
+(define (store-push! store val)
+  (let ((res (store-count store)))
+	(store-count-set! store (+ 1 res))
+	(store-head-set! store (cons val (store-head store)))
+	res))
 
-; Translate quoasiquotation to functions
-; FIXME: implement splicing
-(define (trquasiquote qv)
-  (trquote-common
-	qv
-	(lambda (head)
-	  (case (car head)
-		((unquote)
-		 (cadr head))
-		((unquote-splicing)
-		 (cadr head))
-		(else
-		  (trquasiquote head))))))
+(define (map-append proc lst)
+  (if (null? lst)
+	'()
+	(append (proc (car lst)) (map-append proc (cdr lst)))))
 
 (define (start-compile root)
   (let ((undefs (make-sym-table))
-		(symbols (make-sym-table)))
+		(symbols (make-sym-table))
+		(code-store (make-store)))
 
 	(define (compile-body env body)
 	  (define (defination? x)
@@ -128,27 +108,34 @@
 		  (if (pair? name)
 			(car name)
 			name)))
-	  (for-each (lambda (def) (env-define env (defination-name def)))
-				(filter defination? body))
-	  (map (lambda (expr)
-			 (if (defination? expr)
-			   `(DEFINE ,(env-lookup env (defination-name expr))
-						,(if (pair? (cadr expr))
-						   (compile-func env (cdadr expr) (cddr expr))
-						   (compile env (caddr expr))))
-			   (compile env expr)))
-		   body))
+	  (let-values (((defines expressions) (partition defination? body)))
+		(for-each (lambda (def) (env-define env (defination-name def)))
+				  defines)
+		(let ((init (map-append (lambda (def)
+								  `(,(if (pair? (cadr def))
+									   (compile-func env (cdadr def) (cddr def))
+									   (compile env (caddr def)))
+									 (SET_LOCAL ,(cdr (env-lookup env (defination-name def))) -1)))
+								defines))
+			  (rest (map-append (lambda (expr)
+								  (compile env expr))
+								expressions)))
+		  (append init rest))))
 
 	(define (compile-func parent args body)
 	  (let* ((env (make-env parent args))
 			 (compiled (compile-body env body)))
-		`(FUNC ,@compiled)))
+		`(LOAD_FUNC ,(store-push! code-store compiled) 1)))
 
 	(define (compile-if env node)
 	  (let ((pred (compile env (car node)))
-			(if-clause (compile env (cadr node)))
+			(then-clause (compile env (cadr node)))
 			(else-clause (compile env (caddr node))))
-		`(BRANCH ,pred ,if-clause ,else-clause)))
+		`(,pred
+		   (JUMP_IF_FALSE ,(+ (length then-clause) 1) 0)
+		   ,@then-clause
+		   (JUMP_FORWARD ,(length else-clause) 0)
+		   ,@else-clause)))
 
 	(define (compile-args env args)
 	  (let loop ((cur args)
@@ -161,9 +148,12 @@
 				(cons (compile env (car cur)) res)))))
 
 	(define (compile-call env node)
-	  (let ((func (compile env (car node)))
-			(args (compile-args env (cdr node))))
-		`(CALL ,(car args) ,func ,@(cdr args))))
+	  (let* ((func (compile env (car node)))
+			 (args (compile-args env (cdr node)))
+			 (argc (car args)))
+		`(,@(cdr args)
+		   ,func
+		   (FUNC_CALL ,argc ,(+ (- argc) 1) ))))
 
 	(define (compile-macro node)
 	  (let ((name (car node))
@@ -177,7 +167,7 @@
 	(define (compile-quote env qv transform)
 	  (if (pair? qv)
 		(compile env (transform qv))
-		`(LOAD_SYM ,(sym-table-insert symbols qv))))
+		`(LOAD_SYM ,(sym-table-insert symbols qv) 1)))
 
 	(define (compile-seq env seq)
 	  (map (lambda (x)
@@ -219,28 +209,30 @@
 			(else
 			  (let ((res (env-lookup env node)))
 				(if res
-				  res
-				  (cons 'LOAD_UNDEF (sym-table-insert undefs node)))))))
+				  (if (eq? (car res) 'LOCAL)
+					`(LOAD_LOCAL ,(cdr res) 1)
+					`(LOAD_PARENT 0 0)) ; FIXME
+				  `(LOAD_IMORT ,(sym-table-insert undefs node) 1))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
 	  `((undefs	,(symtable->list undefs))
 		(symbols ,(symtable->list symbols))
-		(code ,entry-point)))))
+		(code ,(reverse (store-head code-store)))
+		(entry ,entry-point)))))
 
 (let ((res (start-compile
 			 '(
 			   (define foo (lambda n (bar n)))
-			   (define (bar n) (foo n))
-			   (set! foo (+ (display 'blabla) 12))
+			   (define (bar n) (if n (foo 'zoo n) (display 'none)))
+			   (display 'dododo)
 			   )
-			 ;'((lambda (x y) (x y)) (lambda (z) z))
-			 ;''(one two three four)
-			 ;'`(one ,two three "four")
+			 ;'('(one two three four))
+			 ;'(`(one ,two three "four"))
 			 )))
   (display "ILR: ")
   (display res)
   (newline)
-  (display "Assembply output:\n")
+  (display "Assembly output:\n")
   (let ((port (open-file-output-port "/tmp/assembly" (file-options no-fail))))
 	(assemble res port)
 	(close-output-port port))

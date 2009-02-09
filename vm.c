@@ -44,6 +44,7 @@ struct module_s {
 	func_t *functions;
 	int entry_point;
 	int fun_count;
+	obj_t *symbols;
 };
 
 typedef struct {
@@ -209,6 +210,15 @@ next_cmd:
 			STACK_PUSH(frame->env->objects[op_arg].ptr);
 			break;
 
+		case LOAD_SYM:
+			{
+				void *sym_ptr = frame->func->module->symbols[op_arg].ptr;
+				ptr_t p = { .ptr = sym_ptr };
+				STACK_PUSH(sym_ptr);
+				printf("loaded symbol %p = %s\n", sym_ptr, (const char*)ptr_get(&p));
+			}
+			break;
+
 		case JUMP_IF_FALSE:
 			if (is_false(STACK_HEAD())) {
 				frame->step = op_arg;
@@ -292,24 +302,29 @@ next_cmd:
 	}
 }
 
-void print_strings(const char *str, int size)
+module_t* module_load(vm_thread_t *thread, const char *path)
 {
-	int i;
-	for (i = 0; i < size; i++, str++) {
-		if (*str == 0)
-			printf("\n");
-		else
-			printf("%c", *str);
-	}
-}
+	module_t *mod;
 
-module_t* module_load(const char *path)
-{
+	void populate_sym_table(const char *str, int size)
+	{
+		int i;
+		const char *end = str+size;
+		mod->symbols = mem_calloc(*(str++), sizeof(obj_t));
+		while (str < end) {
+			int len = *(str++);
+			void *sym = symbol_get(&thread->sym_table, str);
+			mod->symbols[i++].ptr = sym;
+			printf("Created symbol for '%s' = %p\n", str, sym);
+			str += len+1;
+		}
+	}
+
 	int fd = open(path, O_RDONLY);
 	if (fd == -1)
 		FATAL("nothing to load\n");
 
-	module_t *mod = type_alloc(module_t);
+	mod = type_alloc(module_t);
 
 	/* Read module header */
 	struct module_hdr_s mhdr;
@@ -323,13 +338,12 @@ module_t* module_load(const char *path)
 
 	char *import = mem_alloc(mhdr.import_size);
 	read(fd, import, mhdr.import_size);
-	print_strings(import, mhdr.import_size);
-	printf("\n");
+//	print_strings(import, mhdr.import_size);
 	mem_free(import);
 
 	char *symbols = mem_alloc(mhdr.symbols_size);
 	read(fd, symbols, mhdr.symbols_size);
-	print_strings(symbols, mhdr.symbols_size);
+	populate_sym_table(symbols, mhdr.symbols_size);
 	mem_free(symbols);
 
 	int count;
@@ -393,15 +407,16 @@ void vm_thread_init(vm_thread_t *thread)
 
 void vm_thread_destroy(vm_thread_t *thread)
 {
+	hash_table_destroy(&thread->sym_table);
 	heap_destroy(&thread->heap);
 }
 
 int main()
 {
-	module_t *mod = module_load("/tmp/assembly");
-
 	vm_thread_t thread;
 	vm_thread_init(&thread);
+
+	module_t *mod = module_load(&thread, "/tmp/assembly");
 
 	eval_thread(&thread, mod);
 

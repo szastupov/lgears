@@ -8,7 +8,7 @@
 #define LOAD_PARENT	2
 #define LOAD_LOCAL	3
 #define LOAD_SYM	4
-#define LOAD_IMORT	5
+#define LOAD_IMPORT	5
 #define LOAD_ENV	6
 #define JUMP_IF_FALSE	7
 #define JUMP_IF_TRUE	8
@@ -29,7 +29,7 @@ const char* opcode_name(int code)
 		OP_CASE(LOAD_PARENT);
 		OP_CASE(LOAD_LOCAL);
 		OP_CASE(LOAD_SYM);
-		OP_CASE(LOAD_IMORT);
+		OP_CASE(LOAD_IMPORT);
 		OP_CASE(LOAD_ENV);
 		OP_CASE(JUMP_IF_FALSE);
 		OP_CASE(JUMP_IF_TRUE);

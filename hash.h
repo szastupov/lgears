@@ -21,6 +21,7 @@ typedef struct {
 
 void hash_table_init(hash_table_t *tbl, hash_func_t hash,
 		equal_func_t equal);
+void hash_table_destroy(hash_table_t *tbl);
 void* hash_table_lookup(hash_table_t *tbl, const void *key);
 void hash_table_insert(hash_table_t *tbl, void *key, void *val);
 

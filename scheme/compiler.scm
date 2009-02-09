@@ -212,17 +212,18 @@
 				  (if (eq? (car res) 'LOCAL)
 					`(LOAD_LOCAL ,(cdr res) 1)
 					`(LOAD_PARENT 0 0)) ; FIXME
-				  `(LOAD_IMORT ,(sym-table-insert undefs node) 1))))))
+				  `(LOAD_IMPORT ,(sym-table-insert undefs node) 1))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
-	  `((undefs	,(symtable->list undefs))
-		(symbols ,(symtable->list symbols))
+	  `((undefs	,(reverse (symtable->list undefs)))
+		(symbols ,(reverse (symtable->list symbols)))
 		(code ,(reverse (store-head code-store)))
 		(entry ,entry-point)))))
 
 (let ((res (start-compile
 			 '(
 			   (display 'dododo)
+			   (display 'blabla)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

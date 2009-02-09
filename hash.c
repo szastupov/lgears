@@ -91,6 +91,21 @@ void hash_table_init(hash_table_t *tbl, hash_func_t hash,
 	tbl->nodes = mem_calloc(tbl->size, sizeof(hash_node_t*));
 }
 
+void hash_table_destroy(hash_table_t *tbl)
+{
+	hash_node_t *node, *next;
+
+	int i;
+	for (i = 0 ; i < tbl->size; i++)
+		for (node = tbl->nodes[i]; node; node = next) {
+			next = node->next;
+			mem_free(node);
+		}
+
+	mem_free(tbl->nodes);
+	mem_free(tbl);
+}
+
 void hash_table_resize(hash_table_t *tbl)
 {
 	hash_node_t *node, *next, **new_nodes;
@@ -119,12 +134,12 @@ void hash_table_resize(hash_table_t *tbl)
 
 static inline void hash_table_maybe_resize(hash_table_t *tbl)
 {
-  int nnodes = tbl->nnodes;
-  int size = tbl->size;
+	int nnodes = tbl->nnodes;
+	int size = tbl->size;
 
-  if ((size >= 3 * nnodes && size > HASH_TABLE_MIN_SIZE) ||
-      (3 * size <= nnodes && size < HASH_TABLE_MAX_SIZE))
-    hash_table_resize(tbl);
+	if ((size >= 3 * nnodes && size > HASH_TABLE_MIN_SIZE) ||
+			(3 * size <= nnodes && size < HASH_TABLE_MAX_SIZE))
+		hash_table_resize(tbl);
 }
 
 static hash_node_t** hash_table_lookup_node(hash_table_t *tbl,

@@ -11,8 +11,8 @@
   (define oplist '(
 				   LOAD_CONST LOAD_FUNC LOAD_PARENT LOAD_LOCAL LOAD_SYM
 				   LOAD_IMPORT LOAD_ENV
-				   JUMP_IF_FALSE JUMP_IF_TRUE  JUMP_TO JUMP_FORWARD
-				   FUNC_CALL RETURN UNARY_NOT SET_LOCAL))
+				   JUMP_IF_FALSE JUMP_IF_TRUE JUMP_FORWARD
+				   FUNC_CALL RETURN SET_LOCAL))
 
   (define (make-opcode-table)
 	(let ([tbl (make-eq-hashtable)])

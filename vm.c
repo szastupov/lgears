@@ -235,18 +235,10 @@ next_cmd:
 			}
 			break;
 
-		case JUMP_TO:
-			frame->step = op_arg;
-			printf("jumping to %d\n", op_arg);
+		case JUMP_FORWARD:
+			frame->step += op_arg;
+			printf("jumping to %d\n", frame->step);
 			goto next_cmd;
-
-		case UNARY_NOT:
-			if (is_false(STACK_POP())) {
-				bool_t b;
-				bool_init(b, 0);
-				STACK_PUSH(b.ptr);
-			}
-			break;
 
 		case LOAD_FUNC:
 			{

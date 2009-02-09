@@ -31,3 +31,6 @@ clean:
 
 ctags:
 	@ctags *.c *.h
+
+check-syntax:
+	$(CC) $(CFLAGS) -fsyntax-only $(CHK_SOURCES)

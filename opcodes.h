@@ -16,8 +16,7 @@
 #define JUMP_FORWARD	10
 #define FUNC_CALL	11
 #define RETURN	12
-#define UNARY_NOT	13
-#define SET_LOCAL	14
+#define SET_LOCAL	13
 
 #define OP_CASE(code) case code: return #code
 
@@ -37,7 +36,6 @@ const char* opcode_name(int code)
 		OP_CASE(JUMP_FORWARD);
 		OP_CASE(FUNC_CALL);
 		OP_CASE(RETURN);
-		OP_CASE(UNARY_NOT);
 		OP_CASE(SET_LOCAL);
 	}
 	return "unknown";

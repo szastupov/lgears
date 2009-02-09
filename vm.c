@@ -27,46 +27,7 @@
 #include "heap.h"
 #include "primitives.h"
 #include "hash.h"
-
-typedef struct module_s module_t;
-
-typedef struct {
-	int stack_size;
-	int env_size;
-	int argc;
-	int op_count;
-	char *opcode;
-	module_t *module;
-} func_t;
-
-struct module_s {
-	char *code;
-	func_t *functions;
-	int entry_point;
-	int fun_count;
-	obj_t *symbols;
-};
-
-typedef struct {
-	hobj_hdr_t hdr;
-	int size;
-	obj_t *objects;
-} env_t;
-
-typedef struct frame_s {
-	struct frame_s *prev;
-	obj_t	*opstack;
-	env_t	*env;
-	func_t	*func;
-	int		step;
-	int		op_stack_idx;
-} frame_t;
-
-typedef struct {
-	frame_t *frame_stack;
-	heap_t heap;
-	hash_table_t sym_table;
-} vm_thread_t;
+#include "vm_private.h"
 
 static void env_visit(visitor_t *vs, void *data)
 {

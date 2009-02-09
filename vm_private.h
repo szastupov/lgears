@@ -14,34 +14,48 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#ifndef HASH_H
-#define HASH_H 
+#ifndef VM_PRIVATE_H
+#define VM_PRIVATE_H 
 
-typedef unsigned (*hash_func_t)(const void*);
-typedef int (*equal_func_t)(const void*, const void*);
-
-typedef struct hash_node_s {
-	void *key;
-	void *val;
-	unsigned key_hash;
-	struct hash_node_s *next;
-} hash_node_t;
+typedef struct module_s module_t;
 
 typedef struct {
+	int stack_size;
+	int env_size;
+	int argc;
+	int op_count;
+	char *opcode;
+	module_t *module;
+} func_t;
+
+struct module_s {
+	char *code;
+	func_t *functions;
+	int entry_point;
+	int fun_count;
+	obj_t *symbols;
+};
+
+typedef struct {
+	hobj_hdr_t hdr;
 	int size;
-	int nnodes;
-	hash_node_t **nodes;
-	hash_func_t hash;
-	equal_func_t equal;
-} hash_table_t;
+	obj_t *objects;
+} env_t;
 
-void hash_table_init(hash_table_t *tbl, hash_func_t hash,
-		equal_func_t equal);
-void hash_table_destroy(hash_table_t *tbl);
-void* hash_table_lookup(hash_table_t *tbl, const void *key);
-void hash_table_insert(hash_table_t *tbl, void *key, void *val);
+typedef struct frame_s {
+	struct frame_s *prev;
+	obj_t	*opstack;
+	env_t	*env;
+	func_t	*func;
+	int		step;
+	int		op_stack_idx;
+} frame_t;
 
-unsigned string_hash(const void *src);
-int string_equal(const void *v1, const void *v2);
+typedef struct {
+	frame_t *frame_stack;
+	heap_t heap;
+	hash_table_t sym_table;
+} vm_thread_t;
 
-#endif /* HASH_H */
+
+#endif /* VM_PRIVATE_H */

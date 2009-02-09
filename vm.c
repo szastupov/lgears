@@ -98,7 +98,9 @@ void* symbol_get(hash_table_t *tbl, const char *str)
 		res = strdup(str);
 		hash_table_insert(tbl, res, res);
 	}
-	return res;
+	ptr_t sp;
+	symbol_init(sp, res);
+	return sp.ptr;
 }
 
 func_t* load_func(module_t *module, int index)

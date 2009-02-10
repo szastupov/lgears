@@ -48,6 +48,12 @@
 			`(PARENT ,step ,res))
 		  (loop (+ step 1) (env-parent cur-env)))))))
 
+(define (env-idx env name)
+  (let ((res (hashtable-ref (env-tbl env) name #f)))
+	(if res
+	  res
+	  (error 'env-idx "not found" name))))
+
 (define-record-type sym-table
   (fields table (mutable count))
   (protocol
@@ -114,7 +120,7 @@
 								  `(,(if (pair? (cadr def))
 									   (compile-func env (cdadr def) (cddr def))
 									   (compile env (caddr def)))
-									 (SET_LOCAL ,(cdr (env-lookup env (defination-name def))) -1)))
+									 (SET_LOCAL ,(env-idx env (defination-name def)) -1)))
 								defines))
 			  (rest (map-append (lambda (expr)
 								  (compile env expr))

@@ -119,7 +119,7 @@
 			  (rest (map-append (lambda (expr)
 								  (compile env expr))
 								expressions)))
-		  (append init rest))))
+		  `(,@init ,@rest (RETURN 0 0)))))
 
 	(define (compile-func parent args body)
 	  (let* ((env (make-env parent args))
@@ -153,7 +153,7 @@
 			 (argc (car args)))
 		`(,@(cdr args)
 		   ,func
-		   (FUNC_CALL ,argc ,(+ (- argc) 1) )))) ; FIXME check stack usage counting
+		   (FUNC_CALL ,argc ,(- argc)))))
 
 	(define (compile-macro node)
 	  (let ((name (car node))
@@ -212,17 +212,18 @@
 				  (if (eq? (car res) 'LOCAL)
 					`(LOAD_LOCAL ,(cdr res) 1)
 					`(LOAD_PARENT 0 0)) ; FIXME
-				  `(LOAD_IMPORT ,(sym-table-insert undefs node) 1))))))
+				  `(LOAD_IMPORT ,(sym-table-insert undefs node) -1))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
-	  `((undefs	,(reverse (symtable->list undefs)))
-		(symbols ,(reverse (symtable->list symbols)))
+	  `((undefs	,(symtable->list undefs))
+		(symbols ,(symtable->list symbols))
 		(code ,(reverse (store-head code-store)))
 		(entry ,entry-point)))))
 
 (let ((res (start-compile
 			 '(
 			   ((lambda (x) (display x)) 'foobar)
+			   (display 'ok)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

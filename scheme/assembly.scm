@@ -17,6 +17,7 @@
 				 stack-size
 				 (let* ((cmd (car cur))
 						(nuse (+ stack-use (caddr cmd))))
+				   ;(display (format "opcode ~a = ~a\n" (car cmd) (opcode (car cmd))))
 				   (bytevector-u8-set! mem offset (opcode (car cmd)))
 				   (bytevector-s8-set! mem (+ 1 offset) (cadr cmd))
 				   (loop (cdr cur)

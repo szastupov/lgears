@@ -225,7 +225,7 @@ next_cmd:
 						obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
 						for (i = 0; i < func->argc; i++)
 							argv[i] = STACK_POP();
-						func->call(argv);
+						STACK_PUSH(func->call(argv));
 						mem_free(argv);
 					}
 					break;

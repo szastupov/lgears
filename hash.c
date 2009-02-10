@@ -103,7 +103,6 @@ void hash_table_destroy(hash_table_t *tbl)
 		}
 
 	mem_free(tbl->nodes);
-	mem_free(tbl);
 }
 
 void hash_table_resize(hash_table_t *tbl)

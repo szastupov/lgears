@@ -12,11 +12,10 @@
 #define LOAD_ENV	6
 #define JUMP_IF_FALSE	7
 #define JUMP_IF_TRUE	8
-#define JUMP_TO	9
-#define JUMP_FORWARD	10
-#define FUNC_CALL	11
-#define RETURN	12
-#define SET_LOCAL	13
+#define JUMP_FORWARD	9
+#define FUNC_CALL	10
+#define RETURN	11
+#define SET_LOCAL	12
 
 #define OP_CASE(code) case code: return #code
 
@@ -32,7 +31,6 @@ const char* opcode_name(int code)
 		OP_CASE(LOAD_ENV);
 		OP_CASE(JUMP_IF_FALSE);
 		OP_CASE(JUMP_IF_TRUE);
-		OP_CASE(JUMP_TO);
 		OP_CASE(JUMP_FORWARD);
 		OP_CASE(FUNC_CALL);
 		OP_CASE(RETURN);

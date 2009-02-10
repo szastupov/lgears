@@ -22,7 +22,7 @@ typedef struct module_s module_t;
 typedef struct {
 	int stack_size;
 	int env_size;
-	int argc;
+	short argc;
 	int op_count;
 	char *opcode;
 	module_t *module;

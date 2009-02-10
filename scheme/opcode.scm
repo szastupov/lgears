@@ -8,6 +8,10 @@
 				 (+ idx 1))
 			   0 oplist))
 
+  #|
+   | DO NOT FORGET TO RUN make regen-opcode after updating it
+   |#
+
   (define oplist '(
 				   LOAD_CONST LOAD_FUNC LOAD_PARENT LOAD_LOCAL LOAD_SYM
 				   LOAD_IMPORT LOAD_ENV

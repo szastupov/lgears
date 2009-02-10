@@ -88,30 +88,6 @@ void frame_destroy(frame_t *frame)
 	mem_free(frame);
 }
 
-void* ptr_from_obj(obj_t obj)
-{
-	ptr_t p = { .ptr = obj.ptr };
-	return ptr_get(&p);
-}
-
-int fixnum_from_obj(obj_t obj)
-{
-	fixnum_t f = { .ptr = obj.ptr };
-	return f.val;
-}
-
-char char_from_obj(obj_t obj)
-{
-	char_t c = { .ptr = obj.ptr };
-	return c.c;
-}
-
-int bool_from_obj(obj_t obj)
-{
-	bool_t b = { .ptr = obj.ptr };
-	return b.val;
-}
-
 void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
@@ -127,13 +103,23 @@ void print_obj(obj_t obj)
 	case id_char:
 		printf("char: %c\n", char_from_obj(obj));
 		break;
-	case id_func_ptr:
+	case id_func:
 		printf("func: %p\n", ptr_from_obj(obj));
+		break;
+	case id_symbol:
+		printf("symbol: %s\n", (const char*)ptr_from_obj(obj));
 		break;
 	default:
 		printf("unknown obj\n");
 	}
 }
+
+static void* display(obj_t *argv)
+{
+	print_obj(argv[0]);
+	return NULL;
+}
+MAKE_NATIVE(display, 1);
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
@@ -143,13 +129,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			&thread->heap);
 	frame_t *frame = thread->frame_stack;
 
-
-	int i;
-	for (i = 0; i < frame->func->env_size; i++) {
-		fixnum_t n;
-		fixnum_init(n, i);
-		frame->env->objects[i].ptr = n.ptr;
-	}
 
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
 #define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
@@ -174,9 +153,15 @@ next_cmd:
 		case LOAD_SYM:
 			{
 				void *sym_ptr = frame->func->module->symbols[op_arg].ptr;
-				ptr_t p = { .ptr = sym_ptr };
 				STACK_PUSH(sym_ptr);
-				printf("loaded symbol %p = %s\n", sym_ptr, (const char*)ptr_get(&p));
+			}
+			break;
+
+		case LOAD_IMPORT:
+			{
+				ptr_t ptr;
+				native_init(ptr, &display_nt); // FIXME
+				STACK_PUSH(ptr.ptr);
 			}
 			break;
 
@@ -204,30 +189,49 @@ next_cmd:
 		case LOAD_FUNC:
 			{
 				func_t *func = load_func(frame->func->module, op_arg);
-				//func_t *func = (void*)0x7f21e4cf0008;
 				printf("loaded func %p\n", func);
 				ptr_t fp;
-				init_func_ptr(fp, func);
+				func_init(fp, func);
 				STACK_PUSH(fp.ptr);
 			}
 			break;
 
 		case FUNC_CALL:
 			{
-				ptr_t fp;
-				fp.ptr = STACK_POP().ptr;
-				func_t *func = ptr_get(&fp);
-				if (func->argc != op_arg)
-					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-				frame_t *new_frame = frame_create(func, frame, &thread->heap);
-				thread->frame_stack = new_frame;
+				obj_t obj = STACK_POP();
+				ptr_t fp = { .ptr = obj.ptr };
+					int i;
+				switch (obj.tag) {
+				case id_func:
+					{
+						func_t *func = ptr_get(&fp);
+						if (func->argc != op_arg)
+							FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+						frame_t *new_frame = frame_create(func, frame, &thread->heap);
+						thread->frame_stack = new_frame;
 
-				int i;
-				for (i = 0; i < func->argc; i++)
-					frame->env->objects[i].ptr = STACK_POP().ptr;
-				frame = new_frame;
+						for (i = 0; i < func->argc; i++)
+							new_frame->env->objects[i] = STACK_POP();
+						frame = new_frame;
 
-				goto next_cmd;
+						goto next_cmd;
+					}
+					break;
+				case id_native:
+					{
+						native_t *func = ptr_get(&fp);
+						if (func->argc != op_arg)
+							FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+						obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
+						for (i = 0; i < func->argc; i++)
+							argv[i] = STACK_POP();
+						func->call(argv);
+						mem_free(argv);
+					}
+					break;
+				default:
+					FATAL("Expected function but got type tag: %d\n", obj.tag);
+				}
 			}
 			break;
 
@@ -281,17 +285,19 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 
 	/* Read module header */
 	struct module_hdr_s mhdr;
-	read(fd, &mhdr, MODULE_HDR_OFFSET);
+	if (read(fd, &mhdr, MODULE_HDR_OFFSET) != MODULE_HDR_OFFSET)
+		FATAL("Failed to read module header\n");
 
 	/* Allocate functions storage */
 	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 	mod->fun_count = mhdr.fun_count;
 	//mod->entry_point = mhdr.entry_point;
+	mod->entry_point = 1; //FIXME
 
 
 	char *import = mem_alloc(mhdr.import_size);
 	read(fd, import, mhdr.import_size);
-//	print_strings(import, mhdr.import_size);
+	//	print_strings(import, mhdr.import_size);
 	mem_free(import);
 
 	char *symbols = mem_alloc(mhdr.symbols_size);
@@ -302,14 +308,18 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 	int count;
 	struct func_hdr_s hdr;
 	for (count = 0; count < mhdr.fun_count; count++) {
-		read(fd, &hdr, FUN_HDR_SIZE);
+		if (read(fd, &hdr, FUN_HDR_SIZE) != FUN_HDR_SIZE)
+			FATAL("Failed to read func header\n");
 		func_t *func = &mod->functions[count];
 		func->env_size = hdr.env_size;
 		func->argc = hdr.argc;
 		func->stack_size = hdr.stack_size;
 		func->op_count = hdr.op_count;
-		func->opcode = mem_alloc(hdr.op_count * 2);
-		read(fd, func->opcode, hdr.op_count * 2);
+
+		int opcode_size = hdr.op_count * 2;
+		func->opcode = mem_alloc(opcode_size);
+		if (read(fd, func->opcode, opcode_size) != opcode_size)
+			FATAL("Failed to read opcode");
 		func->module = mod;
 	}
 

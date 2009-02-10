@@ -1,6 +1,8 @@
 (library (assembly)
   (export assemble)
-  (import (rnrs) (opcode))
+  (import (rnrs)
+		  (opcode)
+		  (slib format))
 
   (define (assemble-code func)
 	(display "Assembling " ) (display func) (newline)

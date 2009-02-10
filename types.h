@@ -45,7 +45,8 @@ enum {
 	id_fixnum,	/**< Integer */
 	id_char,	/**< Character */
 	id_bool,	/**< Boolean */
-	id_func_ptr,/**< Function pointer */
+	id_func,	/**< Function pointer */
+	id_native,	/**< Native function */
 	id_symbol	/**< Symbol pointer */
 };
 
@@ -70,7 +71,8 @@ typedef union {
 #define ptr_get(p) (void*)(unsigned long)((p)->addr << 2)
 #define ptr_init(p, a) { (p)->tag = id_ptr; ptr_set(p, a); }
 #define return_ptr(a) { ptr_t res; ptr_init(&res, a); return res.ptr; }
-#define init_func_ptr(i, v) { (i).tag = id_func_ptr; ptr_set(&i, v); }
+#define func_init(i, v) { (i).tag = id_func; ptr_set(&i, v); }
+#define native_init(i, v) { (i).tag = id_native; ptr_set(&i, v); }
 #define symbol_init(i, v) { (i).tag = id_symbol; ptr_set(&i, v); }
 
 typedef union {
@@ -107,10 +109,39 @@ typedef union {
 
 #define bool_init(b,v) { (b).tag = id_bool; (b).val = v; }
 
+/*
+ * Utilites
+ */
+
 static inline int is_false(obj_t obj)
 {
 	bool_t b = { .ptr = obj.ptr };
 	return obj.tag == id_bool && b.val == 0;
+}
+
+
+static inline void* ptr_from_obj(obj_t obj)
+{
+	ptr_t p = { .ptr = obj.ptr };
+	return ptr_get(&p);
+}
+
+static inline int fixnum_from_obj(obj_t obj)
+{
+	fixnum_t f = { .ptr = obj.ptr };
+	return f.val;
+}
+
+static inline char char_from_obj(obj_t obj)
+{
+	char_t c = { .ptr = obj.ptr };
+	return c.c;
+}
+
+static inline int bool_from_obj(obj_t obj)
+{
+	bool_t b = { .ptr = obj.ptr };
+	return b.val;
 }
 
 typedef struct visitor_s {
@@ -137,5 +168,19 @@ typedef struct {
 typedef struct {
 	const type_t *type;
 } hobj_hdr_t;
+
+typedef struct native_s native_t;
+typedef void* (*native_func)(obj_t *argv);
+
+struct native_s {
+	short argc;
+	native_func call;
+};
+
+#define MAKE_NATIVE(func, fargc) \
+	const native_t func##_nt = { \
+		.argc = fargc, \
+		.call = func \
+	}
 
 #endif /* TYPES_H */

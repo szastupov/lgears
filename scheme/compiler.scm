@@ -153,7 +153,7 @@
 			 (argc (car args)))
 		`(,@(cdr args)
 		   ,func
-		   (FUNC_CALL ,argc ,(+ (- argc) 1) ))))
+		   (FUNC_CALL ,argc ,(+ (- argc) 1) )))) ; FIXME check stack usage counting
 
 	(define (compile-macro node)
 	  (let ((name (car node))
@@ -222,8 +222,7 @@
 
 (let ((res (start-compile
 			 '(
-			   (display 'dododo)
-			   (display 'blabla)
+			   ((lambda (x) (display x)) 'foobar)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

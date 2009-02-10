@@ -203,7 +203,7 @@ next_cmd:
 
 		case LOAD_FUNC:
 			{
-				func_t *func = load_func(func->module, op_arg);
+				func_t *func = load_func(frame->func->module, op_arg);
 				//func_t *func = (void*)0x7f21e4cf0008;
 				printf("loaded func %p\n", func);
 				ptr_t fp;

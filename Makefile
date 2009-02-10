@@ -1,4 +1,4 @@
-CFLAGS += -Wall -ggdb
+CFLAGS += -Wall -ggdb -O2
 
 vm_obj = vm.o heap.o primitives.o hash.o
 targets = vm

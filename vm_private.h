@@ -20,15 +20,11 @@
 typedef struct module_s module_t;
 
 typedef struct {
-	char code, arg;
-} ocode_t;
-
-typedef struct {
 	int stack_size;
 	int env_size;
 	short argc;
 	int op_count;
-	ocode_t *opcode;
+	char *opcode;
 	module_t *module;
 } func_t;
 
@@ -51,7 +47,7 @@ typedef struct frame_s {
 	obj_t	*opstack;
 	env_t	*env;
 	func_t	*func;
-	int		step;
+	char	*opcode;
 	int		op_stack_idx;
 } frame_t;
 

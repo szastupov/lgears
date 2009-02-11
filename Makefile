@@ -1,4 +1,4 @@
-CFLAGS += -Wall -ggdb
+CFLAGS += -Wall -ggdb #-DCOMPUTED_GOTO
 
 vm_obj = vm.o heap.o primitives.o hash.o
 targets = vm
@@ -10,4 +10,4 @@ include include.mk
 r6rs = ypsilon --sitelib=./scheme
 
 regen-opcode:
-	@$(r6rs) ./scheme/gen-header.scm ./opcodes.h
+	@$(r6rs) ./scheme/gen-headers.scm

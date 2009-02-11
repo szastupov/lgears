@@ -79,6 +79,7 @@ frame_t* frame_create(func_t *func, frame_t *parent, heap_t *heap)
 	frame->prev = parent;
 	frame->opstack = mem_calloc(func->stack_size, sizeof(obj_t));
 	frame->func = func;
+	frame->opcode = func->opcode;
 	frame->env = env_new(heap, func->env_size);
 	return frame;
 }
@@ -92,26 +93,26 @@ void frame_destroy(frame_t *frame)
 void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
-	case id_ptr:
-		printf("ptr: %p\n", ptr_from_obj(obj));
-	break;
-	case id_fixnum:
-		printf("fixnum: %d\n", fixnum_from_obj(obj));
-	break;
-	case id_bool:
-		printf("bool: #%c\n", bool_from_obj(obj) ? 't' : 'f');
-	break;
-	case id_char:
-		printf("char: %c\n", char_from_obj(obj));
-	break;
-	case id_func:
-		printf("func: %p\n", ptr_from_obj(obj));
-	break;
-	case id_symbol:
-		printf("symbol: %s\n", (const char*)ptr_from_obj(obj));
-	break;
-	default:
-		printf("unknown obj\n");
+		case id_ptr:
+			printf("ptr: %p\n", ptr_from_obj(obj));
+			break;
+		case id_fixnum:
+			printf("fixnum: %d\n", fixnum_from_obj(obj));
+			break;
+		case id_bool:
+			printf("bool: #%c\n", bool_from_obj(obj) ? 't' : 'f');
+			break;
+		case id_char:
+			printf("char: %c\n", char_from_obj(obj));
+			break;
+		case id_func:
+			printf("func: %p\n", ptr_from_obj(obj));
+			break;
+		case id_symbol:
+			printf("symbol: %s\n", (const char*)ptr_from_obj(obj));
+			break;
+		default:
+			printf("unknown obj\n");
 	}
 }
 
@@ -135,121 +136,137 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #define STACK_POP() frame->opstack[--frame->op_stack_idx]
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
 
+#ifdef COMPUTED_GOTO
+#include "opcode_targets.h"
+#define TARGET(op) \
+	TARGET_##op: \
+	op_code = *(frame->opcode++); \
+	op_arg = *(frame->opcode++); \
+	printf("\t%s : %d\n", opcode_name(op_code), op_arg); \
+	case op:
+#define NEXT() goto *opcode_targets[(int)*frame->opcode]
+#else
+#define TARGET(op) case op:\
+	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
+#define NEXT() continue
+#endif
+
 	int op_code, op_arg;
-	ocode_t code;
-	while (frame->step < frame->func->op_count) {
-next_cmd:
-		code = frame->func->opcode[frame->step];
-		op_code = code.code;
-		op_arg = code.arg;
-		printf("%d\t%s : %d\n",
-				frame->step, opcode_name(op_code), op_arg);
+	for (;;) {
+		op_code = *(frame->opcode++);
+		op_arg = *(frame->opcode++);
 
 		switch (op_code) {
-		case LOAD_LOCAL:
-			STACK_PUSH(frame->env->objects[op_arg].ptr);
-		break;
+			TARGET(LOAD_LOCAL)
+				STACK_PUSH(frame->env->objects[op_arg].ptr);
+			NEXT();
 
-		case LOAD_SYM:
-			STACK_PUSH(frame->func->module->symbols[op_arg].ptr);
-		break;
+			TARGET(LOAD_SYM) 
+				STACK_PUSH(frame->func->module->symbols[op_arg].ptr);
+			NEXT();
 
-		case LOAD_IMPORT: {
-			ptr_t ptr;
-			native_init(ptr, &display_nt); // FIXME
-			STACK_PUSH(ptr.ptr);
-		}
-		break;
-
-		case JUMP_IF_FALSE:
-		if (is_false(STACK_HEAD())) {
-			frame->step = op_arg;
-			printf("jumping to %d\n", op_arg);
-			goto next_cmd;
-		}
-		break;
-
-		case JUMP_IF_TRUE:
-		if (!is_false(STACK_HEAD())) {
-			frame->step = op_arg;
-			printf("jumping to %d\n", op_arg);
-			goto next_cmd;
-		}
-		break;
-
-		case JUMP_FORWARD: {
-			frame->step += op_arg;
-			printf("jumping to %d\n", frame->step);
-			goto next_cmd;
-		}
-
-		case LOAD_FUNC: {
-			func_t *func = load_func(frame->func->module, op_arg);
-			printf("loaded func %p\n", func);
-			ptr_t fp;
-			func_init(fp, func);
-			STACK_PUSH(fp.ptr);
-		}
-		break;
-
-		case FUNC_CALL: {
-			obj_t obj = STACK_POP();
-			ptr_t fp = { .ptr = obj.ptr };
-			int i;
-			switch (obj.tag) {
-			case id_func: {
-				func_t *func = ptr_get(&fp);
-				if (func->argc != op_arg)
-					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-				frame_t *new_frame = frame_create(func, frame, &thread->heap);
-				thread->frame_stack = new_frame;
-
-				for (i = 0; i < func->argc; i++)
-					new_frame->env->objects[i] = STACK_POP();
-				frame = new_frame;
-
-				goto next_cmd;
+			TARGET(LOAD_IMPORT) {
+				ptr_t ptr;
+				native_init(ptr, &display_nt); // FIXME
+				STACK_PUSH(ptr.ptr);
 			}
-			case id_native: {
-				native_t *func = ptr_get(&fp);
-				if (func->argc != op_arg)
-					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+			NEXT();
 
-				obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
-				for (i = 0; i < func->argc; i++)
-					argv[i] = STACK_POP();
+			TARGET(JUMP_IF_FALSE)
+				if (is_false(STACK_HEAD())) {
+					frame->opcode += op_arg*2;
+					printf("jumping on %d\n", op_arg);
+				}
+			NEXT();
 
-				STACK_PUSH(func->call(argv));
+			TARGET(JUMP_IF_TRUE)
+				if (!is_false(STACK_HEAD())) {
+					frame->opcode += op_arg*2;
+					printf("jumping on %d\n", op_arg);
+				}
+			NEXT();
 
-				mem_free(argv);
+			TARGET(JUMP_FORWARD) {
+				frame->opcode += op_arg*2;
+				printf("jumping to %d\n", op_arg);
 			}
-				break;
+			NEXT();
+
+			TARGET(LOAD_FUNC) {
+				func_t *func = load_func(frame->func->module, op_arg);
+				printf("loaded func %p\n", func);
+				ptr_t fp;
+				func_init(fp, func);
+				STACK_PUSH(fp.ptr);
+			}
+			NEXT();
+
+			TARGET(FUNC_CALL) {
+				obj_t obj = STACK_POP();
+				ptr_t fp = { .ptr = obj.ptr };
+				int i;
+				switch (obj.tag) {
+					case id_func: 
+						{
+							func_t *func = ptr_get(&fp);
+							if (func->argc != op_arg)
+								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+							frame_t *new_frame = frame_create(func, frame, &thread->heap);
+							thread->frame_stack = new_frame;
+
+							for (i = 0; i < func->argc; i++)
+								new_frame->env->objects[i] = STACK_POP();
+							frame = new_frame;
+
+							NEXT();
+						}
+					case id_native: 
+						{
+							native_t *func = ptr_get(&fp);
+							if (func->argc != op_arg)
+								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+
+							obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
+							for (i = 0; i < func->argc; i++)
+								argv[i] = STACK_POP();
+
+							STACK_PUSH(func->call(argv));
+
+							mem_free(argv);
+						}
+						break;
+					default:
+						FATAL("Expected function but got type tag: %d\n", obj.tag);
+				}
+			}
+			NEXT();
+
+			TARGET(RETURN) {
+				obj_t ret = STACK_POP();
+				frame_t *parent = frame->prev;
+				thread->frame_stack = parent;
+				frame_destroy(frame);
+				if (parent) {
+					STACK_PUSH_ON(parent, ret.ptr);
+					frame = parent;
+				} else {
+					print_obj(ret);
+					return;
+				}
+			}
+			NEXT();
+
+			TARGET(SET_LOCAL)
+				FATAL("Not implemented");
+			NEXT();
+
+			TARGET(LOAD_PARENT)
+				FATAL("Not implemented");
+			NEXT();
+
 			default:
-				FATAL("Expected function but got type tag: %d\n", obj.tag);
-			}
+			FATAL("Unhandled opcode %s\n", opcode_name(op_code));
 		}
-		break;
-
-		case RETURN: {
-			obj_t ret = STACK_POP();
-			frame_t *parent = frame->prev;
-			thread->frame_stack = parent;
-			frame_destroy(frame);
-			if (parent) {
-				STACK_PUSH_ON(parent, ret.ptr);
-				frame = parent;
-			} else {
-				print_obj(ret);
-				return;
-			}
-		}
-		break;
-
-		default:
-		FATAL("Unhandled opcode %s\n", opcode_name(op_code));
-		}
-
-		frame->step++;
 	}
 }
 

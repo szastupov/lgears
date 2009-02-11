@@ -46,8 +46,8 @@ typedef struct frame_s {
 	struct frame_s *prev;
 	obj_t	*opstack;
 	env_t	*env;
-	func_t	*func;
-	char	*opcode;
+	const func_t *func;
+	const char	*opcode;
 	int		op_stack_idx;
 } frame_t;
 

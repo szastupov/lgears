@@ -119,7 +119,6 @@ static inline int is_false(obj_t obj)
 	return obj.tag == id_bool && b.val == 0;
 }
 
-
 static inline void* ptr_from_obj(obj_t obj)
 {
 	ptr_t p = { .ptr = obj.ptr };

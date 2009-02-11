@@ -20,9 +20,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "memory.h"
-#include "bytecode.h"
+#include "opcodes.h"
 #include "types.h"
 #include "heap.h"
 #include "primitives.h"
@@ -129,19 +130,18 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			&thread->heap);
 	frame_t *frame = thread->frame_stack;
 
-
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
 #define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
 #define STACK_POP() frame->opstack[--frame->op_stack_idx]
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
 
 	int op_code, op_arg;
-	char *code;
+	ocode_t code;
 	while (frame->step < frame->func->op_count) {
 next_cmd:
-		code = frame->func->opcode+(frame->step*2);
-		op_code = code[0];
-		op_arg = code[1];
+		code = frame->func->opcode[frame->step];
+		op_code = code.code;
+		op_arg = code.arg;
 		printf("%d\t%s : %d\n",
 				frame->step, opcode_name(op_code), op_arg);
 
@@ -150,10 +150,8 @@ next_cmd:
 			STACK_PUSH(frame->env->objects[op_arg].ptr);
 		break;
 
-		case LOAD_SYM: {
-			void *sym_ptr = frame->func->module->symbols[op_arg].ptr;
-			STACK_PUSH(sym_ptr);
-		}
+		case LOAD_SYM:
+			STACK_PUSH(frame->func->module->symbols[op_arg].ptr);
 		break;
 
 		case LOAD_IMPORT: {
@@ -216,13 +214,16 @@ next_cmd:
 				native_t *func = ptr_get(&fp);
 				if (func->argc != op_arg)
 					FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+
 				obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
 				for (i = 0; i < func->argc; i++)
 					argv[i] = STACK_POP();
+
 				STACK_PUSH(func->call(argv));
+
 				mem_free(argv);
 			}
-			break;
+				break;
 			default:
 				FATAL("Expected function but got type tag: %d\n", obj.tag);
 			}

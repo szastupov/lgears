@@ -20,11 +20,15 @@
 typedef struct module_s module_t;
 
 typedef struct {
+	char code, arg;
+} ocode_t;
+
+typedef struct {
 	int stack_size;
 	int env_size;
 	short argc;
 	int op_count;
-	char *opcode;
+	ocode_t *opcode;
 	module_t *module;
 } func_t;
 
@@ -56,6 +60,22 @@ typedef struct {
 	heap_t heap;
 	hash_table_t sym_table;
 } vm_thread_t;
+
+struct func_hdr_s {
+	uint32_t env_size;
+	uint32_t argc;
+	uint32_t stack_size;
+	uint32_t op_count;
+} __attribute__((__packed__));
+
+struct module_hdr_s {
+	uint32_t import_size;
+	uint32_t symbols_size;
+	uint32_t fun_count;
+} __attribute__((__packed__));
+
+#define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)
+#define FUN_HDR_SIZE sizeof(struct func_hdr_s)
 
 
 #endif /* VM_PRIVATE_H */

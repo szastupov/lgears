@@ -12,16 +12,22 @@
    | DO NOT FORGET TO RUN make regen-opcode after updating it
    |#
 
-  (define oplist '(
-				   LOAD_CONST LOAD_FUNC LOAD_PARENT LOAD_LOCAL LOAD_SYM
-				   LOAD_IMPORT LOAD_ENV
-				   JUMP_IF_FALSE JUMP_IF_TRUE JUMP_FORWARD
-				   FUNC_CALL RETURN SET_LOCAL))
+  (define oplist '((LOAD_FUNC . "Load function local to module")
+				   (LOAD_PARENT . "Load object from parent env")
+				   (LOAD_LOCAL . "Load object from frame-local area")
+				   (LOAD_SYM . "Load predefined symbol local to module")
+				   (LOAD_IMPORT . "Load object from module import table")
+				   (JUMP_IF_FALSE . "Jump if false")
+				   (JUMP_IF_TRUE . "Jump if true")
+				   (JUMP_FORWARD . "Jump forward")
+				   (FUNC_CALL . "Call function")
+				   (RETURN . "Return from function")
+				   (SET_LOCAL . "Assign new value to local binding")))
 
   (define (make-opcode-table)
 	(let ([tbl (make-eq-hashtable)])
 	  (oplist-for-each (lambda (idx op)
-						 (hashtable-set! tbl op idx))
+						 (hashtable-set! tbl (car op) idx))
 					   oplist)
 	  tbl))
 

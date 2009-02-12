@@ -33,6 +33,8 @@ typedef struct {
 	hash_node_t **nodes;
 	hash_func_t hash;
 	equal_func_t equal;
+	void (*destroy_key)(void*);
+	void (*destroy_val)(void*);
 } hash_table_t;
 
 void hash_table_init(hash_table_t *tbl, hash_func_t hash,

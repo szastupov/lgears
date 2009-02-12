@@ -99,6 +99,10 @@ void hash_table_destroy(hash_table_t *tbl)
 	for (i = 0 ; i < tbl->size; i++)
 		for (node = tbl->nodes[i]; node; node = next) {
 			next = node->next;
+			if (tbl->destroy_key)
+				tbl->destroy_key(node->key);
+			if (tbl->destroy_val)
+				tbl->destroy_val(node->val);
 			mem_free(node);
 		}
 

@@ -218,7 +218,7 @@
 				  (if (eq? (car res) 'LOCAL)
 					`(LOAD_LOCAL ,(cdr res) 1)
 					`(LOAD_PARENT 0 0)) ; FIXME
-				  `(LOAD_IMPORT ,(sym-table-insert undefs node) -1))))))
+				  `(LOAD_IMPORT ,(sym-table-insert undefs node) 1))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
 	  `((undefs	,(symtable->list undefs))

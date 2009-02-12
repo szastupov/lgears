@@ -215,10 +215,9 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(FUNC_CALL) {
-				obj_t obj = STACK_POP();
-				ptr_t fp = { .ptr = obj.ptr };
+				ptr_t fp = { .ptr = STACK_POP().ptr };
 				int i;
-				switch (obj.tag) {
+				switch (fp.tag) {
 					case id_func: 
 						{
 							func_t *func = ptr_get(&fp);
@@ -249,7 +248,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 						}
 						break;
 					default:
-						FATAL("Expected function but got type tag: %d\n", obj.tag);
+						FATAL("Expected function but got type tag: %d\n", fp.tag);
 				}
 			}
 			NEXT();
@@ -284,15 +283,15 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 {
 	module_t *mod;
 
-	void populate_sym_table(const char *str, int size)
+	void populate_sym_table(const char *str)
 	{
 		int i;
-		const char *end = str+size;
-		mod->symbols = mem_calloc(*(str++), sizeof(obj_t));
-		while (str < end) {
+		int count = *(str++);
+		mod->symbols = mem_calloc(count, sizeof(obj_t));
+		for (i = 0; i < count; i++) {
 			int len = *(str++);
 			void *sym = make_symbol(&thread->sym_table, str);
-			mod->symbols[i++].ptr = sym;
+			mod->symbols[i].ptr = sym;
 			printf("Created symbol for '%s' = %p\n", str, sym);
 			str += len+1;
 		}
@@ -339,7 +338,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 
 	char *symbols = mem_alloc(mhdr.symbols_size);
 	read(fd, symbols, mhdr.symbols_size);
-	populate_sym_table(symbols, mhdr.symbols_size);
+	populate_sym_table(symbols);
 	mem_free(symbols);
 
 	int count;
@@ -402,9 +401,12 @@ static void vm_inspect(visitor_t *visitor, void *self)
 
 void vm_thread_init(vm_thread_t *thread)
 {
+	memset(thread, 0, sizeof(*thread));
 	thread->frame_stack = NULL;
 	heap_init(&thread->heap, vm_inspect, thread);
+
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
+	thread->sym_table.destroy_key = free;
 	hash_table_init(&thread->ns_global, string_hash, string_equal);
 
 	ns_install_native(&thread->ns_global, "display", &display_nt);

@@ -54,7 +54,7 @@ env_t* env_new(heap_t *heap, int size)
 	return env;
 }
 
-void* symbol_get(hash_table_t *tbl, const char *str)
+void* make_symbol(hash_table_t *tbl, const char *str)
 {
 	void *res = hash_table_lookup(tbl, str);
 	if (!res) {
@@ -123,6 +123,14 @@ static void* display(obj_t *argv)
 }
 MAKE_NATIVE(display, 1);
 
+void ns_install_native(hash_table_t *tbl,
+		char *name, const native_t *nt)
+{
+	ptr_t ptr;
+	native_init(ptr, nt);
+	hash_table_insert(tbl, name, ptr.ptr); 
+}
+
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	thread->frame_stack = frame_create(
@@ -136,12 +144,12 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #define STACK_POP() frame->opstack[--frame->op_stack_idx]
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
 
-/*
- * "Threaded code" can speed-up dispatching
- * See:
- * http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
- * Inspired by http://bugs.python.org/issue4753, thanks Antoine Pitrou!
- */
+	/*
+	 * "Threaded code" can speed-up dispatching
+	 * See:
+	 * http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
+	 * Inspired by http://bugs.python.org/issue4753, thanks Antoine Pitrou!
+	 */
 
 #ifdef COMPUTED_GOTO
 #include "opcode_targets.h"
@@ -173,11 +181,8 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				STACK_PUSH(frame->func->module->symbols[op_arg].ptr);
 			NEXT();
 
-			TARGET(LOAD_IMPORT) {
-				ptr_t ptr;
-				native_init(ptr, &display_nt); // FIXME
-				STACK_PUSH(ptr.ptr);
-			}
+			TARGET(LOAD_IMPORT)
+				STACK_PUSH(frame->func->module->imports[op_arg].ptr);
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
@@ -286,9 +291,25 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		mod->symbols = mem_calloc(*(str++), sizeof(obj_t));
 		while (str < end) {
 			int len = *(str++);
-			void *sym = symbol_get(&thread->sym_table, str);
+			void *sym = make_symbol(&thread->sym_table, str);
 			mod->symbols[i++].ptr = sym;
 			printf("Created symbol for '%s' = %p\n", str, sym);
+			str += len+1;
+		}
+	}
+
+	void load_imports(const char *str)
+	{
+		int i;
+		int count = *(str++);
+		mod->imports = mem_calloc(count, sizeof(obj_t));
+		for (i = 0; i < count; i++) {
+			int len = *(str++);
+			void *ptr = hash_table_lookup(&thread->ns_global, str);
+			if (ptr)
+				mod->imports[i].ptr = ptr;
+			else
+				FATAL("variable %s not found\n", str);
 			str += len+1;
 		}
 	}
@@ -313,7 +334,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 
 	char *import = mem_alloc(mhdr.import_size);
 	read(fd, import, mhdr.import_size);
-	//	print_strings(import, mhdr.import_size);
+	load_imports(import);
 	mem_free(import);
 
 	char *symbols = mem_alloc(mhdr.symbols_size);
@@ -349,6 +370,8 @@ void module_free(module_t *module)
 	for (i = 0; i < module->fun_count; i++)
 		mem_free(module->functions[i].opcode);
 	mem_free(module->functions);
+	mem_free(module->symbols);
+	mem_free(module->imports);
 	mem_free(module);
 }
 
@@ -382,11 +405,15 @@ void vm_thread_init(vm_thread_t *thread)
 	thread->frame_stack = NULL;
 	heap_init(&thread->heap, vm_inspect, thread);
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
+	hash_table_init(&thread->ns_global, string_hash, string_equal);
+
+	ns_install_native(&thread->ns_global, "display", &display_nt);
 }
 
 void vm_thread_destroy(vm_thread_t *thread)
 {
 	hash_table_destroy(&thread->sym_table);
+	hash_table_destroy(&thread->ns_global);
 	heap_destroy(&thread->heap);
 }
 

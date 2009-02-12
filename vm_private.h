@@ -34,6 +34,7 @@ struct module_s {
 	int entry_point;
 	int fun_count;
 	obj_t *symbols;
+	obj_t *imports;
 };
 
 typedef struct {
@@ -55,6 +56,7 @@ typedef struct {
 	frame_t *frame_stack;
 	heap_t heap;
 	hash_table_t sym_table;
+	hash_table_t ns_global;
 } vm_thread_t;
 
 struct func_hdr_s {

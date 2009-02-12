@@ -20,7 +20,6 @@
 #include "heap.h"
 
 void* cons(heap_t *heap, obj_t car, obj_t cdr);
-
 void* string(heap_t *heap, const char *src);
 
 #endif /* PRIMITIVES_H */

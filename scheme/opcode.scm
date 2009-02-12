@@ -2,12 +2,6 @@
   (export oplist oplist-for-each opcode)
   (import (rnrs))
 
-  (define (oplist-for-each func oplist)
-	(fold-left (lambda (idx op)
-				 (func idx op)
-				 (+ idx 1))
-			   0 oplist))
-
   #|
    | DO NOT FORGET TO RUN make regen-opcode after updating it
    |#
@@ -24,11 +18,16 @@
 				   (RETURN . "Return from function")
 				   (SET_LOCAL . "Assign new value to local binding")))
 
+  (define (oplist-for-each func)
+	(fold-left (lambda (idx op)
+				 (func idx op)
+				 (+ idx 1))
+			   0 oplist))
+
   (define (make-opcode-table)
 	(let ([tbl (make-eq-hashtable)])
 	  (oplist-for-each (lambda (idx op)
-						 (hashtable-set! tbl (car op) idx))
-					   oplist)
+						 (hashtable-set! tbl (car op) idx)))
 	  tbl))
 
   (define optable (make-opcode-table))

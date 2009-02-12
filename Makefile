@@ -1,4 +1,4 @@
-CFLAGS += -Wall -ggdb #-DCOMPUTED_GOTO
+CFLAGS += -Wall -ggdb -DCOMPUTED_GOTO
 
 vm_obj = vm.o heap.o primitives.o hash.o
 targets = vm

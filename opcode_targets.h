@@ -1,7 +1,7 @@
 #ifndef OPCODE_TARGETS_H
 #define OPCODE_TARGETS_H
 
-static void* opcode_targets[] = {
+static const void* opcode_targets[] = {
 	&&TARGET_LOAD_FUNC,
 	&&TARGET_LOAD_PARENT,
 	&&TARGET_LOAD_LOCAL,

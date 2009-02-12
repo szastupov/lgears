@@ -136,27 +136,35 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #define STACK_POP() frame->opstack[--frame->op_stack_idx]
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
 
+/*
+ * "Threaded code" can speed-up dispatching
+ * See:
+ * http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
+ * Inspired by http://bugs.python.org/issue4753, thanks Antoine Pitrou!
+ */
+
 #ifdef COMPUTED_GOTO
 #include "opcode_targets.h"
 #define TARGET(op) \
 	TARGET_##op: \
 	op_code = *(frame->opcode++); \
 	op_arg = *(frame->opcode++); \
-	printf("\t%s : %d\n", opcode_name(op_code), op_arg); \
-	case op:
+	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() goto *opcode_targets[(int)*frame->opcode]
+#define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op:\
 	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() continue
+#define DISPATCH() \
+	op_code = *(frame->opcode++); \
+	op_arg = *(frame->opcode++); \
+	switch (op_code)
 #endif
 
 	int op_code, op_arg;
 	for (;;) {
-		op_code = *(frame->opcode++);
-		op_arg = *(frame->opcode++);
-
-		switch (op_code) {
+		DISPATCH() {
 			TARGET(LOAD_LOCAL)
 				STACK_PUSH(frame->env->objects[op_arg].ptr);
 			NEXT();
@@ -263,9 +271,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			TARGET(LOAD_PARENT)
 				FATAL("Not implemented");
 			NEXT();
-
-			default:
-			FATAL("Unhandled opcode %s\n", opcode_name(op_code));
 		}
 	}
 }

@@ -40,7 +40,7 @@
   (lambda (port)
 
 	(display "#ifndef OPCODE_TARGETS_H\n#define OPCODE_TARGETS_H\n\n" port)
-	(display "static void* opcode_targets[] = {\n" port)
+	(display "static const void* opcode_targets[] = {\n" port)
 	(oplist-for-each (lambda (idx op)
 					   (display (format "\t&&TARGET_~a,\n" (car op)) port))
 					 oplist)

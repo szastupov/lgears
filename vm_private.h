@@ -70,6 +70,7 @@ struct module_hdr_s {
 	uint32_t import_size;
 	uint32_t symbols_size;
 	uint32_t fun_count;
+	uint32_t entry_point;
 } __attribute__((__packed__));
 
 #define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)

@@ -201,7 +201,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 			TARGET(JUMP_FORWARD) {
 				frame->opcode += op_arg*2;
-				printf("jumping to %d\n", op_arg);
+				printf("jumping on %d\n", op_arg);
 			}
 			NEXT();
 
@@ -327,8 +327,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 	/* Allocate functions storage */
 	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 	mod->fun_count = mhdr.fun_count;
-	//mod->entry_point = mhdr.entry_point;
-	mod->entry_point = 0; //FIXME
+	mod->entry_point = mhdr.entry_point;
 
 
 	char *import = mem_alloc(mhdr.import_size);

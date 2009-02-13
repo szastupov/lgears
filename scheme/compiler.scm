@@ -117,9 +117,9 @@
 		(for-each (lambda (def) (env-define env (defination-name def)))
 				  defines)
 		(let ((init (map-append (lambda (def)
-								  `(,(if (pair? (cadr def))
-									   (compile-func env (cdadr def) (cddr def))
-									   (compile env (caddr def)))
+								  `(,@(if (pair? (cadr def))
+										(compile-func env (cdadr def) (cddr def))
+										(compile env (caddr def)))
 									 (SET_LOCAL ,(env-idx env (defination-name def)) -1)))
 								defines))
 			  (rest (map-append (lambda (expr)
@@ -130,14 +130,14 @@
 	(define (compile-func parent args body)
 	  (let* ((env (make-env parent args))
 			 (compiled (compile-body env body)))
-		`(LOAD_FUNC ,(store-push! code-store
-								  (list compiled (env-size env) (env-argc env))) 1)))
+		`((LOAD_FUNC ,(store-push! code-store
+								   (list compiled (env-size env) (env-argc env))) 1))))
 
 	(define (compile-if env node)
 	  (let ((pred (compile env (car node)))
 			(then-clause (compile env (cadr node)))
 			(else-clause (compile env (caddr node))))
-		`(,pred
+		`(,@pred
 		   (JUMP_IF_FALSE ,(+ (length then-clause) 1) 0)
 		   ,@then-clause
 		   (JUMP_FORWARD ,(length else-clause) 0)
@@ -151,14 +151,14 @@
 		  (cons idx res)
 		  (loop (cdr cur) 
 				(+ idx 1)
-				(cons (compile env (car cur)) res)))))
+				(append res (compile env (car cur)))))))
 
 	(define (compile-call env node)
 	  (let* ((func (compile env (car node)))
 			 (args (compile-args env (cdr node)))
 			 (argc (car args)))
 		`(,@(cdr args)
-		   ,func
+		   ,@func
 		   (FUNC_CALL ,argc ,(- argc)))))
 
 	(define (compile-macro node)
@@ -173,7 +173,7 @@
 	(define (compile-quote env qv transform)
 	  (if (pair? qv)
 		(compile env (transform qv))
-		`(LOAD_SYM ,(sym-table-insert symbols qv) 1)))
+		`((LOAD_SYM ,(sym-table-insert symbols qv) 1))))
 
 	(define (compile-seq env seq)
 	  (map (lambda (x)
@@ -185,10 +185,10 @@
 			 (slot (env-lookup env name)))
 		(if (not slot)
 		  (error 'compile-assigment "undefined variable" name)
-		  `(,(compile env (cadr node))
+		  `(,@(compile env (cadr node))
 			 ,(if (eq? (car slot) 'LOCAL)
-				 `(SET_LOCAL ,(cdr slot), -1)
-				 (error 'compile-assigment "non-local setting not yet implemented :("))))))
+				`(SET_LOCAL ,(cdr slot), -1)
+				(error 'compile-assigment "non-local setting not yet implemented :("))))))
 
 	(define (compile env node)
 	  (cond ((pair? node)
@@ -219,24 +219,20 @@
 			  (let ((res (env-lookup env node)))
 				(if res
 				  (if (eq? (car res) 'LOCAL)
-					`(LOAD_LOCAL ,(cdr res) 1)
-					`(LOAD_PARENT 0 0)) ; FIXME
-				  `(LOAD_IMPORT ,(sym-table-insert undefs node) 1))))))
+					`((LOAD_LOCAL ,(cdr res) 1))
+					`((LOAD_PARENT 0 0))) ; FIXME
+				  `((LOAD_IMPORT ,(sym-table-insert undefs node) 1)))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
 	  `((undefs	,(symtable->list undefs))
 		(symbols ,(symtable->list symbols))
 		(code ,(reverse (store-head code-store)))
-		(entry ,entry-point)))))
+		(entry ,@entry-point)))))
 
 (let ((res (start-compile
 			 '(
-;			   ((lambda (x) (display x)) 'foobar)
-;			   (display 'ok)
-				(define n 'blabla)
-				(display n)
-				(set! n 'foobar)
-				(display n)
+			   ((lambda (x) (display x)) 'foobar)
+			   (display 'ok)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

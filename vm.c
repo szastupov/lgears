@@ -116,12 +116,13 @@ void print_obj(obj_t obj)
 	}
 }
 
-static void* display(obj_t *argv)
+static void* display(heap_t *heap, obj_t *argv)
 {
 	print_obj(argv[0]);
 	return NULL;
 }
 MAKE_NATIVE(display, 1);
+MAKE_NATIVE(cons, 2);
 
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
@@ -242,7 +243,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							for (i = 0; i < func->argc; i++)
 								argv[i] = STACK_POP();
 
-							STACK_PUSH(func->call(argv));
+							STACK_PUSH(func->call(&thread->heap, argv));
 
 							mem_free(argv);
 						}
@@ -409,6 +410,7 @@ void vm_thread_init(vm_thread_t *thread)
 	hash_table_init(&thread->ns_global, string_hash, string_equal);
 
 	ns_install_native(&thread->ns_global, "display", &display_nt);
+	ns_install_native(&thread->ns_global, "cons", &cons_nt);
 }
 
 void vm_thread_destroy(vm_thread_t *thread)

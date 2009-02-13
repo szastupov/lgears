@@ -34,11 +34,11 @@ const type_t pair_type = {
 	.visit = pair_visit
 };
 
-void* cons(heap_t *heap, obj_t car, obj_t cdr)
+void* cons(heap_t *heap, obj_t *argv)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
-	pair->car = car;
-	pair->cdr = cdr;
+	pair->car = argv[0];
+	pair->cdr = argv[1];
 	pair->hdr.type = &pair_type;
 
 	return_ptr(pair);

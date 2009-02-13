@@ -168,18 +168,5 @@ typedef struct {
 	const type_t *type;
 } hobj_hdr_t;
 
-typedef struct native_s native_t;
-typedef void* (*native_func)(obj_t *argv);
-
-struct native_s {
-	short argc;
-	native_func call;
-};
-
-#define MAKE_NATIVE(func, fargc) \
-	const native_t func##_nt = { \
-		.argc = fargc, \
-		.call = func \
-	}
 
 #endif /* TYPES_H */

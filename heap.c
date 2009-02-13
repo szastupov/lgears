@@ -108,6 +108,7 @@ void* heap_alloc(heap_t *heap, int size)
 {
 	void *res = copy_heap_alloc(heap->from, size);
 	if (!res) {
+		printf("!!!Starting garbage collection, DON'T PANIC!!!!\n");
 		heap->vm_inspect(&heap->visitor, heap->vm);
 		heap_swap(heap);
 		res = copy_heap_alloc(heap->from, size);

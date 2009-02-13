@@ -19,7 +19,22 @@
 
 #include "heap.h"
 
-void* cons(heap_t *heap, obj_t car, obj_t cdr);
+typedef struct native_s native_t;
+typedef void* (*native_func)(heap_t *heap, obj_t *argv);
+
+struct native_s {
+	short argc;
+	native_func call;
+};
+
+#define MAKE_NATIVE(func, fargc) \
+	const native_t func##_nt = { \
+		.argc = fargc, \
+		.call = func \
+	}
+
+void* cons(heap_t *heap, obj_t *argv);
+
 void* string(heap_t *heap, const char *src);
 
 #endif /* PRIMITIVES_H */

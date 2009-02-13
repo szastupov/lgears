@@ -233,6 +233,7 @@
 			 '(
 			   ((lambda (x) (display x)) 'foobar)
 			   (display 'ok)
+			   (cons 'foo 'bar)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

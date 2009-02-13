@@ -224,10 +224,10 @@
 				  `((LOAD_IMPORT ,(sym-table-insert undefs node) 1)))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
-	  `((undefs	,(symtable->list undefs))
-		(symbols ,(symtable->list symbols))
-		(code ,(reverse (store-head code-store)))
-		(entry ,@entry-point)))))
+	  (make-ilr (symtable->list undefs)
+				(symtable->list symbols)
+				(reverse (store-head code-store))
+				(cadar entry-point)))))
 
 (let ((res (start-compile
 			 '(
@@ -237,10 +237,8 @@
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))
 			 )))
-  (display "ILR: ")
-  (display res)
-  (newline)
-  (display "Assembly output:\n")
+  (print-ilr res)
+  (display "\nAssembly output:\n")
   (let ((port (open-file-output-port "/tmp/assembly" (file-options no-fail))))
 	(assemble res port)
 	(close-output-port port))

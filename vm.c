@@ -269,11 +269,11 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(SET_LOCAL)
-				FATAL("Not implemented");
+				frame->env->objects[op_arg] = STACK_POP();
 			NEXT();
 
 			TARGET(LOAD_PARENT)
-				FATAL("Not implemented");
+				FATAL("LOAD_PARENT Not implemented");
 			NEXT();
 		}
 	}
@@ -328,7 +328,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
 	mod->fun_count = mhdr.fun_count;
 	//mod->entry_point = mhdr.entry_point;
-	mod->entry_point = 1; //FIXME
+	mod->entry_point = 0; //FIXME
 
 
 	char *import = mem_alloc(mhdr.import_size);

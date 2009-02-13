@@ -185,7 +185,10 @@
 			 (slot (env-lookup env name)))
 		(if (not slot)
 		  (error 'compile-assigment "undefined variable" name)
-		  `(SET ,slot ,(compile env (cadr node))))))
+		  `(,(compile env (cadr node))
+			 ,(if (eq? (car slot) 'LOCAL)
+				 `(SET_LOCAL ,(cdr slot), -1)
+				 (error 'compile-assigment "non-local setting not yet implemented :("))))))
 
 	(define (compile env node)
 	  (cond ((pair? node)
@@ -228,8 +231,12 @@
 
 (let ((res (start-compile
 			 '(
-			   ((lambda (x) (display x)) 'foobar)
-			   (display 'ok)
+;			   ((lambda (x) (display x)) 'foobar)
+;			   (display 'ok)
+				(define n 'blabla)
+				(display n)
+				(set! n 'foobar)
+				(display n)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

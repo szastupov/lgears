@@ -168,6 +168,18 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	switch (op_code)
 #endif
 
+
+#define ARITHMETIC_IMPL(init, op) { \
+	fixnum_t res; \
+	fixnum_init(res, init); \
+	int i; \
+	for (i = 0; i < op_arg; i++) { \
+		fixnum_t tmp = { .ptr = STACK_POP().ptr }; \
+		res.val op##= tmp.val; \
+	} \
+	STACK_PUSH(res.ptr); \
+}
+
 	int op_code, op_arg;
 	for (;;) {
 		DISPATCH() {
@@ -274,52 +286,20 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				FATAL("LOAD_PARENT Not implemented");
 			NEXT();
 
-			TARGET(INPLACE_ADD) {
-				fixnum_t res;
-				fixnum_init(res, 0);
-				int i;
-				for (i = 0; i < op_arg; i++) {
-					fixnum_t tmp = { .ptr = STACK_POP().ptr };
-					res.val += tmp.val;
-				}
-				STACK_PUSH(res.ptr);
-			}
+			TARGET(INPLACE_ADD) 
+				ARITHMETIC_IMPL(0, +);
 			NEXT();
 
-			TARGET(INPLACE_SUB) {
-				fixnum_t res;
-				fixnum_init(res, 0);
-				int i;
-				for (i = 0; i < op_arg; i++) {
-					fixnum_t tmp = { .ptr = STACK_POP().ptr };
-					res.val -= tmp.val;
-				}
-				STACK_PUSH(res.ptr);
-			}
+			TARGET(INPLACE_SUB)
+				ARITHMETIC_IMPL(0, -);
 			NEXT();
 
-			TARGET(INPLACE_MUL) {
-				fixnum_t res;
-				fixnum_init(res, 1);
-				int i;
-				for (i = 0; i < op_arg; i++) {
-					fixnum_t tmp = { .ptr = STACK_POP().ptr };
-					res.val *= tmp.val;
-				}
-				STACK_PUSH(res.ptr);
-			}
+			TARGET(INPLACE_MUL)
+				ARITHMETIC_IMPL(1, *);
 			NEXT();
 
-			TARGET(INPLACE_DIV) {
-				fixnum_t res;
-				fixnum_init(res, 1);
-				int i;
-				for (i = 0; i < op_arg; i++) {
-					fixnum_t tmp = { .ptr = STACK_POP().ptr };
-					res.val /= tmp.val;
-				}
-				STACK_PUSH(res.ptr);
-			}
+			TARGET(INPLACE_DIV)
+				ARITHMETIC_IMPL(1, /);
 			NEXT();
 		}
 	}

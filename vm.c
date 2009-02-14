@@ -121,13 +121,6 @@ static void* display(heap_t *heap, obj_t *argv)
 	print_obj(argv[0]);
 	return NULL;
 }
-void ns_install_native(hash_table_t *tbl,
-		char *name, const native_t *nt)
-{
-	ptr_t ptr;
-	native_init(ptr, nt);
-	hash_table_insert(tbl, name, ptr.ptr); 
-}
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
@@ -167,7 +160,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	op_arg = *(frame->opcode++); \
 	switch (op_code)
 #endif
-
 
 #define ARITHMETIC_IMPL(init, op) { \
 	fixnum_t res; \
@@ -286,19 +278,19 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				FATAL("LOAD_PARENT Not implemented");
 			NEXT();
 
-			TARGET(INPLACE_ADD) 
+			TARGET(ARITH_ADD) 
 				ARITHMETIC_IMPL(0, +);
 			NEXT();
 
-			TARGET(INPLACE_SUB)
+			TARGET(ARITH_SUB)
 				ARITHMETIC_IMPL(0, -);
 			NEXT();
 
-			TARGET(INPLACE_MUL)
+			TARGET(ARITH_MUL)
 				ARITHMETIC_IMPL(1, *);
 			NEXT();
 
-			TARGET(INPLACE_DIV)
+			TARGET(ARITH_DIV)
 				ARITHMETIC_IMPL(1, /);
 			NEXT();
 		}
@@ -424,11 +416,7 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	}
 }
 
-
 MAKE_NATIVE(display, 1);
-MAKE_NATIVE(cons, 2);
-MAKE_NATIVE(car, 1);
-MAKE_NATIVE(cdr, 1);
 
 void vm_thread_init(vm_thread_t *thread)
 {
@@ -441,9 +429,7 @@ void vm_thread_init(vm_thread_t *thread)
 	hash_table_init(&thread->ns_global, string_hash, string_equal);
 
 	ns_install_native(&thread->ns_global, "display", &display_nt);
-	ns_install_native(&thread->ns_global, "cons", &cons_nt);
-	ns_install_native(&thread->ns_global, "car", &car_nt);
-	ns_install_native(&thread->ns_global, "cdr", &cdr_nt);
+	ns_install_primitives(&thread->ns_global);
 }
 
 void vm_thread_destroy(vm_thread_t *thread)

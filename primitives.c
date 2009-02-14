@@ -43,6 +43,7 @@ void* cons(heap_t *heap, obj_t *argv)
 
 	return_ptr(pair);
 }
+MAKE_NATIVE(cons, 2);
 
 void* car(heap_t *heap, obj_t *argv)
 {
@@ -51,6 +52,7 @@ void* car(heap_t *heap, obj_t *argv)
 		return pair->car.ptr;
 	return NULL;
 }
+MAKE_NATIVE(car, 1);
 
 void* cdr(heap_t *heap, obj_t *argv)
 {
@@ -59,25 +61,28 @@ void* cdr(heap_t *heap, obj_t *argv)
 		return pair->cdr.ptr;
 	return NULL;
 }
+MAKE_NATIVE(cdr, 1);
 
-const type_t str_type = {
-	.name = "string"
-};
-
-typedef struct {
-	hobj_hdr_t hdr;
-	char *str;
-	size_t size;
-} str_t;
-
-void* string(heap_t *heap, const char *src)
+void* eq(heap_t *heap, obj_t *argv)
 {
-	size_t size = strlen(src)+1;
-	void *str_mem = heap_alloc(heap, sizeof(str_t)+size);
-	str_t *str = str_mem;
-	str->size = size;
-	str->str = str_mem+sizeof(str_t);
-	str->hdr.type = &str_type;
+	bool_t res;
+	bool_init(res, (argv[0].ptr == argv[1].ptr));
+	return res.ptr;
+}
+MAKE_NATIVE(eq, 2);
 
-	return_ptr(str);
+void ns_install_native(hash_table_t *tbl,
+		char *name, const native_t *nt)
+{
+	ptr_t ptr;
+	native_init(ptr, nt);
+	hash_table_insert(tbl, name, ptr.ptr); 
+}
+
+void ns_install_primitives(hash_table_t *tbl)
+{
+	ns_install_native(tbl, "cons", &cons_nt);
+	ns_install_native(tbl, "car", &car_nt);
+	ns_install_native(tbl, "cdr", &cdr_nt);
+	ns_install_native(tbl, "eq?", &eq_nt);
 }

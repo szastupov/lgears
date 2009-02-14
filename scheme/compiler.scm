@@ -162,10 +162,10 @@
 		   (FUNC_CALL ,argc ,(- argc)))))
 
 	(define (get-op op)
-	  (cdr (assoc op '((+ . INPLACE_ADD)
-					   (- . INPLACE_SUB)
-					   (* . INPLACE_MUL)
-					   (/ . INPLACE_DIV)))))
+	  (cdr (assoc op '((+ . ARITH_ADD)
+					   (- . ARITH_SUB)
+					   (* . ARITH_MUL)
+					   (/ . ARITH_DIV)))))
 
 	(define (compile-arithmetic env node)
 	  (let* ((op (get-op (car node)))
@@ -248,6 +248,7 @@
 			 '(
 			   ((lambda (x y) (display x) (display y)) 'foobar 'blabla)
 			   (display 'ok)
+			   (eq? 'ok 'okl)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

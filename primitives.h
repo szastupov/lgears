@@ -18,6 +18,7 @@
 #define PRIMITIVES_H 
 
 #include "heap.h"
+#include "hash.h"
 
 typedef struct native_s native_t;
 typedef void* (*native_func)(heap_t *heap, obj_t *argv);
@@ -33,10 +34,9 @@ struct native_s {
 		.call = func \
 	}
 
-void* cons(heap_t *heap, obj_t *argv);
-void* car(heap_t *heap, obj_t *argv);
-void* cdr(heap_t *heap, obj_t *argv);
+void ns_install_native(hash_table_t *tbl,
+		char *name, const native_t *nt);
 
-void* string(heap_t *heap, const char *src);
+void ns_install_primitives(hash_table_t *tbl);
 
 #endif /* PRIMITIVES_H */

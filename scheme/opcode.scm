@@ -16,7 +16,11 @@
 				   (JUMP_FORWARD . "Jump forward")
 				   (FUNC_CALL . "Call function")
 				   (RETURN . "Return from function")
-				   (SET_LOCAL . "Assign new value to local binding")))
+				   (SET_LOCAL . "Assign new value to local binding")
+				   (INPLACE_ADD . "Add numbers")
+				   (INPLACE_SUB . "Substitute numbers")
+				   (INPLACE_MUL . "Multiply numbers")
+				   (INPLACE_DIV . "Divide numbers")))
 
   (define (oplist-for-each func)
 	(fold-left (lambda (idx op)

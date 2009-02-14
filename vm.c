@@ -273,6 +273,54 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			TARGET(LOAD_PARENT)
 				FATAL("LOAD_PARENT Not implemented");
 			NEXT();
+
+			TARGET(INPLACE_ADD) {
+				fixnum_t res;
+				fixnum_init(res, 0);
+				int i;
+				for (i = 0; i < op_arg; i++) {
+					fixnum_t tmp = { .ptr = STACK_POP().ptr };
+					res.val += tmp.val;
+				}
+				STACK_PUSH(res.ptr);
+			}
+			NEXT();
+
+			TARGET(INPLACE_SUB) {
+				fixnum_t res;
+				fixnum_init(res, 0);
+				int i;
+				for (i = 0; i < op_arg; i++) {
+					fixnum_t tmp = { .ptr = STACK_POP().ptr };
+					res.val -= tmp.val;
+				}
+				STACK_PUSH(res.ptr);
+			}
+			NEXT();
+
+			TARGET(INPLACE_MUL) {
+				fixnum_t res;
+				fixnum_init(res, 1);
+				int i;
+				for (i = 0; i < op_arg; i++) {
+					fixnum_t tmp = { .ptr = STACK_POP().ptr };
+					res.val *= tmp.val;
+				}
+				STACK_PUSH(res.ptr);
+			}
+			NEXT();
+
+			TARGET(INPLACE_DIV) {
+				fixnum_t res;
+				fixnum_init(res, 1);
+				int i;
+				for (i = 0; i < op_arg; i++) {
+					fixnum_t tmp = { .ptr = STACK_POP().ptr };
+					res.val /= tmp.val;
+				}
+				STACK_PUSH(res.ptr);
+			}
+			NEXT();
 		}
 	}
 }

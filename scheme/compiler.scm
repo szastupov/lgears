@@ -161,6 +161,19 @@
 		   ,@func
 		   (FUNC_CALL ,argc ,(- argc)))))
 
+	(define (get-op op)
+	  (cdr (assoc op '((+ . INPLACE_ADD)
+					   (- . INPLACE_SUB)
+					   (* . INPLACE_MUL)
+					   (/ . INPLACE_DIV)))))
+
+	(define (compile-arithmetic env node)
+	  (let* ((op (get-op (car node)))
+			 (args (compile-args env (cdr node)))
+			 (argc (car args)))
+		`(,@(cdr args)
+		   (,op ,argc ,(- (- argc 1))))))
+
 	(define (compile-macro node)
 	  (let ((name (car node))
 			(ttype (caadr node))
@@ -209,6 +222,8 @@
 				(error 'compile "misplaced defination"))
 			   ((set!)
 				(compile-assigment env (cdr node)))
+			   ((+ - * /)
+				(compile-arithmetic env node))
 			   (else
 				 (compile-call env node))))
 			((number? node)
@@ -233,7 +248,6 @@
 			 '(
 			   ((lambda (x y) (display x) (display y)) 'foobar 'blabla)
 			   (display 'ok)
-			   (car (cdr (cons 'four (cons 'one 'two))))
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

@@ -13,6 +13,10 @@ static const void* opcode_targets[] = {
 	&&TARGET_FUNC_CALL,
 	&&TARGET_RETURN,
 	&&TARGET_SET_LOCAL,
+	&&TARGET_INPLACE_ADD,
+	&&TARGET_INPLACE_SUB,
+	&&TARGET_INPLACE_MUL,
+	&&TARGET_INPLACE_DIV,
 };
 
 #endif

@@ -34,6 +34,8 @@ struct native_s {
 	}
 
 void* cons(heap_t *heap, obj_t *argv);
+void* car(heap_t *heap, obj_t *argv);
+void* cdr(heap_t *heap, obj_t *argv);
 
 void* string(heap_t *heap, const char *src);
 

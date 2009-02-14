@@ -44,6 +44,22 @@ void* cons(heap_t *heap, obj_t *argv)
 	return_ptr(pair);
 }
 
+void* car(heap_t *heap, obj_t *argv)
+{
+	pair_t *pair = get_typed(argv[0], &pair_type);
+	if (pair)
+		return pair->car.ptr;
+	return NULL;
+}
+
+void* cdr(heap_t *heap, obj_t *argv)
+{
+	pair_t *pair = get_typed(argv[0], &pair_type);
+	if (pair)
+		return pair->cdr.ptr;
+	return NULL;
+}
+
 const type_t str_type = {
 	.name = "string"
 };

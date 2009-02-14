@@ -121,9 +121,6 @@ static void* display(heap_t *heap, obj_t *argv)
 	print_obj(argv[0]);
 	return NULL;
 }
-MAKE_NATIVE(display, 1);
-MAKE_NATIVE(cons, 2);
-
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
 {
@@ -399,6 +396,12 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	}
 }
 
+
+MAKE_NATIVE(display, 1);
+MAKE_NATIVE(cons, 2);
+MAKE_NATIVE(car, 1);
+MAKE_NATIVE(cdr, 1);
+
 void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
@@ -411,6 +414,8 @@ void vm_thread_init(vm_thread_t *thread)
 
 	ns_install_native(&thread->ns_global, "display", &display_nt);
 	ns_install_native(&thread->ns_global, "cons", &cons_nt);
+	ns_install_native(&thread->ns_global, "car", &car_nt);
+	ns_install_native(&thread->ns_global, "cdr", &cdr_nt);
 }
 
 void vm_thread_destroy(vm_thread_t *thread)

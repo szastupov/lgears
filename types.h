@@ -17,6 +17,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 #include <stdlib.h>
+#include <stdio.h>
 
 /*
  * Primitive types that fit in word size
@@ -168,5 +169,21 @@ typedef struct {
 	const type_t *type;
 } hobj_hdr_t;
 
+static inline void* get_typed(obj_t obj, const type_t *type)
+{
+	ptr_t ptr = { .ptr = obj.ptr };
+	if (ptr.tag != id_ptr) {
+		printf("expected ptr but got %d\n", ptr.tag);
+		return NULL;
+	}
+	void *res = ptr_get(&ptr);
+
+	hobj_hdr_t *ohdr = res;
+	if (ohdr->type != type) {
+		printf("expected type %s, but got %s\n", type->name, ohdr->type->name);
+		return NULL;
+	}
+	return res;
+}
 
 #endif /* TYPES_H */

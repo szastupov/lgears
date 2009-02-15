@@ -34,7 +34,7 @@ const type_t pair_type = {
 	.visit = pair_visit
 };
 
-void* cons(heap_t *heap, obj_t *argv)
+void* cons(heap_t *heap, obj_t *argv, int argc)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
 	pair->car = argv[0];
@@ -43,33 +43,85 @@ void* cons(heap_t *heap, obj_t *argv)
 
 	return_ptr(pair);
 }
-MAKE_NATIVE(cons, 2);
+MAKE_NATIVE(cons, 2, 0);
 
-void* car(heap_t *heap, obj_t *argv)
+void* car(heap_t *heap, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[0], &pair_type);
 	if (pair)
 		return pair->car.ptr;
 	return NULL;
 }
-MAKE_NATIVE(car, 1);
+MAKE_NATIVE(car, 1, 0);
 
-void* cdr(heap_t *heap, obj_t *argv)
+void* cdr(heap_t *heap, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[0], &pair_type);
 	if (pair)
 		return pair->cdr.ptr;
 	return NULL;
 }
-MAKE_NATIVE(cdr, 1);
+MAKE_NATIVE(cdr, 1, 0);
 
-void* eq(heap_t *heap, obj_t *argv)
+void* eq(heap_t *heap, obj_t *argv, int argc)
 {
 	bool_t res;
 	bool_init(res, (argv[0].ptr == argv[1].ptr));
 	return res.ptr;
 }
-MAKE_NATIVE(eq, 2);
+MAKE_NATIVE(eq, 2, 0);
+
+void print_obj(obj_t obj)
+{
+	switch (obj.tag) {
+		case id_ptr:
+			printf("ptr: %p\n", ptr_from_obj(obj));
+			break;
+		case id_fixnum:
+			printf("fixnum: %d\n", fixnum_from_obj(obj));
+			break;
+		case id_bool:
+			printf("bool: #%c\n", bool_from_obj(obj) ? 't' : 'f');
+			break;
+		case id_char:
+			printf("char: %c\n", char_from_obj(obj));
+			break;
+		case id_func:
+			printf("func: %p\n", ptr_from_obj(obj));
+			break;
+		case id_symbol:
+			printf("symbol: %s\n", (const char*)ptr_from_obj(obj));
+			break;
+		default:
+			printf("unknown obj\n");
+	}
+}
+
+static void* display(heap_t *heap, obj_t *argv, int argc)
+{
+	print_obj(argv[0]);
+	return NULL;
+}
+MAKE_NATIVE(display, 1, 0);
+
+#define DEFINE_ARITH(name, init, op, min) \
+	void* arith_##name(heap_t *heap, obj_t *argv, int argc) \
+{ \
+	fixnum_t res; \
+	fixnum_init(res, init); \
+	int i; \
+	for (i = 0; i < argc; i++) { \
+		fixnum_t tmp = { .ptr = argv[i].ptr }; \
+		res.val op##= tmp.val; \
+	} \
+	return res.ptr; \
+}\
+MAKE_NATIVE(arith_##name, min, 1);
+
+DEFINE_ARITH(add, 0, +, 0);
+DEFINE_ARITH(sub, 0, -, 1);
+DEFINE_ARITH(mul, 1, *, 0);
+DEFINE_ARITH(div, 1, /, 1);
 
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
@@ -81,8 +133,13 @@ void ns_install_native(hash_table_t *tbl,
 
 void ns_install_primitives(hash_table_t *tbl)
 {
+	ns_install_native(tbl, "display", &display_nt);
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "eq?", &eq_nt);
+	ns_install_native(tbl, "+", &arith_add_nt);
+	ns_install_native(tbl, "-", &arith_sub_nt);
+	ns_install_native(tbl, "*", &arith_mul_nt);
+	ns_install_native(tbl, "/", &arith_div_nt);
 }

@@ -161,19 +161,6 @@
 		   ,@func
 		   (FUNC_CALL ,argc ,(- argc)))))
 
-	(define (get-op op)
-	  (cdr (assoc op '((+ . ARITH_ADD)
-					   (- . ARITH_SUB)
-					   (* . ARITH_MUL)
-					   (/ . ARITH_DIV)))))
-
-	(define (compile-arithmetic env node)
-	  (let* ((op (get-op (car node)))
-			 (args (compile-args env (cdr node)))
-			 (argc (car args)))
-		`(,@(cdr args)
-		   (,op ,argc ,(- (- argc 1))))))
-
 	(define (compile-macro node)
 	  (let ((name (car node))
 			(ttype (caadr node))
@@ -222,8 +209,6 @@
 				(error 'compile "misplaced defination"))
 			   ((set!)
 				(compile-assigment env (cdr node)))
-			   ((+ - * /)
-				(compile-arithmetic env node))
 			   (else
 				 (compile-call env node))))
 			((number? node)

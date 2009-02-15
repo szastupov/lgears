@@ -90,38 +90,6 @@ void frame_destroy(frame_t *frame)
 	mem_free(frame);
 }
 
-void print_obj(obj_t obj)
-{
-	switch (obj.tag) {
-		case id_ptr:
-			printf("ptr: %p\n", ptr_from_obj(obj));
-			break;
-		case id_fixnum:
-			printf("fixnum: %d\n", fixnum_from_obj(obj));
-			break;
-		case id_bool:
-			printf("bool: #%c\n", bool_from_obj(obj) ? 't' : 'f');
-			break;
-		case id_char:
-			printf("char: %c\n", char_from_obj(obj));
-			break;
-		case id_func:
-			printf("func: %p\n", ptr_from_obj(obj));
-			break;
-		case id_symbol:
-			printf("symbol: %s\n", (const char*)ptr_from_obj(obj));
-			break;
-		default:
-			printf("unknown obj\n");
-	}
-}
-
-static void* display(heap_t *heap, obj_t *argv)
-{
-	print_obj(argv[0]);
-	return NULL;
-}
-
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	thread->frame_stack = frame_create(
@@ -160,17 +128,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	op_arg = *(frame->opcode++); \
 	switch (op_code)
 #endif
-
-#define ARITHMETIC_IMPL(init, op) { \
-	fixnum_t res; \
-	fixnum_init(res, init); \
-	int i; \
-	for (i = 0; i < op_arg; i++) { \
-		fixnum_t tmp = { .ptr = STACK_POP().ptr }; \
-		res.val op##= tmp.val; \
-	} \
-	STACK_PUSH(res.ptr); \
-}
 
 	int op_code, op_arg;
 	for (;;) {
@@ -237,14 +194,20 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 					case id_native: 
 						{
 							native_t *func = ptr_get(&fp);
-							if (func->argc != op_arg)
-								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+							if (func->swallow) {
+								if (op_arg < func->argc)
+									FATAL("%s need minimum %d arguments, but got %d",
+											func->name, func->argc, op_arg);
+							} else {
+								if (op_arg != func->argc)
+									FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+							}
 
 							obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
 							for (i = 0; i < func->argc; i++)
 								argv[i] = STACK_POP();
 
-							STACK_PUSH(func->call(&thread->heap, argv));
+							STACK_PUSH(func->call(&thread->heap, argv, op_arg));
 
 							mem_free(argv);
 						}
@@ -276,22 +239,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 			TARGET(LOAD_PARENT)
 				FATAL("LOAD_PARENT Not implemented");
-			NEXT();
-
-			TARGET(ARITH_ADD) 
-				ARITHMETIC_IMPL(0, +);
-			NEXT();
-
-			TARGET(ARITH_SUB)
-				ARITHMETIC_IMPL(0, -);
-			NEXT();
-
-			TARGET(ARITH_MUL)
-				ARITHMETIC_IMPL(1, *);
-			NEXT();
-
-			TARGET(ARITH_DIV)
-				ARITHMETIC_IMPL(1, /);
 			NEXT();
 		}
 	}
@@ -416,8 +363,6 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	}
 }
 
-MAKE_NATIVE(display, 1);
-
 void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
@@ -428,7 +373,6 @@ void vm_thread_init(vm_thread_t *thread)
 	thread->sym_table.destroy_key = free;
 	hash_table_init(&thread->ns_global, string_hash, string_equal);
 
-	ns_install_native(&thread->ns_global, "display", &display_nt);
 	ns_install_primitives(&thread->ns_global);
 }
 

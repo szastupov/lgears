@@ -21,22 +21,28 @@
 #include "hash.h"
 
 typedef struct native_s native_t;
-typedef void* (*native_func)(heap_t *heap, obj_t *argv);
+typedef void* (*native_func)(heap_t *heap, obj_t *argv, int argc);
 
 struct native_s {
-	short argc;
+	int argc;
+	unsigned swallow:1;
 	native_func call;
+	const char *name;
 };
 
-#define MAKE_NATIVE(func, fargc) \
+#define MAKE_NATIVE(func, fargc, fswallow) \
 	const native_t func##_nt = { \
 		.argc = fargc, \
-		.call = func \
+		.call = func, \
+		.swallow = fswallow, \
+		.name = #func \
 	}
 
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt);
 
 void ns_install_primitives(hash_table_t *tbl);
+
+void print_obj(obj_t obj);
 
 #endif /* PRIMITIVES_H */

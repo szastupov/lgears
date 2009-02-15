@@ -14,10 +14,6 @@
 #define FUNC_CALL	8	/* Call function */
 #define RETURN	9	/* Return from function */
 #define SET_LOCAL	10	/* Assign new value to local binding */
-#define ARITH_ADD	11	/* Add numbers */
-#define ARITH_SUB	12	/* Substitute numbers */
-#define ARITH_MUL	13	/* Multiply numbers */
-#define ARITH_DIV	14	/* Divide numbers */
 
 #define OP_CASE(code) case code: return #code
 
@@ -35,10 +31,6 @@ const char* opcode_name(int code)
 		OP_CASE(FUNC_CALL);
 		OP_CASE(RETURN);
 		OP_CASE(SET_LOCAL);
-		OP_CASE(ARITH_ADD);
-		OP_CASE(ARITH_SUB);
-		OP_CASE(ARITH_MUL);
-		OP_CASE(ARITH_DIV);
 	}
 	return "unknown";
 }

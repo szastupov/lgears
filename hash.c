@@ -188,8 +188,9 @@ void hash_table_insert(hash_table_t *tbl, void *key, void *val)
 	hash_node_t **node_ptr = hash_table_lookup_node(tbl, key, &key_hash);
 
 	if ((node = *node_ptr)) {
+		if (tbl->destroy_val)
+			tbl->destroy_val(node->val);
 		node->val = val;
-		//FIXME add old val destructor
 	} else {
 		node = mem_alloc(sizeof(hash_node_t));
 		node->key = key;

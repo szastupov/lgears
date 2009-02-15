@@ -53,8 +53,15 @@ typedef struct frame_s {
 } frame_t;
 
 typedef struct {
+	void *page;
+	void *end;
+	void *pos;
+} lalloc_t;
+
+typedef struct {
 	frame_t *frame_stack;
 	heap_t heap;
+	lalloc_t lalloc;
 	hash_table_t sym_table;
 	hash_table_t ns_global;
 } vm_thread_t;

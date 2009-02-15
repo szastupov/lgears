@@ -34,7 +34,7 @@ const type_t pair_type = {
 	.visit = pair_visit
 };
 
-void* cons(heap_t *heap, obj_t *argv, int argc)
+static void* cons(heap_t *heap, obj_t *argv, int argc)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
 	pair->car = argv[0];
@@ -45,7 +45,7 @@ void* cons(heap_t *heap, obj_t *argv, int argc)
 }
 MAKE_NATIVE(cons, 2, 0);
 
-void* car(heap_t *heap, obj_t *argv, int argc)
+static void* car(heap_t *heap, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[0], &pair_type);
 	if (pair)
@@ -54,7 +54,7 @@ void* car(heap_t *heap, obj_t *argv, int argc)
 }
 MAKE_NATIVE(car, 1, 0);
 
-void* cdr(heap_t *heap, obj_t *argv, int argc)
+static void* cdr(heap_t *heap, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[0], &pair_type);
 	if (pair)
@@ -63,7 +63,7 @@ void* cdr(heap_t *heap, obj_t *argv, int argc)
 }
 MAKE_NATIVE(cdr, 1, 0);
 
-void* eq(heap_t *heap, obj_t *argv, int argc)
+static void* eq(heap_t *heap, obj_t *argv, int argc)
 {
 	bool_t res;
 	bool_init(res, (argv[0].ptr == argv[1].ptr));
@@ -105,7 +105,7 @@ static void* display(heap_t *heap, obj_t *argv, int argc)
 MAKE_NATIVE(display, 1, 0);
 
 #define DEFINE_ARITH(name, init, op, min) \
-	void* arith_##name(heap_t *heap, obj_t *argv, int argc) \
+	static void* arith_##name(heap_t *heap, obj_t *argv, int argc) \
 { \
 	fixnum_t res; \
 	fixnum_init(res, init); \

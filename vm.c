@@ -54,18 +54,6 @@ env_t* env_new(heap_t *heap, int size)
 	return env;
 }
 
-void* make_symbol(hash_table_t *tbl, const char *str)
-{
-	void *res = hash_table_lookup(tbl, str);
-	if (!res) {
-		res = strdup(str);
-		hash_table_insert(tbl, res, res);
-	}
-	ptr_t sp;
-	symbol_init(sp, res);
-	return sp.ptr;
-}
-
 func_t* load_func(module_t *module, int index)
 {
 	if (index > module->fun_count)
@@ -73,29 +61,60 @@ func_t* load_func(module_t *module, int index)
 	return &module->functions[index];
 }
 
-frame_t* frame_create(func_t *func, frame_t *parent, heap_t *heap)
+void lalloc_init(lalloc_t *al)
 {
-	frame_t *frame = type_alloc(frame_t);
-	frame->prev = parent;
-	frame->opstack = mem_calloc(func->stack_size, sizeof(obj_t));
+	size_t ps = sysconf(_SC_PAGE_SIZE);
+	void *page = mmap(NULL, ps,
+			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+	al->page = page;
+	al->pos = page;
+	al->end = page+ps;
+}
+
+void lalloc_destroy(lalloc_t *al)
+{
+	munmap(al->page, sysconf(_SC_PAGE_SIZE));
+}
+
+void* lalloc_get(lalloc_t *al, size_t size)
+{
+	//FIXME alloc new pages if needed
+	void *res = al->pos;
+	al->pos += size;
+	return res;
+}
+
+void lalloc_put(lalloc_t *al, void *ptr)
+{
+	if (ptr < al->page || ptr > al->end)
+		FATAL("Try to put %p which does not belong to linear allocator %p\n",
+				ptr, al);
+	al->pos = ptr;
+}
+
+frame_t* frame_create(func_t *func, vm_thread_t *thread)
+{
+	size_t size = sizeof(obj_t)*func->stack_size + sizeof(frame_t);
+	void *mem = lalloc_get(&thread->lalloc, size);
+	frame_t *frame = mem;
+	frame->prev = thread->frame_stack;
+	frame->opstack = mem+sizeof(frame_t);
 	frame->func = func;
 	frame->opcode = func->opcode;
-	frame->env = env_new(heap, func->env_size);
+	frame->op_stack_idx = 0;
+	frame->env = env_new(&thread->heap, func->env_size);
 	return frame;
 }
 
-void frame_destroy(frame_t *frame)
+void frame_destroy(vm_thread_t *thread, frame_t *frame)
 {
-	mem_free(frame->opstack);
-	mem_free(frame);
+	lalloc_put(&thread->lalloc, frame);
 }
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	thread->frame_stack = frame_create(
-			load_func(module, module->entry_point),
-			thread->frame_stack,
-			&thread->heap);
+			load_func(module, module->entry_point), thread);
 	frame_t *frame = thread->frame_stack;
 
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
@@ -104,8 +123,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
 
 	/*
-	 * "Threaded code" can speed-up dispatching
-	 * See:
+	 * On dispatching speed-up:
 	 * http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 	 * Inspired by http://bugs.python.org/issue4753, thanks Antoine Pitrou!
 	 */
@@ -182,7 +200,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							func_t *func = ptr_get(&fp);
 							if (func->argc != op_arg)
 								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-							frame_t *new_frame = frame_create(func, frame, &thread->heap);
+							frame_t *new_frame = frame_create(func, thread);
 							thread->frame_stack = new_frame;
 
 							for (i = 0; i < func->argc; i++)
@@ -203,13 +221,13 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 									FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 							}
 
-							obj_t *argv = mem_calloc(func->argc, sizeof(obj_t));
+							obj_t *argv = lalloc_get(&thread->lalloc, sizeof(obj_t)*func->argc);
 							for (i = 0; i < func->argc; i++)
 								argv[i] = STACK_POP();
 
 							STACK_PUSH(func->call(&thread->heap, argv, op_arg));
 
-							mem_free(argv);
+							lalloc_put(&thread->lalloc, argv);
 						}
 						break;
 					default:
@@ -222,7 +240,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				obj_t ret = STACK_POP();
 				frame_t *parent = frame->prev;
 				thread->frame_stack = parent;
-				frame_destroy(frame);
+				frame_destroy(thread, frame);
 				if (parent) {
 					STACK_PUSH_ON(parent, ret.ptr);
 					frame = parent;
@@ -242,6 +260,18 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 		}
 	}
+}
+
+void* make_symbol(hash_table_t *tbl, const char *str)
+{
+	void *res = hash_table_lookup(tbl, str);
+	if (!res) {
+		res = strdup(str);
+		hash_table_insert(tbl, res, res);
+	}
+	ptr_t sp;
+	symbol_init(sp, res);
+	return sp.ptr;
 }
 
 module_t* module_load(vm_thread_t *thread, const char *path)
@@ -367,7 +397,9 @@ void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
 	thread->frame_stack = NULL;
+
 	heap_init(&thread->heap, vm_inspect, thread);
+	lalloc_init(&thread->lalloc);
 
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
 	thread->sym_table.destroy_key = free;
@@ -381,6 +413,7 @@ void vm_thread_destroy(vm_thread_t *thread)
 	hash_table_destroy(&thread->sym_table);
 	hash_table_destroy(&thread->ns_global);
 	heap_destroy(&thread->heap);
+	lalloc_destroy(&thread->lalloc);
 }
 
 int main()

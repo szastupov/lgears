@@ -151,7 +151,7 @@
 		  (cons idx res)
 		  (loop (cdr cur) 
 				(+ idx 1)
-				(append (compile env (car cur)) res)))))
+				(append res (compile env (car cur)))))))
 
 	(define (compile-call env node)
 	  (let* ((func (compile env (car node)))
@@ -231,10 +231,8 @@
 
 (let ((res (start-compile
 			 '(
-			   ;((lambda (x y) (display x) (display y)) 'foobar 'blabla)
-			   ;(display 'ok)
-			   (define (foo n) (display n) (foo n))
-			   (foo 'bar)
+			   ((lambda (x y) (display x) (display y)) 'foobar 'blabla)
+			   (car (cons 'foo 'bar))
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

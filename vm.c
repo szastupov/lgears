@@ -203,7 +203,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							frame_t *new_frame = frame_create(func, thread);
 							thread->frame_stack = new_frame;
 
-							for (i = 0; i < func->argc; i++)
+							for (i = func->argc-1; i >= 0; i--)
 								new_frame->env->objects[i] = STACK_POP();
 							frame = new_frame;
 
@@ -221,13 +221,10 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 									FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 							}
 
-							obj_t *argv = lalloc_get(&thread->lalloc, sizeof(obj_t)*func->argc);
-							for (i = 0; i < func->argc; i++)
-								argv[i] = STACK_POP();
-
-							STACK_PUSH(func->call(&thread->heap, argv, op_arg));
-
-							lalloc_put(&thread->lalloc, argv);
+							frame->op_stack_idx -= op_arg;
+							void *res = func->call(&thread->heap,
+									&frame->opstack[frame->op_stack_idx], op_arg);
+							STACK_PUSH(res);
 						}
 						break;
 					default:

@@ -110,10 +110,8 @@ MAKE_NATIVE(display, 1, 0);
 	fixnum_t res; \
 	fixnum_init(res, init); \
 	int i; \
-	for (i = 0; i < argc; i++) { \
-		fixnum_t tmp = { .ptr = argv[i].ptr }; \
-		res.val op##= tmp.val; \
-	} \
+	for (i = 0; i < argc; i++) \
+		res.val op##= fixnum_from_obj(argv[i]); \
 	return res.ptr; \
 }\
 MAKE_NATIVE(arith_##name, min, 1);

@@ -27,25 +27,17 @@
 static void copy_heap_reset(copy_heap_t *heap)
 {
 	int pad = align_up(BHDR_SIZE)-BHDR_SIZE;
-	heap->pos = heap->page + pad;
-	heap->free_mem = heap->page_size - pad;
+	heap->pos = heap->mem + pad;
+	heap->free_mem = heap->size - pad;
 	heap->blocks = 0;
 }
 
-static void copy_heap_init(copy_heap_t *heap)
+static void copy_heap_init(copy_heap_t *heap, void *mem, int size)
 {
-	heap->page_size = sysconf(_SC_PAGE_SIZE);
-	heap->page = mmap(NULL, heap->page_size,
-			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	if (heap->page == MAP_FAILED)
-		FATAL("failed to mmap page: %s\n", strerror(errno));
+	heap->size = size;
+	heap->mem = mem;
 
 	copy_heap_reset(heap);
-}
-
-static void copy_heap_destroy(copy_heap_t *heap)
-{
-	munmap(heap->page, heap->page_size);
 }
 
 /*
@@ -173,8 +165,19 @@ void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
 {
 	heap->from = &heap->heaps[0];
 	heap->to = &heap->heaps[1];
-	copy_heap_init(heap->from);
-	copy_heap_init(heap->to);
+
+	static int sc_page_size = 0;
+	if (!sc_page_size)
+		sc_page_size = sysconf(_SC_PAGE_SIZE);
+
+	heap->page_size = sc_page_size*2;
+	heap->page = mmap(NULL, heap->page_size,
+			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+	if (heap->page == MAP_FAILED)
+		FATAL("failed to mmap page: %s\n", strerror(errno));
+
+	copy_heap_init(heap->from, heap->page, sc_page_size);
+	copy_heap_init(heap->to, heap->page+sc_page_size, sc_page_size);
 
 	heap->visitor.visit = heap_mark;
 	heap->visitor.user_data = heap;
@@ -184,6 +187,5 @@ void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
 
 void heap_destroy(heap_t *heap)
 {
-	copy_heap_destroy(heap->from);
-	copy_heap_destroy(heap->to);
+	munmap(heap->page, heap->page_size);
 }

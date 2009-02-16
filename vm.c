@@ -409,7 +409,6 @@ static void mark_env(env_t **env, visitor_t *visitor)
 	ptr_init(&ptr, *env);
 	obj_t tmp = { .ptr = ptr.ptr };
 	printf("env mem %p, %p, %p\n", *env, ptr_get(&ptr), ptr_from_obj(tmp));
-	printf("env size %d\n", (*env)->size);
 	visitor->visit(visitor, &tmp);
 	ptr.ptr = tmp.ptr;
 	*env = ptr_get(&ptr);

@@ -32,15 +32,17 @@ typedef struct {
 } block_hdr_t;
 
 typedef struct {
-	void *page;
+	void *mem;
 	void *pos;
-	int page_size;
+	int size;
 	int blocks;
 	int free_mem;
 } copy_heap_t;
 
 typedef struct {
 	visitor_t visitor;
+	void *page;
+	int page_size;
 	copy_heap_t heaps[2];
 	copy_heap_t *from, *to;
 	visitor_fun vm_inspect;

@@ -88,9 +88,12 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 
 static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 {
+	if (size > heap->free_mem)
+		FATAL("Totaly fucking out of memory");
 	void *res = heap->pos;
 	memcpy(res, p, size);
 	heap->pos += size;
+	heap->free_mem -= size;
 	heap->blocks++;
 	return res;
 }
@@ -126,7 +129,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 {
 	heap_t *heap = visitor->user_data;
 
-	if (obj->tag != id_ptr)
+	if (!obj->ptr || obj->tag != id_ptr)
 		return;
 
 	ptr_t ptr = { .ptr = obj->ptr };
@@ -159,9 +162,8 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * If type provide visit function - call it
 	 */
 	hobj_hdr_t *ohdr = new_pos;
-	void *object = new_pos+sizeof(hobj_hdr_t);
 	if (ohdr->type->visit)
-		ohdr->type->visit(visitor, object);
+		ohdr->type->visit(visitor, new_pos);
 }
 
 void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)

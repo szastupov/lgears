@@ -78,7 +78,8 @@ void lalloc_destroy(lalloc_t *al)
 
 void* lalloc_get(lalloc_t *al, size_t size)
 {
-	//FIXME alloc new pages if needed
+	if (al->pos + size > al->end)
+		FATAL("Implement new page allocation for linear allocator\n");
 	void *res = al->pos;
 	al->pos += size;
 	return res;
@@ -95,27 +96,45 @@ void lalloc_put(lalloc_t *al, void *ptr)
 frame_t* frame_create(func_t *func, vm_thread_t *thread)
 {
 	size_t size = sizeof(obj_t)*func->stack_size + sizeof(frame_t);
+
 	void *mem = lalloc_get(&thread->lalloc, size);
 	frame_t *frame = mem;
-	frame->prev = thread->frame_stack;
+	frame->prev = thread->fp;
 	frame->opstack = mem+sizeof(frame_t);
 	frame->func = func;
 	frame->opcode = func->opcode;
 	frame->op_stack_idx = 0;
 	frame->env = env_new(&thread->heap, func->env_size);
+
+	int depth = 0;
+	if (thread->fp) {
+		if (thread->fp->func == func)
+			frame->display = thread->fp->display;
+		else {
+			depth = thread->fp->depth + 1;
+			frame->display = lalloc_get(&thread->lalloc, depth * sizeof(env_t*));
+			frame->display[0] = thread->fp->env;
+			if (depth > 1)
+				memcpy(&frame->display[1], thread->fp->display, thread->fp->depth * sizeof(env_t*));
+		}
+	}
+	frame->depth = depth;
+
 	return frame;
 }
 
 void frame_destroy(vm_thread_t *thread, frame_t *frame)
 {
+	if (frame->depth)
+		lalloc_put(&thread->lalloc, frame->display);
 	lalloc_put(&thread->lalloc, frame);
 }
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
-	thread->frame_stack = frame_create(
+	thread->fp = frame_create(
 			load_func(module, module->entry_point), thread);
-	frame_t *frame = thread->frame_stack;
+	frame_t *frame = thread->fp;
 
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
 #define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
@@ -201,8 +220,9 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							if (func->argc != op_arg)
 								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 							frame_t *new_frame = frame_create(func, thread);
-							thread->frame_stack = new_frame;
+							thread->fp = new_frame;
 
+							//FIXME copy whole block of arguments
 							for (i = func->argc-1; i >= 0; i--)
 								new_frame->env->objects[i] = STACK_POP();
 							frame = new_frame;
@@ -222,9 +242,8 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							}
 
 							frame->op_stack_idx -= op_arg;
-							void *res = func->call(&thread->heap,
-									&frame->opstack[frame->op_stack_idx], op_arg);
-							STACK_PUSH(res);
+							STACK_PUSH(func->call(&thread->heap,
+										&frame->opstack[frame->op_stack_idx], op_arg));
 						}
 						break;
 					default:
@@ -236,7 +255,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			TARGET(RETURN) {
 				obj_t ret = STACK_POP();
 				frame_t *parent = frame->prev;
-				thread->frame_stack = parent;
+				thread->fp = parent;
 				frame_destroy(thread, frame);
 				if (parent) {
 					STACK_PUSH_ON(parent, ret.ptr);
@@ -252,8 +271,15 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				frame->env->objects[op_arg] = STACK_POP();
 			NEXT();
 
-			TARGET(LOAD_PARENT)
-				FATAL("LOAD_PARENT Not implemented");
+			TARGET(LOAD_ENV)
+				STACK_PUSH(frame->display[op_arg-1]);
+			NEXT();
+
+			TARGET(LOAD_FROM_ENV)
+			{
+				env_t *env = STACK_POP().ptr;
+				STACK_PUSH(env->objects[op_arg].ptr);
+			}
 			NEXT();
 		}
 	}
@@ -369,7 +395,7 @@ static void vm_inspect(visitor_t *visitor, void *self)
 {
 	vm_thread_t *thread = self;
 
-	frame_t *cur_frame = thread->frame_stack;
+	frame_t *cur_frame = thread->fp;
 	while (cur_frame) {
 		int i;
 
@@ -378,11 +404,14 @@ static void vm_inspect(visitor_t *visitor, void *self)
 		 * FIXME cleanup this ugly code
 		 */
 		ptr_t ptr;
-		ptr_init(&ptr, &cur_frame->env);
+		ptr_init(&ptr, cur_frame->env);
 		obj_t tmp = { .ptr = ptr.ptr };
+		printf("env mem %p, %p, %p\n", cur_frame->env, ptr_get(&ptr), ptr_from_obj(tmp));
+		printf("env size %d\n", cur_frame->env->size);
 		visitor->visit(visitor, &tmp);
 		ptr.ptr = tmp.ptr;
 		cur_frame->env = ptr_get(&ptr);
+		printf("new mem %p\n", cur_frame->env);
 
 		for (i = 0; i < cur_frame->op_stack_idx; i++)
 			visitor->visit(visitor, &cur_frame->opstack[i]);
@@ -393,7 +422,7 @@ static void vm_inspect(visitor_t *visitor, void *self)
 void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
-	thread->frame_stack = NULL;
+	thread->fp = NULL;
 
 	heap_init(&thread->heap, vm_inspect, thread);
 	lalloc_init(&thread->lalloc);

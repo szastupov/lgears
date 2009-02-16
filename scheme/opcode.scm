@@ -7,7 +7,6 @@
    |#
 
   (define oplist '((LOAD_FUNC . "Load function local to module")
-				   (LOAD_PARENT . "Load object from parent env")
 				   (LOAD_LOCAL . "Load object from frame-local area")
 				   (LOAD_SYM . "Load predefined symbol local to module")
 				   (LOAD_IMPORT . "Load object from module import table")
@@ -16,7 +15,9 @@
 				   (JUMP_FORWARD . "Jump forward")
 				   (FUNC_CALL . "Call function")
 				   (RETURN . "Return from function")
-				   (SET_LOCAL . "Assign new value to local binding")))
+				   (SET_LOCAL . "Assign new value to local binding")
+				   (LOAD_ENV . "Load env from display")
+				   (LOAD_FROM_ENV . "Load object from env")))
 
   (define (oplist-for-each func)
 	(fold-left (lambda (idx op)
@@ -35,5 +36,5 @@
   (define (opcode sym)
 	(if (hashtable-contains? optable sym)
 	  (hashtable-ref optable sym #f)
-	  (error opcode "unknown opcode" sym)))
+	  (error 'opcode "unknown opcode" sym)))
   )

@@ -21,8 +21,8 @@ typedef struct module_s module_t;
 
 typedef struct {
 	int stack_size;
-	int env_size;
-	int argc;
+	short env_size;
+	short argc;
 	int op_count;
 	char *opcode;
 	module_t *module;
@@ -47,6 +47,8 @@ typedef struct frame_s {
 	struct frame_s *prev;
 	obj_t	*opstack;
 	env_t	*env;
+	env_t	**display;
+	int		depth;
 	const func_t *func;
 	const char	*opcode;
 	int		op_stack_idx;
@@ -59,7 +61,7 @@ typedef struct {
 } lalloc_t;
 
 typedef struct {
-	frame_t *frame_stack;
+	frame_t *fp;
 	heap_t heap;
 	lalloc_t lalloc;
 	hash_table_t sym_table;

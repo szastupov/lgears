@@ -24,7 +24,7 @@ typedef struct native_s native_t;
 typedef void* (*native_func)(heap_t *heap, obj_t *argv, int argc);
 
 struct native_s {
-	int argc;
+	short argc;
 	unsigned swallow:1;
 	native_func call;
 	const char *name;

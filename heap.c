@@ -114,6 +114,8 @@ void* heap_alloc(heap_t *heap, int size)
 		heap->vm_inspect(&heap->visitor, heap->vm);
 		heap_swap(heap);
 		res = copy_heap_alloc(heap->from, size);
+		if (!res)
+			FATAL("Totaly fucking out of memory");
 	}
 	return res;
 }
@@ -142,6 +144,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * Use forward pointer if object already moved
 	 */
 	if (hdr->forward) {
+		printf("Forwarding to %p\n", hdr->forward);
 		ptr_set(&ptr, hdr->forward);
 		obj->ptr = ptr.ptr;
 		return;

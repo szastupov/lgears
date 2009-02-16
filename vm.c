@@ -61,14 +61,22 @@ func_t* load_func(module_t *module, int index)
 	return &module->functions[index];
 }
 
-void lalloc_init(lalloc_t *al)
+static lpage_t* lalloc_new_page(lpage_t *prev)
 {
 	size_t ps = sysconf(_SC_PAGE_SIZE);
 	void *page = mmap(NULL, ps,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	al->page = page;
-	al->pos = page;
-	al->end = page+ps;
+	lpage_t *lp = page;
+	lp->start = page+sizeof(lpage_t);
+	lp->pos = lp->start;
+	lp->end = page+ps;
+
+	return lp;
+}
+
+void lalloc_init(lalloc_t *al)
+{
+	al->page = lalloc_new_page(NULL);
 }
 
 void lalloc_destroy(lalloc_t *al)
@@ -78,19 +86,25 @@ void lalloc_destroy(lalloc_t *al)
 
 void* lalloc_get(lalloc_t *al, size_t size)
 {
-	if (al->pos + size > al->end)
-		FATAL("Implement new page allocation for linear allocator\n");
-	void *res = al->pos;
-	al->pos += size;
+	if (al->page->pos + size > al->page->end) {
+		al->page = lalloc_new_page(al->page);
+	}
+	void *res = al->page->pos;
+	al->page->pos += size;
 	return res;
 }
 
 void lalloc_put(lalloc_t *al, void *ptr)
 {
-	if (ptr < al->page || ptr > al->end)
+	if (ptr < al->page->start || ptr > al->page->end)
 		FATAL("Try to put %p which does not belong to linear allocator %p\n",
 				ptr, al);
-	al->pos = ptr;
+	al->page->pos = ptr;
+	if (al->page->prev && al->page->pos == al->page->start) {
+		lpage_t *tmp = al->page;
+		al->page = tmp->prev;
+		munmap(tmp, sysconf(_SC_PAGE_SIZE));
+	}
 }
 
 frame_t* frame_create(func_t *func, vm_thread_t *thread)
@@ -125,8 +139,6 @@ frame_t* frame_create(func_t *func, vm_thread_t *thread)
 
 void frame_destroy(vm_thread_t *thread, frame_t *frame)
 {
-	if (frame->depth)
-		lalloc_put(&thread->lalloc, frame->display);
 	lalloc_put(&thread->lalloc, frame);
 }
 
@@ -391,6 +403,19 @@ void module_free(module_t *module)
 	mem_free(module);
 }
 
+static void mark_env(env_t **env, visitor_t *visitor)
+{
+	ptr_t ptr;
+	ptr_init(&ptr, *env);
+	obj_t tmp = { .ptr = ptr.ptr };
+	printf("env mem %p, %p, %p\n", *env, ptr_get(&ptr), ptr_from_obj(tmp));
+	printf("env size %d\n", (*env)->size);
+	visitor->visit(visitor, &tmp);
+	ptr.ptr = tmp.ptr;
+	*env = ptr_get(&ptr);
+	printf("new mem %p\n", *env);
+}
+
 static void vm_inspect(visitor_t *visitor, void *self)
 {
 	vm_thread_t *thread = self;
@@ -399,22 +424,14 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	while (cur_frame) {
 		int i;
 
-		/*
-		 * We need to update env pointer if needed
-		 * FIXME cleanup this ugly code
-		 */
-		ptr_t ptr;
-		ptr_init(&ptr, cur_frame->env);
-		obj_t tmp = { .ptr = ptr.ptr };
-		printf("env mem %p, %p, %p\n", cur_frame->env, ptr_get(&ptr), ptr_from_obj(tmp));
-		printf("env size %d\n", cur_frame->env->size);
-		visitor->visit(visitor, &tmp);
-		ptr.ptr = tmp.ptr;
-		cur_frame->env = ptr_get(&ptr);
-		printf("new mem %p\n", cur_frame->env);
+		mark_env(&cur_frame->env, visitor);
+
+		for (i = 0; i < cur_frame->depth; i++)
+			mark_env(&cur_frame->display[i], visitor);
 
 		for (i = 0; i < cur_frame->op_stack_idx; i++)
 			visitor->visit(visitor, &cur_frame->opstack[i]);
+
 		cur_frame = cur_frame->prev;
 	}
 }

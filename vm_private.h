@@ -54,10 +54,15 @@ typedef struct frame_s {
 	int		op_stack_idx;
 } frame_t;
 
-typedef struct {
-	void *page;
+typedef struct lpage_s {
+	struct lpage_s *prev;
+	void *start;
 	void *end;
 	void *pos;
+} lpage_t;
+
+typedef struct {
+	lpage_t *page;
 } lalloc_t;
 
 typedef struct {

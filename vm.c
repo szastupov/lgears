@@ -81,7 +81,13 @@ void lalloc_init(lalloc_t *al)
 
 void lalloc_destroy(lalloc_t *al)
 {
-	munmap(al->page, sysconf(_SC_PAGE_SIZE));
+	lpage_t *cur_page = al->page;
+	lpage_t *next;
+	while (cur_page) {
+		next = cur_page->prev;
+		munmap(cur_page, sysconf(_SC_PAGE_SIZE));
+		cur_page = next;
+	}
 }
 
 void* lalloc_get(lalloc_t *al, size_t size)

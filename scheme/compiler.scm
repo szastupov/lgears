@@ -232,10 +232,12 @@
 
 (let ((res (start-compile
 			 '(
-			   ((lambda (x y) (display x) (display y)) 'foobar 'blabla)
-			   (car (cons 'foo 'bar))
+			   ;((lambda (x y) (display x) (display y)) 'foobar 'blabla)
+			   ;(car (cons 'foo 'bar))
 			   ;(define (foo n) (display n) (foo n))
 			   ;(foo 'bar)
+			   (define (foo n) (define (bla b) (cons n b)) (bla 'FFFF))
+			   (cdr (foo 'TEST))
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

@@ -77,7 +77,10 @@ typedef union {
 /** 
  * @brief function types
  */
-typedef enum { func_inter, func_native } func_type_t;
+typedef enum {
+	func_inter,	/**< Normal interpreted function */
+	func_native	/**< Native C-function */
+} func_type_t;
 
 typedef union {
 	struct {

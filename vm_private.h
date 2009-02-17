@@ -43,6 +43,13 @@ typedef struct {
 	obj_t *objects;
 } env_t;
 
+typedef struct {
+	hobj_hdr_t hdr;
+	func_t *func;
+	env_t **display;
+	int depth;
+} closure_t;
+
 typedef struct frame_s {
 	struct frame_s *prev;
 	obj_t	*opstack;

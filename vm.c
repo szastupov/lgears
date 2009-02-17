@@ -54,6 +54,41 @@ env_t* env_new(heap_t *heap, int size)
 	return env;
 }
 
+static void mark_env(env_t **env, visitor_t *visitor)
+{
+	ptr_t ptr;
+	ptr_init(&ptr, *env);
+	obj_t tmp = { .ptr = ptr.ptr };
+	printf("env mem %p, %p, %p\n", *env, ptr_get(&ptr), ptr_from_obj(tmp));
+	visitor->visit(visitor, &tmp);
+	ptr.ptr = tmp.ptr;
+	*env = ptr_get(&ptr);
+	printf("new mem %p\n", *env);
+}
+
+static void closure_visit(visitor_t *vs, void *data)
+{
+	closure_t *closure = data;
+	int i;
+	for (i = 0; i < closure->depth; i++)
+		mark_env(&closure->display[i], vs);
+}
+
+const type_t closure_type = {
+	.name = "closure",
+	.visit = closure_visit
+};
+
+void* closure_new(heap_t *heap, func_t *func, frame_t *frame)
+{
+	closure_t *closure = heap_alloc(heap, sizeof(closure_t));
+	closure->depth = frame->depth;
+	closure->display = frame->display;
+	closure->func = func;
+	closure->hdr.type = &closure_type;
+	return_ptr(closure);
+}
+
 func_t* load_func(module_t *module, int index)
 {
 	if (index > module->fun_count)
@@ -113,7 +148,7 @@ void lalloc_put(lalloc_t *al, void *ptr)
 	}
 }
 
-frame_t* frame_create(func_t *func, vm_thread_t *thread)
+frame_t* frame_create(func_t *func, vm_thread_t *thread, env_t **display)
 {
 	size_t size = sizeof(obj_t)*func->stack_size + sizeof(frame_t);
 
@@ -150,8 +185,7 @@ void frame_destroy(vm_thread_t *thread, frame_t *frame)
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
-	thread->fp = frame_create(
-			load_func(module, module->entry_point), thread);
+	thread->fp = frame_create(load_func(module, module->entry_point), thread, NULL);
 	frame_t *frame = thread->fp;
 
 #define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
@@ -219,45 +253,55 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 			TARGET(FUNC_CALL) {
 				ptr_t fp = { .ptr = STACK_POP().ptr };
-				if (fp.tag != id_func)
-					FATAL("expected function but got tag %d\n", fp.tag);
+				if (fp.tag != id_func && fp.tag != id_ptr)
+					FATAL("expected function or closure but got tag %d\n", fp.tag);
 				void *ptr = ptr_get(&fp);
-				switch (*((func_type_t*)ptr)) {
-					case func_inter: 
-						{
-							func_t *func = ptr;
-							if (func->argc != op_arg)
-								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-							frame_t *new_frame = frame_create(func, thread);
-							thread->fp = new_frame;
 
-							frame->op_stack_idx -= op_arg;
-							memcpy(new_frame->env->objects,
-									&frame->opstack[frame->op_stack_idx], op_arg*sizeof(obj_t));
-							frame = new_frame;
+				inline void func_call(func_t *func, env_t **display)
+				{
+					if (func->argc != op_arg)
+						FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+					frame_t *new_frame = frame_create(func, thread, display);
+					thread->fp = new_frame;
 
-							NEXT();
-						}
-					case func_native: 
-						{
-							native_t *func = ptr;
-							if (func->swallow) {
-								if (op_arg < func->argc)
-									FATAL("%s need minimum %d arguments, but got %d",
-											func->name, func->argc, op_arg);
-							} else {
-								if (op_arg != func->argc)
-									FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-							}
-
-							frame->op_stack_idx -= op_arg;
-							STACK_PUSH(func->call(&thread->heap,
-										&frame->opstack[frame->op_stack_idx], op_arg));
-						}
-						break;
-					default:
-						FATAL("Expected function but got type tag: %d\n", fp.tag);
+					frame->op_stack_idx -= op_arg;
+					memcpy(new_frame->env->objects,
+							&frame->opstack[frame->op_stack_idx], op_arg*sizeof(obj_t));
+					frame = new_frame;
 				}
+
+				if (fp.tag == id_ptr) {
+					hobj_hdr_t *ohdr = ptr;
+					if (ohdr->type != &closure_type)
+						FATAL("expected function but it's not even a closure (but %s)\n",
+								ohdr->type->name);
+					closure_t *closure = ptr;
+					func_call(closure->func, closure->display);
+				} else
+					switch (*((func_type_t*)ptr)) {
+						case func_inter: 
+							func_call(ptr, NULL);
+							NEXT();
+						case func_native: 
+							{
+								native_t *func = ptr;
+								if (func->swallow) {
+									if (op_arg < func->argc)
+										FATAL("%s need minimum %d arguments, but got %d",
+												func->name, func->argc, op_arg);
+								} else {
+									if (op_arg != func->argc)
+										FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+								}
+
+								frame->op_stack_idx -= op_arg;
+								STACK_PUSH(func->call(&thread->heap,
+											&frame->opstack[frame->op_stack_idx], op_arg));
+							}
+							break;
+						default:
+							FATAL("BUG! Expected function but got type tag: %d\n", fp.tag);
+					}
 			}
 			NEXT();
 
@@ -267,7 +311,10 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				thread->fp = parent;
 				frame_destroy(thread, frame);
 				if (parent) {
-					STACK_PUSH_ON(parent, ret.ptr);
+					if (ret.tag == id_func)
+						STACK_PUSH_ON(parent, closure_new(&thread->heap, ptr_from_obj(ret), frame));
+					else
+						STACK_PUSH_ON(parent, ret.ptr);
 					frame = parent;
 				} else {
 					print_obj(ret);
@@ -284,8 +331,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				STACK_PUSH(frame->display[op_arg-1]);
 			NEXT();
 
-			TARGET(LOAD_FROM_ENV)
-			{
+			TARGET(LOAD_FROM_ENV) {
 				env_t *env = STACK_POP().ptr;
 				STACK_PUSH(env->objects[op_arg].ptr);
 			}
@@ -358,12 +404,14 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 
 
 	char *import = mem_alloc(mhdr.import_size);
-	read(fd, import, mhdr.import_size);
+	if (read(fd, import, mhdr.import_size) != mhdr.import_size)
+		FATAL("Failed to read imports");
 	load_imports(import);
 	mem_free(import);
 
 	char *symbols = mem_alloc(mhdr.symbols_size);
-	read(fd, symbols, mhdr.symbols_size);
+	if (read(fd, symbols, mhdr.symbols_size) != mhdr.symbols_size)
+		FATAL("Failed to read symbols");
 	populate_sym_table(symbols);
 	mem_free(symbols);
 
@@ -399,18 +447,6 @@ void module_free(module_t *module)
 	mem_free(module->symbols);
 	mem_free(module->imports);
 	mem_free(module);
-}
-
-static void mark_env(env_t **env, visitor_t *visitor)
-{
-	ptr_t ptr;
-	ptr_init(&ptr, *env);
-	obj_t tmp = { .ptr = ptr.ptr };
-	printf("env mem %p, %p, %p\n", *env, ptr_get(&ptr), ptr_from_obj(tmp));
-	visitor->visit(visitor, &tmp);
-	ptr.ptr = tmp.ptr;
-	*env = ptr_get(&ptr);
-	printf("new mem %p\n", *env);
 }
 
 static void vm_inspect(visitor_t *visitor, void *self)

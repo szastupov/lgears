@@ -18,8 +18,8 @@
 #define VM_PRIVATE_H 
 
 typedef struct module_s module_t;
-
 typedef struct {
+	func_type_t type;
 	int stack_size;
 	short env_size;
 	short argc;

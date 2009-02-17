@@ -125,7 +125,7 @@ void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
 {
 	ptr_t ptr;
-	native_init(ptr, nt);
+	func_init(ptr, nt);
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
 

@@ -24,6 +24,7 @@ typedef struct native_s native_t;
 typedef void* (*native_func)(heap_t *heap, obj_t *argv, int argc);
 
 struct native_s {
+	func_type_t type;
 	short argc;
 	unsigned swallow:1;
 	native_func call;
@@ -32,6 +33,7 @@ struct native_s {
 
 #define MAKE_NATIVE(func, fargc, fswallow) \
 	const native_t func##_nt = { \
+		.type = func_native, \
 		.argc = fargc, \
 		.call = func, \
 		.swallow = fswallow, \

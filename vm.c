@@ -200,40 +200,32 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
-				if (is_false(STACK_HEAD())) {
+				if (is_false(STACK_HEAD()))
 					frame->opcode += op_arg*2;
-					printf("jumping on %d\n", op_arg);
-				}
 			NEXT();
 
 			TARGET(JUMP_IF_TRUE)
-				if (!is_false(STACK_HEAD())) {
+				if (!is_false(STACK_HEAD()))
 					frame->opcode += op_arg*2;
-					printf("jumping on %d\n", op_arg);
-				}
 			NEXT();
 
-			TARGET(JUMP_FORWARD) {
+			TARGET(JUMP_FORWARD)
 				frame->opcode += op_arg*2;
-				printf("jumping on %d\n", op_arg);
-			}
 			NEXT();
 
-			TARGET(LOAD_FUNC) {
-				func_t *func = load_func(frame->func->module, op_arg);
-				printf("loaded func %p\n", func);
-				ptr_t fp;
-				func_init(fp, func);
-				STACK_PUSH(fp.ptr);
-			}
+			TARGET(LOAD_FUNC) 
+				STACK_PUSH(make_ptr(load_func(frame->func->module, op_arg), id_func));
 			NEXT();
 
 			TARGET(FUNC_CALL) {
 				ptr_t fp = { .ptr = STACK_POP().ptr };
-				switch (fp.tag) {
-					case id_func: 
+				if (fp.tag != id_func)
+					FATAL("expected function but got tag %d\n", fp.tag);
+				void *ptr = ptr_get(&fp);
+				switch (*((func_type_t*)ptr)) {
+					case func_inter: 
 						{
-							func_t *func = ptr_get(&fp);
+							func_t *func = ptr;
 							if (func->argc != op_arg)
 								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 							frame_t *new_frame = frame_create(func, thread);
@@ -246,9 +238,9 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 							NEXT();
 						}
-					case id_native: 
+					case func_native: 
 						{
-							native_t *func = ptr_get(&fp);
+							native_t *func = ptr;
 							if (func->swallow) {
 								if (op_arg < func->argc)
 									FATAL("%s need minimum %d arguments, but got %d",
@@ -381,6 +373,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		if (read(fd, &hdr, FUN_HDR_SIZE) != FUN_HDR_SIZE)
 			FATAL("Failed to read func header\n");
 		func_t *func = &mod->functions[count];
+		func->type = func_inter;
 		func->env_size = hdr.env_size;
 		func->argc = hdr.argc;
 		func->stack_size = hdr.stack_size;

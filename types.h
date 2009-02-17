@@ -47,7 +47,6 @@ enum {
 	id_char,	/**< Character */
 	id_bool,	/**< Boolean */
 	id_func,	/**< Function pointer */
-	id_native,	/**< Native function */
 	id_symbol	/**< Symbol pointer */
 };
 
@@ -73,8 +72,12 @@ typedef union {
 #define ptr_init(p, a) { (p)->tag = id_ptr; ptr_set(p, a); }
 #define return_ptr(a) { ptr_t res; ptr_init(&res, a); return res.ptr; }
 #define func_init(i, v) { (i).tag = id_func; ptr_set(&i, v); }
-#define native_init(i, v) { (i).tag = id_native; ptr_set(&i, v); }
 #define symbol_init(i, v) { (i).tag = id_symbol; ptr_set(&i, v); }
+
+/** 
+ * @brief function types
+ */
+typedef enum { func_inter, func_native } func_type_t;
 
 typedef union {
 	struct {
@@ -142,6 +145,14 @@ static inline int bool_from_obj(obj_t obj)
 {
 	bool_t b = { .ptr = obj.ptr };
 	return b.val;
+}
+
+static inline void* make_ptr(void *ptr, int tag)
+{
+	ptr_t p;
+	ptr_set(&p, ptr);
+	p.tag = tag;
+	return p.ptr;
 }
 
 typedef struct visitor_s {

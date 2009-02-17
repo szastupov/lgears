@@ -221,7 +221,7 @@
 				  (if (eq? (car res) 'LOCAL)
 					`((LOAD_LOCAL ,(cdr res) 1))
 					`((LOAD_ENV ,(cadr res) 1)
-					  (LOAD_FROM_ENV ,(caddr res) 0))) ; FIXME
+					  (LOAD_FROM_ENV ,(caddr res) 0)))
 				  `((LOAD_IMPORT ,(sym-table-insert undefs node) 1)))))))
 
 	(let ((entry-point (compile-func (make-env) '() root)))
@@ -232,12 +232,21 @@
 
 (let ((res (start-compile
 			 '(
-			   ;((lambda (x y) (display x) (display y)) 'foobar 'blabla)
-			   ;(car (cons 'foo 'bar))
 			   ;(define (foo n) (display n) (foo n))
 			   ;(foo 'bar)
-			   (define (foo n) (define (bla b) (cons n b)) (bla 'FFFF))
-			   (cdr (foo 'TEST))
+			   ;(define (foo n) (define (bla b) (cons n b)) (bla 'FFFF))
+			   ;(cdr (foo 'TEST))
+			   (define (foo n)
+				 (lambda (x)
+				   (display n)
+				   (display x)))
+			   ;(foo 'bar)
+			   (define (test a b c d)
+				 (display a)
+				 (display b)
+				 (display c)
+				 (display d))
+			   (test 'one 'two 'three 'four)
 			   )
 			 ;'('(one two three four))
 			 ;'(`(one ,two three "four"))

@@ -230,7 +230,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 			TARGET(FUNC_CALL) {
 				ptr_t fp = { .ptr = STACK_POP().ptr };
-				int i;
 				switch (fp.tag) {
 					case id_func: 
 						{
@@ -240,9 +239,9 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							frame_t *new_frame = frame_create(func, thread);
 							thread->fp = new_frame;
 
-							//FIXME copy whole block of arguments
-							for (i = func->argc-1; i >= 0; i--)
-								new_frame->env->objects[i] = STACK_POP();
+							frame->op_stack_idx -= op_arg;
+							memcpy(new_frame->env->objects,
+									&frame->opstack[frame->op_stack_idx], op_arg*sizeof(obj_t));
 							frame = new_frame;
 
 							NEXT();

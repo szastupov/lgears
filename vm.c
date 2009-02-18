@@ -311,10 +311,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				thread->fp = parent;
 				frame_destroy(thread, frame);
 				if (parent) {
-					if (ret.tag == id_func)
-						STACK_PUSH_ON(parent, closure_new(&thread->heap, ptr_from_obj(ret), frame));
-					else
-						STACK_PUSH_ON(parent, ret.ptr);
+					STACK_PUSH_ON(parent, ret.ptr);
 					frame = parent;
 				} else {
 					print_obj(ret);

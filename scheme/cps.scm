@@ -18,8 +18,6 @@
                  (define (foo n)
                    (bar (lambda (x) (+ x n))))
 
-                 (define bar (lambda (x y) (+ x y (begin (display 12) (* 1 2 3)))))
-
                  (define (bla)
                    (display '(a b c d)))
 
@@ -29,7 +27,7 @@
   (define last-name 0)
 
   (define (gen-name)
-    (let ((res (string-append "var" (number->string last-name 16))))
+    (let ((res (string-append "_var" (number->string last-name 16))))
       (set! last-name (+ last-name 1))
       (string->symbol res)))
 
@@ -100,8 +98,8 @@
     (cond ((pair? (car def))
            (let ((name (gen-name)))
              `(define ,(caar def)
-                (lambda (,name ,@(cdar def))
-                  ,(convert-body '() (cdr def) name)))))
+                 (lambda (,name ,@(cdar def))
+                   ,(convert-body '() (cdr def) name)))))
           ((pair? (cadr def))
            `(define ,(car def)
               ,(convert '() (cadr def) (gen-name))))
@@ -111,8 +109,8 @@
     (let* ((seq (reverse body))
            (frst (car seq)))
       (fold-left (lambda (prev x)
-                   (if (eq? (car x) 'define)
-                     `(,@(convert-define (cdr x)) ,prev)
+                   (if (eq? (car x) 'define) ;; FIXME rewrite it
+                     (cons (convert-define (cdr x)) prev)
                      (convert prev x (if (eq? x frst)
                                        name
                                        (gen-name)))))
@@ -125,6 +123,5 @@
       (newline)
       res))
 
-  ;(pretty-print
-  ;(convert-body '() orig (gen-name))
+  ;(pretty-print (convert-body '() orig (gen-name)))
   )

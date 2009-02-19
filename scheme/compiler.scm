@@ -206,9 +206,8 @@
 (let ((res (start-compile
              (cps-convert '(
                             (define (foo n)
-                              (* s n)
+                              (display n)
                               (lambda (x) (* x n)))
-                            (foo 'bar)
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

@@ -4,11 +4,17 @@
 				 (if (= n 0)
 				   a
 				   (f-aux (- n 1) (* n a))))
+
 			   (define (factorial n)
 				 (if (= n 0)
-					 1
+				   1
 				   (* n (factorial (- n 1)))))
-			   (define foo (lambda (x y) (+ x y (begin (display 12) (* 1 2 3)))))
+
+			   (define (foo n)
+				 (bar (lambda (x) (+ x n))))
+
+			   (define bar (lambda (x y) (+ x y (begin (display 12) (* 1 2 3)))))
+
 			   (define (pyth x y)
 				 (sqrt (+ (* x x) (* y y))))))
 
@@ -28,7 +34,7 @@
 	(case (car node)
 	  ((lambda)
 	   `(lambda (,@(cadr node) ,name)
-		  ,(convert-body (cddr node) name)))
+		  ,(convert-body res (cddr node) name)))
 
 	  ((if)
 	   (let* ((args (cdr node))
@@ -39,11 +45,13 @@
 				  (car args) predname)))
 
 	  ((begin)
-	   (fold-left (lambda (prev x)
-					(convert prev x (if (null? prev)
-									  name
-									  (gen-name))))
-				  res (reverse (cdr node))))
+	   (let* ((seq (reverse (cdr node)))
+			  (frst (car seq)))
+		 (fold-left (lambda (prev x)
+					  (convert prev x (if (eq? x frst)
+										name
+										(gen-name))))
+					res seq)))
 
 	  (else
 		(let* ((args (reverse (cdr node)))
@@ -70,20 +78,22 @@
 		 (let ((name (gen-name)))
 		   `(define ,(caar def)
 			  (lambda (,@(cdar def) ,name)
-				,(convert-body (cdr def) name)))))
+				,(convert-body '() (cdr def) name)))))
 		((pair? (cadr def))
 		 `(define ,(car def)
 			,(convert '() (cadr def) (gen-name))))
 		(else def)))
 
-(define (convert-body body name)
-  (fold-left (lambda (prev x)
-			   (if (eq? (car x) 'define)
-				 (cons (convert-define (cdr x)) prev)
-				 (convert prev x (if (null? prev)
-								   name
-								   (gen-name)))))
-			 '() (reverse body)))
+(define (convert-body res body name)
+  (let* ((seq (reverse body))
+		 (frst (car seq)))
+	(fold-left (lambda (prev x)
+				 (if (eq? (car x) 'define)
+				   (cons (convert-define (cdr x)) prev)
+				   (convert prev x (if (eq? x frst)
+									 name
+									 (gen-name)))))
+			   res (reverse body))))
 
 (pretty-print
-  (convert-body orig (gen-name)))
+  (convert-body '() orig (gen-name)))

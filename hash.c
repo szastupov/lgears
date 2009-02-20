@@ -89,6 +89,9 @@ void hash_table_init(hash_table_t *tbl, hash_func_t hash,
 	tbl->hash = hash;
 	tbl->equal = equal;
 	tbl->nodes = mem_calloc(tbl->size, sizeof(hash_node_t*));
+	tbl->nnodes = 0;
+	tbl->destroy_key = NULL;
+	tbl->destroy_val = NULL;
 }
 
 void hash_table_destroy(hash_table_t *tbl)

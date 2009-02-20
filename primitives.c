@@ -17,6 +17,7 @@
 #include "primitives.h"
 #include <string.h>
 
+#if 0
 typedef struct {
 	hobj_hdr_t hdr;
 	obj_t car, cdr;
@@ -71,6 +72,25 @@ static void* eq(heap_t *heap, obj_t *argv, int argc)
 }
 MAKE_NATIVE(eq, 2, 0);
 
+#define DEFINE_ARITH(name, init, op, min) \
+	static void* arith_##name(heap_t *heap, obj_t *argv, int argc) \
+{ \
+	fixnum_t res; \
+	fixnum_init(res, init); \
+	int i; \
+	for (i = 0; i < argc; i++) \
+		res.val op##= fixnum_from_obj(argv[i]); \
+	return res.ptr; \
+}\
+MAKE_NATIVE(arith_##name, min, 1);
+
+DEFINE_ARITH(add, 0, +, 0);
+DEFINE_ARITH(sub, 0, -, 1);
+DEFINE_ARITH(mul, 1, *, 0);
+DEFINE_ARITH(div, 1, /, 1);
+
+#endif
+
 void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
@@ -99,27 +119,10 @@ void print_obj(obj_t obj)
 
 static void* display(heap_t *heap, obj_t *argv, int argc)
 {
-	print_obj(argv[0]);
+	print_obj(argv[1]);
 	return NULL;
 }
 MAKE_NATIVE(display, 1, 0);
-
-#define DEFINE_ARITH(name, init, op, min) \
-	static void* arith_##name(heap_t *heap, obj_t *argv, int argc) \
-{ \
-	fixnum_t res; \
-	fixnum_init(res, init); \
-	int i; \
-	for (i = 0; i < argc; i++) \
-		res.val op##= fixnum_from_obj(argv[i]); \
-	return res.ptr; \
-}\
-MAKE_NATIVE(arith_##name, min, 1);
-
-DEFINE_ARITH(add, 0, +, 0);
-DEFINE_ARITH(sub, 0, -, 1);
-DEFINE_ARITH(mul, 1, *, 0);
-DEFINE_ARITH(div, 1, /, 1);
 
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
@@ -129,9 +132,18 @@ void ns_install_native(hash_table_t *tbl,
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
 
+static void* vm_exit(heap_t *heap, obj_t *argv, int argc)
+{
+	exit(0);
+	return NULL;
+}
+MAKE_NATIVE(vm_exit, 1, 0);
+
 void ns_install_primitives(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "display", &display_nt);
+	ns_install_native(tbl, "__exit", &vm_exit_nt);
+#if 0
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
@@ -140,4 +152,5 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "-", &arith_sub_nt);
 	ns_install_native(tbl, "*", &arith_mul_nt);
 	ns_install_native(tbl, "/", &arith_div_nt);
+#endif
 }

@@ -50,32 +50,8 @@ typedef struct {
 	int depth;
 } closure_t;
 
-typedef struct frame_s {
-	struct frame_s *prev;
-	obj_t	*opstack;
-	env_t	*env;
-	env_t	**display;
-	int		depth;
-	const func_t *func;
-	const char	*opcode;
-	int		op_stack_idx;
-} frame_t;
-
-typedef struct lpage_s {
-	struct lpage_s *prev;
-	void *start;
-	void *end;
-	void *pos;
-} lpage_t;
-
 typedef struct {
-	lpage_t *page;
-} lalloc_t;
-
-typedef struct {
-	frame_t *fp;
 	heap_t heap;
-	lalloc_t lalloc;
 	hash_table_t sym_table;
 	hash_table_t ns_global;
 } vm_thread_t;

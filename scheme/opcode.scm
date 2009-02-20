@@ -14,7 +14,6 @@
                    (JUMP_IF_TRUE . "Jump if true")
                    (JUMP_FORWARD . "Jump forward")
                    (FUNC_CALL . "Call function")
-                   (RETURN . "Return from function")
                    (SET_LOCAL . "Assign new value to local binding")
                    (LOAD_ENV . "Load env from display")
                    (LOAD_FROM_ENV . "Load object from env")))

@@ -54,7 +54,7 @@ env_t* env_new(heap_t *heap, int size)
 	return env;
 }
 
-static void mark_env(env_t **env, visitor_t *visitor)
+void mark_env(env_t **env, visitor_t *visitor)
 {
 	ptr_t ptr;
 	ptr_init(&ptr, *env);
@@ -66,29 +66,6 @@ static void mark_env(env_t **env, visitor_t *visitor)
 	printf("new mem %p\n", *env);
 }
 
-static void closure_visit(visitor_t *vs, void *data)
-{
-	closure_t *closure = data;
-	int i;
-	for (i = 0; i < closure->depth; i++)
-		mark_env(&closure->display[i], vs);
-}
-
-const type_t closure_type = {
-	.name = "closure",
-	.visit = closure_visit
-};
-
-void* closure_new(heap_t *heap, func_t *func, frame_t *frame)
-{
-	closure_t *closure = heap_alloc(heap, sizeof(closure_t));
-	closure->depth = frame->depth;
-	closure->display = frame->display;
-	closure->func = func;
-	closure->hdr.type = &closure_type;
-	return_ptr(closure);
-}
-
 func_t* load_func(module_t *module, int index)
 {
 	if (index > module->fun_count)
@@ -96,59 +73,8 @@ func_t* load_func(module_t *module, int index)
 	return &module->functions[index];
 }
 
-static lpage_t* lalloc_new_page(lpage_t *prev)
-{
-	size_t ps = sysconf(_SC_PAGE_SIZE);
-	void *page = mmap(NULL, ps,
-			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	lpage_t *lp = page;
-	lp->start = page+sizeof(lpage_t);
-	lp->pos = lp->start;
-	lp->end = page+ps;
-
-	return lp;
-}
-
-void lalloc_init(lalloc_t *al)
-{
-	al->page = lalloc_new_page(NULL);
-}
-
-void lalloc_destroy(lalloc_t *al)
-{
-	lpage_t *cur_page = al->page;
-	lpage_t *next;
-	while (cur_page) {
-		next = cur_page->prev;
-		munmap(cur_page, sysconf(_SC_PAGE_SIZE));
-		cur_page = next;
-	}
-}
-
-void* lalloc_get(lalloc_t *al, size_t size)
-{
-	if (al->page->pos + size > al->page->end) {
-		al->page = lalloc_new_page(al->page);
-	}
-	void *res = al->page->pos;
-	al->page->pos += size;
-	return res;
-}
-
-void lalloc_put(lalloc_t *al, void *ptr)
-{
-	if (ptr < al->page->start || ptr > al->page->end)
-		FATAL("Try to put %p which does not belong to linear allocator %p\n",
-				ptr, al);
-	al->page->pos = ptr;
-	if (al->page->prev && al->page->pos == al->page->start) {
-		lpage_t *tmp = al->page;
-		al->page = tmp->prev;
-		munmap(tmp, sysconf(_SC_PAGE_SIZE));
-	}
-}
-
-frame_t* frame_create(func_t *func, vm_thread_t *thread, env_t **display)
+#if 0
+frame_t* frame_create(func_t *func, vm_thread_t *thread)
 {
 	size_t size = sizeof(obj_t)*func->stack_size + sizeof(frame_t);
 
@@ -182,16 +108,28 @@ void frame_destroy(vm_thread_t *thread, frame_t *frame)
 {
 	lalloc_put(&thread->lalloc, frame);
 }
+#endif
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
-	thread->fp = frame_create(load_func(module, module->entry_point), thread, NULL);
-	frame_t *frame = thread->fp;
+	obj_t *opstack;
+	int op_stack_idx = 0;
+	env_t *env;
+	env_t **display;
+	//int depth = 0;
+	char *opcode;
+	func_t *func;
 
-#define STACK_PUSH_ON(frame, n) frame->opstack[frame->op_stack_idx++].ptr = n
-#define STACK_PUSH(n) STACK_PUSH_ON(frame, n)
-#define STACK_POP() frame->opstack[--frame->op_stack_idx]
-#define STACK_HEAD() frame->opstack[frame->op_stack_idx-1]
+	opstack = mmap(NULL, sysconf(_SC_PAGE_SIZE),
+			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+
+	func = load_func(module, module->entry_point);
+	opcode = func->opcode;
+	env = env_new(&thread->heap, func->env_size);
+
+#define STACK_PUSH(n) opstack[op_stack_idx++].ptr = n
+#define STACK_POP() opstack[--op_stack_idx]
+#define STACK_HEAD() opstack[op_stack_idx-1]
 
 	/*
 	 * On dispatching speed-up:
@@ -203,18 +141,18 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #include "opcode_targets.h"
 #define TARGET(op) \
 	TARGET_##op: \
-	op_code = *(frame->opcode++); \
-	op_arg = *(frame->opcode++); \
+	op_code = *(opcode++); \
+	op_arg = *(opcode++); \
 	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
-#define NEXT() goto *opcode_targets[(int)*frame->opcode]
+#define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op:\
 	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() continue
 #define DISPATCH() \
-	op_code = *(frame->opcode++); \
-	op_arg = *(frame->opcode++); \
+	op_code = *(opcode++); \
+	op_arg = *(opcode++); \
 	switch (op_code)
 #endif
 
@@ -222,110 +160,81 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
-				STACK_PUSH(frame->env->objects[op_arg].ptr);
+				STACK_PUSH(env->objects[op_arg].ptr);
 			NEXT();
 
 			TARGET(LOAD_SYM) 
-				STACK_PUSH(frame->func->module->symbols[op_arg].ptr);
+				STACK_PUSH(func->module->symbols[op_arg].ptr);
 			NEXT();
 
 			TARGET(LOAD_IMPORT)
-				STACK_PUSH(frame->func->module->imports[op_arg].ptr);
+				STACK_PUSH(func->module->imports[op_arg].ptr);
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
 				if (is_false(STACK_HEAD()))
-					frame->opcode += op_arg*2;
+					opcode += op_arg*2;
 			NEXT();
 
 			TARGET(JUMP_IF_TRUE)
 				if (!is_false(STACK_HEAD()))
-					frame->opcode += op_arg*2;
+					opcode += op_arg*2;
 			NEXT();
 
 			TARGET(JUMP_FORWARD)
-				frame->opcode += op_arg*2;
+				opcode += op_arg*2;
 			NEXT();
 
 			TARGET(LOAD_FUNC) 
-				STACK_PUSH(make_ptr(load_func(frame->func->module, op_arg), id_func));
+				STACK_PUSH(make_ptr(load_func(func->module, op_arg), id_func));
 			NEXT();
 
 			TARGET(FUNC_CALL) {
 				ptr_t fp = { .ptr = STACK_POP().ptr };
-				if (fp.tag != id_func && fp.tag != id_ptr)
-					FATAL("expected function or closure but got tag %d\n", fp.tag);
+				if (fp.tag != id_func)
+					FATAL("expected function but got tag %d\n", fp.tag);
 				void *ptr = ptr_get(&fp);
 
-				inline void func_call(func_t *func, env_t **display)
-				{
-					if (func->argc != op_arg)
-						FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-					frame_t *new_frame = frame_create(func, thread, display);
-					thread->fp = new_frame;
-
-					frame->op_stack_idx -= op_arg;
-					memcpy(new_frame->env->objects,
-							&frame->opstack[frame->op_stack_idx], op_arg*sizeof(obj_t));
-					frame = new_frame;
-				}
-
-				if (fp.tag == id_ptr) {
-					hobj_hdr_t *ohdr = ptr;
-					if (ohdr->type != &closure_type)
-						FATAL("expected function but it's not even a closure (but %s)\n",
-								ohdr->type->name);
-					closure_t *closure = ptr;
-					func_call(closure->func, closure->display);
-				} else
-					switch (*((func_type_t*)ptr)) {
-						case func_inter: 
-							func_call(ptr, NULL);
-							NEXT();
-						case func_native: 
-							{
-								native_t *func = ptr;
-								if (func->swallow) {
-									if (op_arg < func->argc)
-										FATAL("%s need minimum %d arguments, but got %d",
-												func->name, func->argc, op_arg);
-								} else {
-									if (op_arg != func->argc)
-										FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-								}
-
-								frame->op_stack_idx -= op_arg;
-								STACK_PUSH(func->call(&thread->heap,
-											&frame->opstack[frame->op_stack_idx], op_arg));
+				switch (*((func_type_t*)ptr)) {
+					case func_inter: 
+						{
+							func = ptr;
+							opcode = func->opcode;
+							env = env_new(&thread->heap, func->env_size);
+							void *args = &opstack[op_stack_idx - op_arg];
+							memcpy(env->objects, args, op_arg*sizeof(obj_t));
+							op_stack_idx = 0;
+						}
+						NEXT();
+					case func_native: 
+						{
+							native_t *func = ptr;
+							if (func->swallow) {
+								if (op_arg < func->argc)
+									FATAL("%s need minimum %d arguments, but got %d",
+											func->name, func->argc, op_arg);
+							} else {
+								if (op_arg != func->argc)
+									FATAL("try to pass %d args when %d requred by %s\n", op_arg, func->argc, func->name);
 							}
-							break;
-						default:
-							FATAL("BUG! Expected function but got type tag: %d\n", fp.tag);
-					}
-			}
-			NEXT();
 
-			TARGET(RETURN) {
-				obj_t ret = STACK_POP();
-				frame_t *parent = frame->prev;
-				thread->fp = parent;
-				frame_destroy(thread, frame);
-				if (parent) {
-					STACK_PUSH_ON(parent, ret.ptr);
-					frame = parent;
-				} else {
-					print_obj(ret);
-					return;
+							op_stack_idx -= op_arg;
+							void *args = &opstack[op_stack_idx];
+							STACK_PUSH(func->call(&thread->heap, args, op_arg));
+						}
+						break;
+					default:
+						FATAL("BUG! Expected function but got type tag: %d\n", fp.tag);
 				}
 			}
 			NEXT();
 
 			TARGET(SET_LOCAL)
-				frame->env->objects[op_arg] = STACK_POP();
+				env->objects[op_arg] = STACK_POP();
 			NEXT();
 
 			TARGET(LOAD_ENV)
-				STACK_PUSH(frame->display[op_arg-1]);
+				STACK_PUSH(display[op_arg-1]);
 			NEXT();
 
 			TARGET(LOAD_FROM_ENV) {
@@ -335,6 +244,8 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 		}
 	}
+
+	munmap(opstack, sysconf(_SC_PAGE_SIZE));
 }
 
 void* make_symbol(hash_table_t *tbl, const char *str)
@@ -448,6 +359,7 @@ void module_free(module_t *module)
 
 static void vm_inspect(visitor_t *visitor, void *self)
 {
+#if 0
 	vm_thread_t *thread = self;
 
 	frame_t *cur_frame = thread->fp;
@@ -464,15 +376,14 @@ static void vm_inspect(visitor_t *visitor, void *self)
 
 		cur_frame = cur_frame->prev;
 	}
+#endif
 }
 
 void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
-	thread->fp = NULL;
 
 	heap_init(&thread->heap, vm_inspect, thread);
-	lalloc_init(&thread->lalloc);
 
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
 	thread->sym_table.destroy_key = free;
@@ -486,7 +397,6 @@ void vm_thread_destroy(vm_thread_t *thread)
 	hash_table_destroy(&thread->sym_table);
 	hash_table_destroy(&thread->ns_global);
 	heap_destroy(&thread->heap);
-	lalloc_destroy(&thread->lalloc);
 }
 
 int main()

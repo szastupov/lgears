@@ -34,7 +34,7 @@ struct native_s {
 #define MAKE_NATIVE(func, fargc, fswallow) \
 	const native_t func##_nt = { \
 		.type = func_native, \
-		.argc = fargc, \
+		.argc = fargc+1, \
 		.call = func, \
 		.swallow = fswallow, \
 		.name = #func \

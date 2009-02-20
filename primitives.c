@@ -17,7 +17,6 @@
 #include "primitives.h"
 #include <string.h>
 
-#if 0
 typedef struct {
 	hobj_hdr_t hdr;
 	obj_t car, cdr;
@@ -35,35 +34,44 @@ const type_t pair_type = {
 	.visit = pair_visit
 };
 
-static void* cons(heap_t *heap, obj_t *argv, int argc)
+static void cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
-	pair->car = argv[0];
-	pair->cdr = argv[1];
+	pair->car = argv[1];
+	pair->cdr = argv[2];
 	pair->hdr.type = &pair_type;
 
-	return_ptr(pair);
+	ptr_t ptr;
+	ptr_init(&ptr, pair);
+
+	tramp->arg.ptr = ptr.ptr;
+	tramp->func.ptr = argv[0].ptr;
 }
 MAKE_NATIVE(cons, 2, 0);
 
-static void* car(heap_t *heap, obj_t *argv, int argc)
+static void car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	pair_t *pair = get_typed(argv[0], &pair_type);
+	pair_t *pair = get_typed(argv[1], &pair_type);
 	if (pair)
-		return pair->car.ptr;
-	return NULL;
+		tramp->arg = pair->car;
+	else
+		tramp->arg.ptr = NULL;
+	tramp->func.ptr = argv[0].ptr;
 }
 MAKE_NATIVE(car, 1, 0);
 
-static void* cdr(heap_t *heap, obj_t *argv, int argc)
+static void cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	pair_t *pair = get_typed(argv[0], &pair_type);
+	pair_t *pair = get_typed(argv[1], &pair_type);
 	if (pair)
-		return pair->cdr.ptr;
-	return NULL;
+		tramp->arg = pair->cdr;
+	else
+		tramp->arg.ptr = NULL;
+	tramp->func.ptr = argv[0].ptr;
 }
 MAKE_NATIVE(cdr, 1, 0);
 
+#if 0
 static void* eq(heap_t *heap, obj_t *argv, int argc)
 {
 	bool_t res;
@@ -117,10 +125,12 @@ void print_obj(obj_t obj)
 	}
 }
 
-static void* display(heap_t *heap, obj_t *argv, int argc)
+static void display(heap_t *heap, trampoline_t *tramp,
+		obj_t *argv, int argc)
 {
 	print_obj(argv[1]);
-	return NULL;
+	tramp->func.ptr = argv[0].ptr;
+	tramp->arg.ptr = NULL;
 }
 MAKE_NATIVE(display, 1, 0);
 
@@ -132,21 +142,20 @@ void ns_install_native(hash_table_t *tbl,
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
 
-static void* vm_exit(heap_t *heap, obj_t *argv, int argc)
+static void vm_exit(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	exit(0);
-	return NULL;
 }
-MAKE_NATIVE(vm_exit, 1, 0);
+MAKE_NATIVE(vm_exit, 0, 0);
 
 void ns_install_primitives(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "display", &display_nt);
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
-#if 0
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
+#if 0
 	ns_install_native(tbl, "eq?", &eq_nt);
 	ns_install_native(tbl, "+", &arith_add_nt);
 	ns_install_native(tbl, "-", &arith_sub_nt);

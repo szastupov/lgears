@@ -20,8 +20,14 @@
 #include "heap.h"
 #include "hash.h"
 
+typedef struct {
+	ptr_t func;
+	obj_t arg;
+} trampoline_t;
+
 typedef struct native_s native_t;
-typedef void* (*native_func)(heap_t *heap, obj_t *argv, int argc);
+typedef void (*native_func)(heap_t *heap, trampoline_t *tramp,
+		obj_t *argv, int argc);
 
 struct native_s {
 	func_type_t type;

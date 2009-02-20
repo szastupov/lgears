@@ -194,9 +194,7 @@
 
 (let ((res (start-compile
              (cps-convert '(
-                            (define (bla n)
-                              (display n))
-                            (bla 'foo)
+                            (display (cdr (cons 'a 'b)))
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

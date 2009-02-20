@@ -190,10 +190,14 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(FUNC_CALL) {
-				ptr_t fp = { .ptr = STACK_POP().ptr };
+				static ptr_t fp;
+				static void *ptr;
+				static void *args;
+				fp.ptr = STACK_POP().ptr;
+dispatch_func:
 				if (fp.tag != id_func)
 					FATAL("expected function but got tag %d\n", fp.tag);
-				void *ptr = ptr_get(&fp);
+				ptr = ptr_get(&fp);
 
 				switch (*((func_type_t*)ptr)) {
 					case func_inter: 
@@ -201,14 +205,17 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							func = ptr;
 							opcode = func->opcode;
 							env = env_new(&thread->heap, func->env_size);
-							void *args = &opstack[op_stack_idx - op_arg];
+							args = &opstack[op_stack_idx - op_arg];
 							memcpy(env->objects, args, op_arg*sizeof(obj_t));
 							op_stack_idx = 0;
 						}
 						NEXT();
 					case func_native: 
 						{
-							native_t *func = ptr;
+							static trampoline_t tramp;
+							static native_t *func;
+							func = ptr;
+
 							if (func->swallow) {
 								if (op_arg < func->argc)
 									FATAL("%s need minimum %d arguments, but got %d",
@@ -219,8 +226,13 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 							}
 
 							op_stack_idx -= op_arg;
-							void *args = &opstack[op_stack_idx];
-							STACK_PUSH(func->call(&thread->heap, args, op_arg));
+							args = &opstack[op_stack_idx];
+							func->call(&thread->heap, &tramp, args, op_arg);
+
+							STACK_PUSH(tramp.arg.ptr);
+							fp = tramp.func;
+							op_arg = 1;
+							goto dispatch_func;
 						}
 						break;
 					default:

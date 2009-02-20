@@ -5,7 +5,8 @@
           (quotes))
 
   ;For testing
-  (define orig '((define (f-aux n a)
+  (define orig '(
+                 (define (f-aux n a)
                    (if (= n 0)
                      a
                      (f-aux (- n 1) (* n a))))
@@ -21,12 +22,14 @@
                  (define (bla)
                    (display '(a b c d)))
 
+                 (define (pyth x y)
+                   (sqrt (+ (* x x) (* y y))))
+
                  (bla 10)
                  (foo 'bar)
                  700
+                 ))
 
-                 (define (pyth x y)
-                   (sqrt (+ (* x x) (* y y))))))
 
   (define last-name 0)
 
@@ -133,10 +136,10 @@
                                  '() (reverse defines))))
             (rest (convert-seq '() expressions name)))
         (if (null? defines)
-          rest
-          (if (null? expressions)
-            init
-            (append init (list rest)))))))
+          (list rest)
+          (append init
+                  (if (null? rest)
+                    '() (list rest)))))))
 
   (define (cps-convert source)
     (let ((res (convert-body '() source '__exit)))

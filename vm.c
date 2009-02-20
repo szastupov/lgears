@@ -103,33 +103,20 @@ frame_t* frame_create(func_t *func, vm_thread_t *thread)
 
 	return frame;
 }
-
-void frame_destroy(vm_thread_t *thread, frame_t *frame)
-{
-	lalloc_put(&thread->lalloc, frame);
-}
 #endif
 
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
-	obj_t *opstack;
-	int op_stack_idx = 0;
-	env_t *env;
-	env_t **display;
-	//int depth = 0;
 	char *opcode;
 	func_t *func;
 
-	opstack = mmap(NULL, sysconf(_SC_PAGE_SIZE),
-			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-
 	func = load_func(module, module->entry_point);
 	opcode = func->opcode;
-	env = env_new(&thread->heap, func->env_size);
+	thread->env = env_new(&thread->heap, func->env_size);
 
-#define STACK_PUSH(n) opstack[op_stack_idx++].ptr = n
-#define STACK_POP() opstack[--op_stack_idx]
-#define STACK_HEAD() opstack[op_stack_idx-1]
+#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
+#define STACK_POP() thread->opstack[--thread->op_stack_idx]
+#define STACK_HEAD() thread->opstack[thread->op_stack_idx-1]
 
 	/*
 	 * On dispatching speed-up:
@@ -160,7 +147,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
-				STACK_PUSH(env->objects[op_arg].ptr);
+				STACK_PUSH(thread->env->objects[op_arg].ptr);
 			NEXT();
 
 			TARGET(LOAD_SYM) 
@@ -204,10 +191,10 @@ dispatch_func:
 						{
 							func = ptr;
 							opcode = func->opcode;
-							env = env_new(&thread->heap, func->env_size);
-							args = &opstack[op_stack_idx - op_arg];
-							memcpy(env->objects, args, op_arg*sizeof(obj_t));
-							op_stack_idx = 0;
+							thread->env = env_new(&thread->heap, func->env_size);
+							args = &thread->opstack[thread->op_stack_idx - op_arg];
+							memcpy(thread->env->objects, args, op_arg*sizeof(obj_t));
+							thread->op_stack_idx = 0;
 						}
 						NEXT();
 					case func_native: 
@@ -225,8 +212,8 @@ dispatch_func:
 									FATAL("try to pass %d args when %d requred by %s\n", op_arg, func->argc, func->name);
 							}
 
-							op_stack_idx -= op_arg;
-							args = &opstack[op_stack_idx];
+							thread->op_stack_idx -= op_arg;
+							args = &thread->opstack[thread->op_stack_idx];
 							func->call(&thread->heap, &tramp, args, op_arg);
 
 							STACK_PUSH(tramp.arg.ptr);
@@ -242,11 +229,11 @@ dispatch_func:
 			NEXT();
 
 			TARGET(SET_LOCAL)
-				env->objects[op_arg] = STACK_POP();
+				thread->env->objects[op_arg] = STACK_POP();
 			NEXT();
 
 			TARGET(LOAD_ENV)
-				STACK_PUSH(display[op_arg-1]);
+				STACK_PUSH(thread->display[op_arg-1]);
 			NEXT();
 
 			TARGET(LOAD_FROM_ENV) {
@@ -256,8 +243,6 @@ dispatch_func:
 			NEXT();
 		}
 	}
-
-	munmap(opstack, sysconf(_SC_PAGE_SIZE));
 }
 
 void* make_symbol(hash_table_t *tbl, const char *str)
@@ -371,24 +356,17 @@ void module_free(module_t *module)
 
 static void vm_inspect(visitor_t *visitor, void *self)
 {
-#if 0
 	vm_thread_t *thread = self;
 
-	frame_t *cur_frame = thread->fp;
-	while (cur_frame) {
-		int i;
+	int i;
 
-		mark_env(&cur_frame->env, visitor);
+	mark_env(&thread->env, visitor);
 
-		for (i = 0; i < cur_frame->depth; i++)
-			mark_env(&cur_frame->display[i], visitor);
+	for (i = 0; i < thread->depth; i++)
+		mark_env(&thread->display[i], visitor);
 
-		for (i = 0; i < cur_frame->op_stack_idx; i++)
-			visitor->visit(visitor, &cur_frame->opstack[i]);
-
-		cur_frame = cur_frame->prev;
-	}
-#endif
+	for (i = 0; i < thread->op_stack_idx; i++)
+		visitor->visit(visitor, &thread->opstack[i]);
 }
 
 void vm_thread_init(vm_thread_t *thread)
@@ -396,6 +374,10 @@ void vm_thread_init(vm_thread_t *thread)
 	memset(thread, 0, sizeof(*thread));
 
 	heap_init(&thread->heap, vm_inspect, thread);
+
+	thread->opstack = mmap(NULL, sysconf(_SC_PAGE_SIZE),
+			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+
 
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
 	thread->sym_table.destroy_key = free;
@@ -409,6 +391,7 @@ void vm_thread_destroy(vm_thread_t *thread)
 	hash_table_destroy(&thread->sym_table);
 	hash_table_destroy(&thread->ns_global);
 	heap_destroy(&thread->heap);
+	munmap(thread->opstack, sysconf(_SC_PAGE_SIZE));
 }
 
 int main()

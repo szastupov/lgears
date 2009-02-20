@@ -44,16 +44,16 @@ typedef struct {
 } env_t;
 
 typedef struct {
-	hobj_hdr_t hdr;
-	func_t *func;
-	env_t **display;
-	int depth;
-} closure_t;
-
-typedef struct {
 	heap_t heap;
 	hash_table_t sym_table;
 	hash_table_t ns_global;
+
+	/* Variables representing execution state */
+	obj_t *opstack;
+	int op_stack_idx;
+	env_t *env;
+	env_t **display;
+	int depth;
 } vm_thread_t;
 
 struct func_hdr_s {

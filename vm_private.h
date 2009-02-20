@@ -49,6 +49,7 @@ typedef struct {
 	hash_table_t ns_global;
 
 	/* Variables representing execution state */
+	int ssize;
 	obj_t *opstack;
 	int op_stack_idx;
 	env_t *env;

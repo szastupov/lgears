@@ -189,6 +189,14 @@ dispatch_func:
 				switch (*((func_type_t*)ptr)) {
 					case func_inter: 
 						{
+							if (func != ptr) {
+								thread->depth++;
+								void *dptr = thread->display;
+								dptr -= sizeof(env_t);
+								thread->display = dptr;
+								thread->display[0] = thread->env;
+							}
+
 							func = ptr;
 							opcode = func->opcode;
 							thread->env = env_new(&thread->heap, func->env_size);
@@ -375,8 +383,11 @@ void vm_thread_init(vm_thread_t *thread)
 
 	heap_init(&thread->heap, vm_inspect, thread);
 
-	thread->opstack = mmap(NULL, sysconf(_SC_PAGE_SIZE),
+	thread->ssize = sysconf(_SC_PAGE_SIZE);
+	void *smem = mmap(NULL, thread->ssize,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+	thread->opstack = smem;
+	thread->display = smem+thread->ssize;
 
 
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
@@ -391,7 +402,7 @@ void vm_thread_destroy(vm_thread_t *thread)
 	hash_table_destroy(&thread->sym_table);
 	hash_table_destroy(&thread->ns_global);
 	heap_destroy(&thread->heap);
-	munmap(thread->opstack, sysconf(_SC_PAGE_SIZE));
+	munmap(thread->opstack, thread->ssize);
 }
 
 int main()

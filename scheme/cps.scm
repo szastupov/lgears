@@ -136,7 +136,7 @@
                                  '() (reverse defines))))
             (rest (convert-seq '() expressions name)))
         (if (null? defines)
-          (list rest)
+          rest
           (append init
                   (if (null? rest)
                     '() (list rest)))))))
@@ -146,7 +146,9 @@
       (display "CPS: \n")
       (pretty-print res)
       (newline)
-      res))
+      (if (pair? (car res))
+        res
+        (list res))))
 
   ;(pretty-print (convert-body '() orig (gen-name)))
   )

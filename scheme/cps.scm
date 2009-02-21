@@ -52,12 +52,15 @@
       (convert res (func node) name)
       node))
 
+  (define (convert-func res args body name)
+    `(lambda (,name ,@args)
+       ,(convert-body res body name)))
+
   (define (convert res node name)
     (if (pair? node)
       (case (car node)
         ((lambda)
-         `(lambda (,@(cadr node) ,name)
-            ,(convert-body res (cddr node) name)))
+         (convert-func res (cadr node) (cddr node) name))
 
         ((if)
          (let* ((args (cdr node))
@@ -102,15 +105,11 @@
     (cond ((pair? (car def))
            (let ((name (gen-name)))
              `(set! ,(caar def)
-                (lambda (,name ,@(cdar def))
-                  ,(convert-body '() (cdr def) name)))))
+                ,(convert-func '() (cdar def) (cdr def) name))))
           ((pair? (cadr def))
            `(set! ,(car def)
               ,(convert '() (cadr def) (gen-name))))
           (else def)))
-
-  (define (defination? x)
-    (and (pair? x) (eq? (car x) 'define)))
 
   (define (convert-seq res source name)
     (if (null? source)
@@ -122,6 +121,9 @@
                                        name
                                        (gen-name))))
                    res seq))))
+
+  (define (defination? x)
+    (and (pair? x) (eq? (car x) 'define)))
 
   (define (convert-body res body name)
     (let-values (((defines expressions)

@@ -56,14 +56,9 @@ env_t* env_new(heap_t *heap, int size)
 
 void mark_env(env_t **env, visitor_t *visitor)
 {
-	ptr_t ptr;
-	ptr_init(&ptr, *env);
-	obj_t tmp = { .ptr = ptr.ptr };
-	printf("env mem %p, %p, %p\n", *env, ptr_get(&ptr), ptr_from_obj(tmp));
+	obj_t tmp = { .ptr = make_ptr(*env, id_ptr) };
 	visitor->visit(visitor, &tmp);
-	ptr.ptr = tmp.ptr;
-	*env = ptr_get(&ptr);
-	printf("new mem %p\n", *env);
+	*env = PTR(tmp);
 }
 
 func_t* load_func(module_t *module, int index)
@@ -155,11 +150,11 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				ptr_t fp;
 				void *ptr;
 				void *args;
-				fp.ptr = STACK_POP().ptr;
+				fp.obj = STACK_POP();
 dispatch_func:
 				if (fp.tag != id_func)
 					FATAL("expected function but got tag %d\n", fp.tag);
-				ptr = ptr_get(&fp);
+				ptr = PTR_GET(fp);
 
 				switch (*((func_type_t*)ptr)) {
 					case func_inter: 
@@ -241,9 +236,7 @@ void* make_symbol(hash_table_t *tbl, const char *str)
 		res = strdup(str);
 		hash_table_insert(tbl, res, res);
 	}
-	ptr_t sp;
-	symbol_init(sp, res);
-	return sp.ptr;
+	return make_ptr(res, id_symbol);
 }
 
 module_t* module_load(vm_thread_t *thread, const char *path)

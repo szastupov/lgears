@@ -128,7 +128,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	ptr_t ptr = { .ptr = obj->ptr };
 
-	void *p = ptr_get(&ptr);
+	void *p = PTR_GET(ptr);
 	p -= BHDR_SIZE;
 	block_hdr_t *hdr = p;
 
@@ -137,7 +137,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 */
 	if (hdr->forward) {
 		printf("Forwarding to %p\n", hdr->forward);
-		ptr_set(&ptr, hdr->forward);
+		PTR_SET(ptr, hdr->forward);
 		obj->ptr = ptr.ptr;
 		return;
 	}
@@ -150,7 +150,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	hdr = new_pos;
 	hdr->forward = NULL;
 	new_pos += BHDR_SIZE;
-	ptr_set(&ptr, new_pos);
+	PTR_SET(ptr, new_pos);
 	obj->ptr = ptr.ptr;
 
 	/*

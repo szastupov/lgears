@@ -28,14 +28,15 @@
  * glibc malloc too. Need to check it on other systems...
  */
 
-#define TYPE_TAG unsigned tag:3;
+#define TYPE_TAG unsigned tag:3
+#define TYPE_CAST(o, type) ((type)(o))
 
 /**
  * @brief Base object
  */
 typedef union {
 	TYPE_TAG;
-	void *ptr;			/**< Pointer for casting */
+	void *ptr;	/**< Pointer for casting */
 } obj_t;
 
 /**
@@ -50,6 +51,16 @@ enum {
 	id_symbol	/**< Symbol pointer */
 };
 
+#define DEFINE_TYPE(name, members...) \
+	typedef union { \
+		struct { \
+			TYPE_TAG; \
+			members; \
+		}; \
+		void *ptr; \
+		obj_t obj; \
+	} name;
+
 /**
  * @brief Tagged poiner repesintation
  *
@@ -59,20 +70,13 @@ enum {
  * use different tags.
  * Use helper macros to init, get and set pointer value.
  */
-typedef union {
-	struct {
-		TYPE_TAG;
-		unsigned long addr:__WORDSIZE-3;
-	};
-	void *ptr;
-} ptr_t;
-
-#define ptr_set(p,a) (p)->addr = (unsigned long)a >> 2
-#define ptr_get(p) (void*)(unsigned long)((p)->addr << 2)
-#define ptr_init(p, a) { (p)->tag = id_ptr; ptr_set(p, a); }
-#define return_ptr(a) { ptr_t res; ptr_init(&res, a); return res.ptr; }
-#define func_init(i, v) { (i).tag = id_func; ptr_set(&i, v); }
-#define symbol_init(i, v) { (i).tag = id_symbol; ptr_set(&i, v); }
+DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
+#define PTR(o) PTR_GET(TYPE_CAST(o, ptr_t))
+#define PTR_SET(p,a) (p).addr = (unsigned long)a >> 2
+#define PTR_GET(p) (void*)(unsigned long)((p).addr << 2)
+#define PTR_INIT(p, a) { (p).tag = id_ptr; PTR_SET(p, a); }
+#define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }
+#define SYMBOL_INIT(i, v) { (i).tag = id_symbol; PTR_SET(i, v); }
 
 /** 
  * @brief function types
@@ -82,39 +86,23 @@ typedef enum {
 	func_native	/**< Native C-function */
 } func_type_t;
 
-typedef union {
-	struct {
-		TYPE_TAG;
 #if __WORDSIZE == 64
-		int val;
+#define FIXNUM_TYPE int
 #else
-		short val;
+#define FIXNUM_TYPE short
 #endif
-	};
-	void *ptr;
-} fixnum_t;
 
-#define fixnum_init(n,v) { (n).tag = id_fixnum; (n).val = v; }
+DEFINE_TYPE(fixnum_t, FIXNUM_TYPE val);
+#define FIXNUM_INIT(n,v) { (n).tag = id_fixnum; (n).val = v; }
+#define FIXNUM(o) TYPE_CAST(o, fixnum_t).val
 
-typedef union {
-	struct {
-		TYPE_TAG;
-		char c;
-	};
-	void *ptr;
-} char_t;
+DEFINE_TYPE(char_t, char val);
+#define CHAR_INIT(c,v) { (c).tag = id_char; (c).val = v; }
+#define CHAR(o) TYPE_CAST(o, char_t).val
 
-#define char_init(c,v) { (c).tag = id_char; (c).val = v; }
-
-typedef union {
-	struct {
-		TYPE_TAG;
-		short val;
-	};
-	void *ptr;
-} bool_t;
-
-#define bool_init(b,v) { (b).tag = id_bool; (b).val = v; }
+DEFINE_TYPE(bool_t, short val);
+#define BOOL_INIT(b,v) { (b).tag = id_bool; (b).val = v; }
+#define BOOL(o) TYPE_CAST(o, bool_t).val
 
 /*
  * Utilites
@@ -126,34 +114,10 @@ static inline int is_false(obj_t obj)
 	return obj.tag == id_bool && b.val == 0;
 }
 
-static inline void* ptr_from_obj(obj_t obj)
-{
-	ptr_t p = { .ptr = obj.ptr };
-	return ptr_get(&p);
-}
-
-static inline int fixnum_from_obj(obj_t obj)
-{
-	fixnum_t f = { .ptr = obj.ptr };
-	return f.val;
-}
-
-static inline char char_from_obj(obj_t obj)
-{
-	char_t c = { .ptr = obj.ptr };
-	return c.c;
-}
-
-static inline int bool_from_obj(obj_t obj)
-{
-	bool_t b = { .ptr = obj.ptr };
-	return b.val;
-}
-
 static inline void* make_ptr(void *ptr, int tag)
 {
 	ptr_t p;
-	ptr_set(&p, ptr);
+	PTR_SET(p, ptr);
 	p.tag = tag;
 	return p.ptr;
 }
@@ -190,7 +154,7 @@ static inline void* get_typed(obj_t obj, const type_t *type)
 		printf("expected ptr but got %d\n", ptr.tag);
 		return NULL;
 	}
-	void *res = ptr_get(&ptr);
+	void *res = PTR_GET(ptr);
 
 	hobj_hdr_t *ohdr = res;
 	if (ohdr->type != type) {

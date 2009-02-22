@@ -41,11 +41,8 @@ static void cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	pair->cdr = argv[2];
 	pair->hdr.type = &pair_type;
 
-	ptr_t ptr;
-	ptr_init(&ptr, pair);
-
-	tramp->arg.ptr = ptr.ptr;
-	tramp->func.ptr = argv[0].ptr;
+	tramp->arg.ptr = make_ptr(pair, id_ptr);
+	tramp->func.obj = argv[0];
 }
 MAKE_NATIVE(cons, 2, 0);
 
@@ -56,7 +53,7 @@ static void car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 		tramp->arg = pair->car;
 	else
 		tramp->arg.ptr = NULL;
-	tramp->func.ptr = argv[0].ptr;
+	tramp->func.obj = argv[0];
 }
 MAKE_NATIVE(car, 1, 0);
 
@@ -67,7 +64,7 @@ static void cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 		tramp->arg = pair->cdr;
 	else
 		tramp->arg.ptr = NULL;
-	tramp->func.ptr = argv[0].ptr;
+	tramp->func.obj = argv[0];
 }
 MAKE_NATIVE(cdr, 1, 0);
 
@@ -103,22 +100,22 @@ void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
 		case id_ptr:
-			printf("ptr: %p\n", ptr_from_obj(obj));
+			printf("ptr: %p\n", PTR(obj));
 			break;
 		case id_fixnum:
-			printf("fixnum: %d\n", fixnum_from_obj(obj));
+			printf("fixnum: %d\n", FIXNUM(obj));
 			break;
 		case id_bool:
-			printf("bool: #%c\n", bool_from_obj(obj) ? 't' : 'f');
+			printf("bool: #%c\n", BOOL(obj) ? 't' : 'f');
 			break;
 		case id_char:
-			printf("char: %c\n", char_from_obj(obj));
+			printf("char: %c\n", CHAR(obj));
 			break;
 		case id_func:
-			printf("func: %p\n", ptr_from_obj(obj));
+			printf("func: %p\n", PTR(obj));
 			break;
 		case id_symbol:
-			printf("symbol: %s\n", (const char*)ptr_from_obj(obj));
+			printf("symbol: %s\n", (const char*)PTR(obj));
 			break;
 		default:
 			printf("unknown obj\n");
@@ -138,7 +135,7 @@ void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
 {
 	ptr_t ptr;
-	func_init(ptr, nt);
+	FUNC_INIT(ptr, nt);
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
 

@@ -21,12 +21,12 @@
   (define (assemble-code func)
     (display "Assembling " ) (display func) (newline)
     (let* ((code (car func))
-           (mem (make-bytevector (+ 16 (* 2 (length code)))))
+           (mem (make-bytevector (+ 17 (* 2 (length code)))))
            (res-size
              (let loop ((cur code)
                         (stack-use 0)
                         (stack-size 0)
-                        (offset 16))
+                        (offset 17))
                (if (null? cur)
                  stack-size
                  (let* ((cmd (car cur))
@@ -42,6 +42,7 @@
       (bytevector-u32-native-set! mem 4 (caddr func)) ; argc
       (bytevector-u32-native-set! mem 8 res-size) ; stack size
       (bytevector-u32-native-set! mem 12 (length code)) ; op count
+      (bytevector-u8-set! mem 16 (if (cadddr func) 1 0)) ; allocate env on heap?
       mem))
 
 

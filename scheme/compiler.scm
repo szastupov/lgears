@@ -18,21 +18,27 @@
 
 ;; Environment of current-compiling function
 (define-record-type env
-  (fields parent tbl (mutable size) argc)
+  (fields parent tbl (mutable size)
+    argc (mutable heap))
   (protocol
     (lambda (new)
       (case-lambda
         (()
-         (new '() (make-eq-hashtable) 0 0))
+         (new '() (make-eq-hashtable) 0 0 #f))
         ((prev args)
          (let* ((ntbl (make-eq-hashtable))
                 (nargc (set-func-args! ntbl args)))
-           (new prev ntbl nargc nargc)))))))
+           (new prev ntbl nargc nargc #f)))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
     (hashtable-set! (env-tbl env) name size)
     (env-size-set! env (+ size 1))))
+
+(define (env-info env)
+  (list (env-size env)
+        (env-argc env)
+        (env-heap env)))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -43,7 +49,9 @@
         (if res
           (if (zero? step)
             `(LOCAL . ,res)
-            `(PARENT ,step ,res))
+            (begin
+              (env-heap-set! cur-env #t)
+              `(PARENT ,step ,res)))
           (loop (+ step 1) (env-parent cur-env)))))))
 
 (define (env-idx env name)
@@ -78,7 +86,9 @@
     (map (lambda (x)
            (symbol->string (car x)))
          (list-sort (lambda (x y) (< (cdr x) (cdr y)))
-                    (vector->list (vector-map cons keys vals))))))
+                    (map cons
+                         (vector->list keys)
+                         (vector->list vals))))))
 
 
 (define-record-type store
@@ -96,7 +106,8 @@
 (define (map-append proc lst)
   (if (null? lst)
     '()
-    (append (proc (car lst)) (map-append proc (cdr lst)))))
+    (append (proc (car lst))
+            (map-append proc (cdr lst)))))
 
 (define (start-compile root)
   (let ((undefs (make-sym-table))
@@ -119,8 +130,11 @@
     (define (compile-func parent args body)
       (let* ((env (make-env parent args))
              (compiled (compile-body env body)))
-        `((LOAD_FUNC ,(store-push! code-store
-                                   (list compiled (env-size env) (env-argc env))) 1))))
+        `((LOAD_FUNC
+            ,(store-push! code-store
+                          (cons compiled 
+                                (env-info env)))
+            1))))
 
     (define (compile-if env node)
       (let ((pred (compile env (car node)))
@@ -195,8 +209,10 @@
 (let ((res (start-compile
              (cps-convert '(
                             (define (foo n)
-                              (cdr (cons 'cc n)))
-                            (display (foo 'bla))
+                              (if n
+                                (car n)
+                                (cdr n)))
+                            (display (foo (cons 'bla 'boo)))
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

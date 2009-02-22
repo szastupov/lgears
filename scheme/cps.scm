@@ -64,11 +64,15 @@
 
         ((if)
          (let* ((args (cdr node))
-                (predname (gen-name)))
-           (convert `(if ,predname
+                (pred (car args))
+                (predname (if (self-eval? pred)
+                            pred (gen-name)))
+                (expr `(if ,predname
                        ,(convert '() (cadr args) name)
-                       ,(convert '() (caddr args) name))
-                    (car args) predname)))
+                       ,(convert '() (caddr args) name))))
+           (if (self-eval? pred)
+             expr
+             (convert expr pred predname))))
 
         ((begin)
          (convert-seq res (cdr node) name))

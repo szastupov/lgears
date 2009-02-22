@@ -73,38 +73,6 @@ func_t* load_func(module_t *module, int index)
 	return &module->functions[index];
 }
 
-#if 0
-frame_t* frame_create(func_t *func, vm_thread_t *thread)
-{
-	size_t size = sizeof(obj_t)*func->stack_size + sizeof(frame_t);
-
-	void *mem = lalloc_get(&thread->lalloc, size);
-	frame_t *frame = mem;
-	frame->prev = thread->fp;
-	frame->opstack = mem+sizeof(frame_t);
-	frame->func = func;
-	frame->opcode = func->opcode;
-	frame->op_stack_idx = 0;
-	frame->env = env_new(&thread->heap, func->env_size);
-
-	int depth = 0;
-	if (thread->fp) {
-		if (thread->fp->func == func)
-			frame->display = thread->fp->display;
-		else {
-			depth = thread->fp->depth + 1;
-			frame->display = lalloc_get(&thread->lalloc, depth * sizeof(env_t*));
-			frame->display[0] = thread->fp->env;
-			if (depth > 1)
-				memcpy(&frame->display[1], thread->fp->display, thread->fp->depth * sizeof(env_t*));
-		}
-	}
-	frame->depth = depth;
-
-	return frame;
-}
-#endif
-
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
@@ -112,7 +80,14 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 
 	func = load_func(module, module->entry_point);
 	opcode = func->opcode;
-	thread->env = env_new(&thread->heap, func->env_size);
+	if (func->heap_env) {
+		thread->env = env_new(&thread->heap, func->env_size);
+		thread->objects = thread->env->objects;
+	} else {
+		thread->env = NULL;
+		thread->objects = thread->opstack;
+		thread->op_stack_idx = func->env_size;
+	}
 
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
@@ -147,7 +122,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
-				STACK_PUSH(thread->env->objects[op_arg].ptr);
+				STACK_PUSH(thread->objects[op_arg].ptr);
 			NEXT();
 
 			TARGET(LOAD_SYM) 
@@ -177,9 +152,9 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(FUNC_CALL) {
-				static ptr_t fp;
-				static void *ptr;
-				static void *args;
+				ptr_t fp;
+				void *ptr;
+				void *args;
 				fp.ptr = STACK_POP().ptr;
 dispatch_func:
 				if (fp.tag != id_func)
@@ -199,16 +174,22 @@ dispatch_func:
 
 							func = ptr;
 							opcode = func->opcode;
-							thread->env = env_new(&thread->heap, func->env_size);
-							args = &thread->opstack[thread->op_stack_idx - op_arg];
-							memcpy(thread->env->objects, args, op_arg*sizeof(obj_t));
-							thread->op_stack_idx = 0;
+							if (func->heap_env) {
+								thread->env = env_new(&thread->heap, func->env_size);
+								thread->objects = thread->env->objects;
+								thread->op_stack_idx = 0;
+								args = &thread->opstack[thread->op_stack_idx - op_arg];
+								memcpy(thread->objects, args, op_arg*sizeof(obj_t));
+							} else {
+								thread->env = NULL;
+								thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
+							}
 						}
 						NEXT();
 					case func_native: 
 						{
-							static trampoline_t tramp;
-							static native_t *func;
+							trampoline_t tramp;
+							native_t *func;
 							func = ptr;
 
 							if (func->swallow) {
@@ -220,10 +201,10 @@ dispatch_func:
 									FATAL("try to pass %d args when %d requred by %s\n", op_arg, func->argc, func->name);
 							}
 
-							thread->op_stack_idx -= op_arg;
-							args = &thread->opstack[thread->op_stack_idx];
+							args = &thread->opstack[thread->op_stack_idx - op_arg];
 							func->call(&thread->heap, &tramp, args, op_arg);
 
+							thread->op_stack_idx = 0;
 							STACK_PUSH(tramp.arg.ptr);
 							fp = tramp.func;
 							op_arg = 1;
@@ -237,7 +218,7 @@ dispatch_func:
 			NEXT();
 
 			TARGET(SET_LOCAL)
-				thread->env->objects[op_arg] = STACK_POP();
+				thread->objects[op_arg] = STACK_POP();
 			NEXT();
 
 			TARGET(LOAD_ENV)
@@ -339,6 +320,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		func->argc = hdr.argc;
 		func->stack_size = hdr.stack_size;
 		func->op_count = hdr.op_count;
+		func->heap_env = hdr.heap_env;
 
 		int opcode_size = hdr.op_count * 2;
 		func->opcode = mem_alloc(opcode_size);
@@ -368,7 +350,8 @@ static void vm_inspect(visitor_t *visitor, void *self)
 
 	int i;
 
-	mark_env(&thread->env, visitor);
+	if (thread->env)
+		mark_env(&thread->env, visitor);
 
 	for (i = 0; i < thread->depth; i++)
 		mark_env(&thread->display[i], visitor);

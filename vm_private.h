@@ -24,6 +24,7 @@ typedef struct {
 	short env_size;
 	short argc;
 	int op_count;
+	short heap_env;
 	char *opcode;
 	module_t *module;
 } func_t;
@@ -49,9 +50,10 @@ typedef struct {
 	hash_table_t ns_global;
 
 	/* Variables representing execution state */
-	int ssize;
-	obj_t *opstack;
-	int op_stack_idx;
+	int ssize;			/**< Size of stack */
+	obj_t *opstack;		/**< Operands stack */
+	int op_stack_idx;	/**< Stack index */
+	obj_t *objects;	
 	env_t *env;
 	env_t **display;
 	int depth;
@@ -62,6 +64,7 @@ struct func_hdr_s {
 	uint32_t argc;
 	uint32_t stack_size;
 	uint32_t op_count;
+	unsigned char heap_env;
 } __attribute__((__packed__));
 
 struct module_hdr_s {

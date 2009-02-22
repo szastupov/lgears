@@ -1,12 +1,15 @@
 (library (assembly)
   (export assemble
-          make-ilr print-ilr)
+          make-ilr make-i-func print-ilr)
   (import (rnrs)
           (opcode)
           (slib format))
 
   (define-record-type ilr
     (fields imports symbols code entry-point))
+
+  (define-record-type i-func
+    (fields code size argc heap?))
 
   (define (print-ilr res)
     (display "ILR: \n")
@@ -15,12 +18,12 @@
     (display (format "Entry point: ~a\n" (ilr-entry-point res)))
     (display "Code: \n")
     (for-each (lambda (x)
-                (display (format "~a\n" x)))
+                (display (format "~a\n" (i-func-code x))))
               (ilr-code res)))
 
   (define (assemble-code func)
     (display "Assembling " ) (display func) (newline)
-    (let* ((code (car func))
+    (let* ((code (i-func-code func))
            (mem (make-bytevector (+ 17 (* 2 (length code)))))
            (res-size
              (let loop ((cur code)
@@ -38,11 +41,11 @@
                          nuse
                          (max nuse stack-size)
                          (+ offset 2)))))))
-      (bytevector-u32-native-set! mem 0 (cadr func)) ; env size 
-      (bytevector-u32-native-set! mem 4 (caddr func)) ; argc
+      (bytevector-u32-native-set! mem 0 (i-func-size func)) ; env size 
+      (bytevector-u32-native-set! mem 4 (i-func-argc func)) ; argc
       (bytevector-u32-native-set! mem 8 res-size) ; stack size
       (bytevector-u32-native-set! mem 12 (length code)) ; op count
-      (bytevector-u8-set! mem 16 (if (cadddr func) 1 0)) ; allocate env on heap?
+      (bytevector-u8-set! mem 16 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
       mem))
 
 

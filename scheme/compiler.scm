@@ -35,10 +35,12 @@
     (hashtable-set! (env-tbl env) name size)
     (env-size-set! env (+ size 1))))
 
-(define (env-info env)
-  (list (env-size env)
-        (env-argc env)
-        (env-heap env)))
+(define (make-func code env)
+  (make-i-func
+    code
+    (env-size env)
+    (env-argc env)
+    (env-heap env)))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -132,8 +134,7 @@
              (compiled (compile-body env body)))
         `((LOAD_FUNC
             ,(store-push! code-store
-                          (cons compiled 
-                                (env-info env)))
+                          (make-func compiled env))
             1))))
 
     (define (compile-if env node)

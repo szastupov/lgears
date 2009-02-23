@@ -25,6 +25,7 @@ typedef struct {
 	short argc;
 	int op_count;
 	short heap_env;
+	int depth;
 	char *opcode;
 	module_t *module;
 } func_t;
@@ -64,7 +65,8 @@ struct func_hdr_s {
 	uint32_t argc;
 	uint32_t stack_size;
 	uint32_t op_count;
-	unsigned char heap_env;
+	uint32_t heap_env;
+	uint32_t depth;
 } __attribute__((__packed__));
 
 struct module_hdr_s {

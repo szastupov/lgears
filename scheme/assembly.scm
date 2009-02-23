@@ -9,7 +9,7 @@
     (fields imports symbols code entry-point))
 
   (define-record-type i-func
-    (fields code size argc heap?))
+    (fields code size argc heap? depth))
 
   (define (print-ilr res)
     (display "ILR: \n")
@@ -21,15 +21,18 @@
                 (display (format "~a\n" (i-func-code x))))
               (ilr-code res)))
 
+  (define funhdr-size 24)
+
   (define (assemble-code func)
     (display "Assembling " ) (display func) (newline)
     (let* ((code (i-func-code func))
-           (mem (make-bytevector (+ 17 (* 2 (length code)))))
+           (mem (make-bytevector (+ funhdr-size
+                                    (* 2 (length code)))))
            (res-size
              (let loop ((cur code)
                         (stack-use 0)
                         (stack-size 0)
-                        (offset 17))
+                        (offset funhdr-size))
                (if (null? cur)
                  stack-size
                  (let* ((cmd (car cur))
@@ -45,7 +48,8 @@
       (bytevector-u32-native-set! mem 4 (i-func-argc func)) ; argc
       (bytevector-u32-native-set! mem 8 res-size) ; stack size
       (bytevector-u32-native-set! mem 12 (length code)) ; op count
-      (bytevector-u8-set! mem 16 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
+      (bytevector-u32-native-set! mem 16 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
+      (bytevector-u32-native-set! mem 20 (i-func-depth func)) ; function depth
       mem))
 
 

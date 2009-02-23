@@ -19,16 +19,15 @@
 ;; Environment of current-compiling function
 (define-record-type env
   (fields parent tbl (mutable size)
-    argc (mutable heap))
+    argc (mutable heap) depth)
   (protocol
     (lambda (new)
-      (case-lambda
-        (()
-         (new '() (make-eq-hashtable) 0 0 #f))
-        ((prev args)
-         (let* ((ntbl (make-eq-hashtable))
-                (nargc (set-func-args! ntbl args)))
-           (new prev ntbl nargc nargc #f)))))))
+      (lambda (prev args)
+        (let* ((ntbl (make-eq-hashtable))
+               (nargc (set-func-args! ntbl args))
+               (ndepth (if (null? prev) 0
+                         (+ 1(env-depth prev)))))
+          (new prev ntbl nargc nargc #f ndepth))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
@@ -40,7 +39,8 @@
     code
     (env-size env)
     (env-argc env)
-    (env-heap env)))
+    (env-heap env)
+    (env-depth env)))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -176,9 +176,9 @@
           (error 'compile-assigment "undefined variable" name)
           `(,@(compile env (cadr node))
              ,@(if (eq? (car slot) 'LOCAL)
-                `((SET_LOCAL ,(cdr slot), -1))
-                `((LOAD_ENV ,(cadr slot) 1)
-                  (SET_IN_ENV ,(caddr slot) 0)))))))
+                 `((SET_LOCAL ,(cdr slot), -1))
+                 `((LOAD_ENV ,(cadr slot) 1)
+                   (SET_IN_ENV ,(caddr slot) 0)))))))
 
     (define (compile env node)
       (cond ((pair? node)
@@ -206,19 +206,19 @@
                       (LOAD_FROM_ENV ,(caddr res) 0)))
                   `((LOAD_IMPORT ,(sym-table-insert undefs node) 1)))))))
 
-    (let ((entry-point (compile-func (make-env) '() root)))
+    (let ((entry-point (compile-func '() '() root)))
       (make-ilr (symtable->list undefs)
                 (symtable->list symbols)
                 (reverse (store-head code-store))
                 (cadar entry-point)))))
 
 (let ((res (start-compile
-             (cps-convert '(
-                            (define (cadr x) (car (cdr x)))
-                            (define (caddr x) (car (cdr (cdr x))))
-                            (display (caddr (cons 'a (cons 'b (cons 'c 'd)))))
-;                            (define lst (cons 'a (cons 'b 'c)))
-;                            (display (car lst))
+             (cps-convert '( 
+                            ;(define (cadr x) (car (cdr x)))
+                            ;(define (caddr x) (car (cdr (cdr x))))
+                            ;(display (caddr (cons 'a (cons 'b (cons 'c 'd)))))
+                            (define lst (cons 'a (cons 'b 'c)))
+                            (display (car lst))
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

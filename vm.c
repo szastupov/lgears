@@ -161,7 +161,7 @@ dispatch_func:
 					case func_inter: 
 						{
 							if (func != ptr)
-								thread->display[-1 - ++thread->depth] = thread->env;
+								thread->display[-1-func->depth] = thread->env;
 
 							func = ptr;
 							if (op_arg != func->argc)
@@ -224,7 +224,7 @@ dispatch_func:
 			NEXT();
 
 			TARGET(LOAD_ENV)
-				STACK_PUSH(thread->display[-thread->depth+op_arg-2]);
+				STACK_PUSH(thread->display[-func->depth+op_arg-1]);
 			NEXT();
 
 			TARGET(LOAD_FROM_ENV) {
@@ -327,6 +327,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		func->stack_size = hdr.stack_size;
 		func->op_count = hdr.op_count;
 		func->heap_env = hdr.heap_env;
+		func->depth = hdr.depth;
 
 		int opcode_size = hdr.op_count * 2;
 		func->opcode = mem_alloc(opcode_size);

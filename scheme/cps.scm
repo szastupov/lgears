@@ -25,6 +25,8 @@
                  (define (pyth x y)
                    (sqrt (+ (* x x) (* y y))))
 
+                 (define abrabar)
+
                  (bla 10)
                  (foo 'bar)
                  700
@@ -69,7 +71,9 @@
                             pred (gen-name)))
                 (expr `(if ,predname
                        ,(convert '() (cadr args) name)
-                       ,(convert '() (caddr args) name))))
+                       ,@(if (null? (cddr args))
+                          '()
+                          (list (convert '() (caddr args) name))))))
            (if (self-eval? pred)
              expr
              (convert expr pred predname))))
@@ -138,7 +142,9 @@
                                       (cadr x)))
                                   defines))
                     ,@(fold-left (lambda (prev x)
-                                   (cons (convert-define (cdr x)) prev))
+                                   (if (null? (cddr x))
+                                     prev
+                                     (cons (convert-define (cdr x)) prev)))
                                  '() (reverse defines))))
             (rest (convert-seq '() expressions name)))
         (if (null? defines)

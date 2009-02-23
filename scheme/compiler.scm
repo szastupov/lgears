@@ -140,12 +140,16 @@
     (define (compile-if env node)
       (let ((pred (compile env (car node)))
             (then-clause (compile env (cadr node)))
-            (else-clause (compile env (caddr node))))
+            (else-clause (if (null? (cddr node))
+                           '()
+                           (compile env (caddr node)))))
         `(,@pred
            (JUMP_IF_FALSE ,(+ (length then-clause) 1) 0)
            ,@then-clause
-           (JUMP_FORWARD ,(length else-clause) 0)
-           ,@else-clause)))
+           ,@(if (null? else-clause)
+               '()
+               `((JUMP_FORWARD ,(length else-clause) 0)
+                 ,@else-clause)))))
 
     (define (compile-args env args)
       (let loop ((cur args)

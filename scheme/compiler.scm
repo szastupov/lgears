@@ -175,9 +175,10 @@
         (if (not slot)
           (error 'compile-assigment "undefined variable" name)
           `(,@(compile env (cadr node))
-             ,(if (eq? (car slot) 'LOCAL)
-                `(SET_LOCAL ,(cdr slot), -1)
-                (error 'compile-assigment "non-local setting not yet implemented :("))))))
+             ,@(if (eq? (car slot) 'LOCAL)
+                `((SET_LOCAL ,(cdr slot), -1))
+                `((LOAD_ENV ,(cadr slot) 1)
+                  (SET_IN_ENV ,(caddr slot) 0)))))))
 
     (define (compile env node)
       (cond ((pair? node)
@@ -213,11 +214,11 @@
 
 (let ((res (start-compile
              (cps-convert '(
-                            (define (foo n)
-                              (if n
-                                (car n)
-                                (cdr n)))
-                            (display (foo (cons 'bla 'boo)))
+                            (define (cadr x) (car (cdr x)))
+                            (define (caddr x) (car (cdr (cdr x))))
+                            (display (caddr (cons 'a (cons 'b (cons 'c 'd)))))
+;                            (define lst (cons 'a (cons 'b 'c)))
+;                            (display (car lst))
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

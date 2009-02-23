@@ -27,6 +27,9 @@
 
                  (define abrabar)
 
+                 (define const 12)
+                 (define lst (cons 'a (cons 'b 'c)))
+
                  (bla 10)
                  (foo 'bar)
                  700
@@ -40,10 +43,6 @@
       (set! last-name (+ last-name 1))
       (string->symbol res)))
 
-  (define (echo n)
-    (display n)
-    (newline))
-
   (define (self-eval? node)
     (or (not (pair? node))
         (and (eq? (car node) 'quote)
@@ -56,7 +55,7 @@
 
   (define (convert-func res args body name)
     `(lambda (,name ,@args)
-       ,(convert-body res body name)))
+       ,@(convert-body res body name)))
 
   (define (convert res node name)
     (if (pair? node)
@@ -70,10 +69,10 @@
                 (predname (if (self-eval? pred)
                             pred (gen-name)))
                 (expr `(if ,predname
-                       ,(convert '() (cadr args) name)
-                       ,@(if (null? (cddr args))
-                          '()
-                          (list (convert '() (caddr args) name))))))
+                         ,(convert '() (cadr args) name)
+                         ,@(if (null? (cddr args))
+                             '()
+                             (list (convert '() (caddr args) name))))))
            (if (self-eval? pred)
              expr
              (convert expr pred predname))))
@@ -109,15 +108,25 @@
         (list name node)
         `((lambda (,name) ,res) ,node))))
 
-  (define (convert-define def)
+  (define (convert-define res def)
     (cond ((pair? (car def))
            (let ((name (gen-name)))
-             `(set! ,(caar def)
-                ,(convert-func '() (cdar def) (cdr def) name))))
+             `((set! ,(caar def)
+                 ,(convert-func '() (cdar def) (cdr def) name))
+               ,@res)))
+          ((self-eval? (cadr def))
+           `((set! ,(car def) ,(cadr def))
+             ,@res))
           ((pair? (cadr def))
-           `(set! ,(car def)
-              ,(convert '() (cadr def) (gen-name))))
-          (else def)))
+           (let* ((name (gen-name))
+                  (assigment `(set! ,(car def)
+                                ,(convert '() (cadr def) name))))
+             (if (null? (car res))
+               (list assigment)
+             `(((lambda (,name)
+                  ,assigment)
+               (lambda (,(gen-name))
+                 ,@res))))))))
 
   (define (convert-seq res source name)
     (if (null? source)
@@ -136,22 +145,17 @@
   (define (convert-body res body name)
     (let-values (((defines expressions)
                   (partition defination? body)))
-      (let ((init `((extend ,(map (lambda (x)
-                                    (if (pair? (cadr x))
-                                      (caadr x)
-                                      (cadr x)))
-                                  defines))
-                    ,@(fold-left (lambda (prev x)
-                                   (if (null? (cddr x))
-                                     prev
-                                     (cons (convert-define (cdr x)) prev)))
-                                 '() (reverse defines))))
-            (rest (convert-seq '() expressions name)))
-        (if (null? defines)
-          rest
-          (append init
-                  (if (null? rest)
-                    '() (list rest)))))))
+      (let ((rest (convert-seq '() expressions name)))
+        `((extend ,(map (lambda (x)
+                          (if (pair? (cadr x))
+                            (caadr x)
+                            (cadr x)))
+                        defines))
+          ,@(fold-left (lambda (prev x)
+                         (if (null? (cddr x))
+                           prev
+                           (convert-define prev (cdr x))))
+                       (list rest) (reverse defines))))))
 
   (define (cps-convert source)
     (let ((res (convert-body '() source '__exit)))

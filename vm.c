@@ -78,6 +78,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
+		thread->display[-1] = thread->env;
 	} else {
 		thread->env = NULL;
 		thread->objects = thread->opstack;
@@ -159,21 +160,19 @@ dispatch_func:
 				switch (*((func_type_t*)ptr)) {
 					case func_inter: 
 						{
-							if (func != ptr) {
-								thread->depth++;
-								void *dptr = thread->display;
-								dptr -= sizeof(env_t);
-								thread->display = dptr;
-								thread->display[0] = thread->env;
-							}
+							if (func != ptr)
+								thread->display[-1 - ++thread->depth] = thread->env;
 
 							func = ptr;
+							if (op_arg != func->argc)
+								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+
 							opcode = func->opcode;
 							if (func->heap_env) {
 								thread->env = env_new(&thread->heap, func->env_size);
 								thread->objects = thread->env->objects;
-								thread->op_stack_idx = 0;
 								args = &thread->opstack[thread->op_stack_idx - op_arg];
+								thread->op_stack_idx = 0;
 								memcpy(thread->objects, args, op_arg*sizeof(obj_t));
 							} else {
 								thread->env = NULL;
@@ -197,7 +196,15 @@ dispatch_func:
 							}
 
 							args = &thread->opstack[thread->op_stack_idx - op_arg];
-							func->call(&thread->heap, &tramp, args, op_arg);
+							switch (func->call(&thread->heap, &tramp, args, op_arg)) {
+								case RC_EXIT:
+									/* Terminate thread */
+									return;
+								case RC_ERROR:
+								case RC_OK:
+								default:
+									break;
+							}
 
 							thread->op_stack_idx = 0;
 							STACK_PUSH(tramp.arg.ptr);
@@ -217,12 +224,18 @@ dispatch_func:
 			NEXT();
 
 			TARGET(LOAD_ENV)
-				STACK_PUSH(thread->display[op_arg-1]);
+				STACK_PUSH(thread->display[-thread->depth+op_arg-2]);
 			NEXT();
 
 			TARGET(LOAD_FROM_ENV) {
 				env_t *env = STACK_POP().ptr;
 				STACK_PUSH(env->objects[op_arg].ptr);
+			}
+			NEXT();
+
+			TARGET(SET_IN_ENV) {
+				env_t *env = STACK_POP().ptr;
+				env->objects[op_arg] = STACK_POP();
 			}
 			NEXT();
 		}

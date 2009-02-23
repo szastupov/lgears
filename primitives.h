@@ -26,8 +26,10 @@ typedef struct {
 } trampoline_t;
 
 typedef struct native_s native_t;
-typedef void (*native_func)(heap_t *heap, trampoline_t *tramp,
+typedef int (*native_func)(heap_t *heap, trampoline_t *tramp,
 		obj_t *argv, int argc);
+
+enum { RC_OK, RC_ERROR, RC_EXIT };
 
 struct native_s {
 	func_type_t type;

@@ -11,6 +11,7 @@ static const void* opcode_targets[] = {
 	&&TARGET_JUMP_FORWARD,
 	&&TARGET_FUNC_CALL,
 	&&TARGET_SET_LOCAL,
+	&&TARGET_SET_IN_ENV,
 	&&TARGET_LOAD_ENV,
 	&&TARGET_LOAD_FROM_ENV,
 };

@@ -12,8 +12,9 @@
 #define JUMP_FORWARD	6	/* Jump forward */
 #define FUNC_CALL	7	/* Call function */
 #define SET_LOCAL	8	/* Assign new value to local binding */
-#define LOAD_ENV	9	/* Load env from display */
-#define LOAD_FROM_ENV	10	/* Load object from env */
+#define SET_IN_ENV	9	/* Assing new value to evn binding */
+#define LOAD_ENV	10	/* Load env from display */
+#define LOAD_FROM_ENV	11	/* Load object from env */
 
 #define OP_CASE(code) case code: return #code
 
@@ -29,6 +30,7 @@ const char* opcode_name(int code)
 		OP_CASE(JUMP_FORWARD);
 		OP_CASE(FUNC_CALL);
 		OP_CASE(SET_LOCAL);
+		OP_CASE(SET_IN_ENV);
 		OP_CASE(LOAD_ENV);
 		OP_CASE(LOAD_FROM_ENV);
 	}

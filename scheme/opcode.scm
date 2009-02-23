@@ -15,6 +15,7 @@
                    (JUMP_FORWARD . "Jump forward")
                    (FUNC_CALL . "Call function")
                    (SET_LOCAL . "Assign new value to local binding")
+                   (SET_IN_ENV . "Assing new value to evn binding")
                    (LOAD_ENV . "Load env from display")
                    (LOAD_FROM_ENV . "Load object from env")))
 

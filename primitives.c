@@ -34,7 +34,7 @@ const type_t pair_type = {
 	.visit = pair_visit
 };
 
-static void cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
 	pair->car = argv[1];
@@ -43,10 +43,12 @@ static void cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 
 	tramp->arg.ptr = make_ptr(pair, id_ptr);
 	tramp->func.obj = argv[0];
+
+	return RC_OK;
 }
 MAKE_NATIVE(cons, 2, 0);
 
-static void car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[1], &pair_type);
 	if (pair)
@@ -54,10 +56,12 @@ static void car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	else
 		tramp->arg.ptr = NULL;
 	tramp->func.obj = argv[0];
+
+	return RC_OK;
 }
 MAKE_NATIVE(car, 1, 0);
 
-static void cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[1], &pair_type);
 	if (pair)
@@ -65,6 +69,8 @@ static void cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	else
 		tramp->arg.ptr = NULL;
 	tramp->func.obj = argv[0];
+
+	return RC_OK;
 }
 MAKE_NATIVE(cdr, 1, 0);
 
@@ -122,12 +128,14 @@ void print_obj(obj_t obj)
 	}
 }
 
-static void display(heap_t *heap, trampoline_t *tramp,
+static int display(heap_t *heap, trampoline_t *tramp,
 		obj_t *argv, int argc)
 {
 	print_obj(argv[1]);
 	tramp->func.ptr = argv[0].ptr;
 	tramp->arg.ptr = NULL;
+
+	return RC_OK;
 }
 MAKE_NATIVE(display, 1, 0);
 
@@ -139,9 +147,9 @@ void ns_install_native(hash_table_t *tbl,
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
 
-static void vm_exit(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int vm_exit(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	exit(0);
+	return RC_EXIT;
 }
 MAKE_NATIVE(vm_exit, 0, 0);
 

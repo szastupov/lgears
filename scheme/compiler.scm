@@ -214,11 +214,18 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                            ;(define (cadr x) (car (cdr x)))
-                            ;(define (caddr x) (car (cdr (cdr x))))
-                            ;(display (caddr (cons 'a (cons 'b (cons 'c 'd)))))
-                            (define lst (cons 'a (cons 'b 'c)))
-                            (display (car lst))
+;                            (define lst (cons 'a (cons 'b 'c)))
+;                            (define (cadr x)
+;                              (car (cdr x)))
+;                            (define (cddr x)
+;                              (cdr (cdr x)))
+;                            (display (car lst))
+;                            (display (cadr lst))
+;                            (display (cddr lst))
+                            (define (foo n)
+                              (lambda (x)
+                                (cons x n)))
+                            (display (foo 'bar))
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

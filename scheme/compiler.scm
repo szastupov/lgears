@@ -18,7 +18,8 @@
 
 ;; Environment of current-compiling function
 (define-record-type env
-  (fields parent tbl (mutable size)
+  (fields parent
+    tbl (mutable size)
     argc (mutable heap) depth)
   (protocol
     (lambda (new)
@@ -151,22 +152,13 @@
                `((JUMP_FORWARD ,(length else-clause) 0)
                  ,@else-clause)))))
 
-    (define (compile-args env args)
-      (let loop ((cur args)
-                 (idx 0)
-                 (res '()))
-        (if (null? cur)
-          (cons idx res)
-          (loop (cdr cur) 
-                (+ idx 1)
-                (append res (compile env (car cur)))))))
-
     (define (compile-call env node)
       (let* ((func (compile env (car node)))
-             (args (compile-args env (cdr node)))
-             (argc (car args)))
-        `(,@(cdr args)
-           ,@func
+             (args (map-append (lambda (x)
+                                  (compile env x))
+                               (cdr node)))
+             (argc (length (cdr node))))
+        `(,@args ,@func
            (FUNC_CALL ,argc ,(- argc)))))
 
     (define (compile-assigment env node)
@@ -214,18 +206,19 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-;                            (define lst (cons 'a (cons 'b 'c)))
-;                            (define (cadr x)
-;                              (car (cdr x)))
-;                            (define (cddr x)
-;                              (cdr (cdr x)))
-;                            (display (car lst))
-;                            (display (cadr lst))
-;                            (display (cddr lst))
-                            (define (foo n)
-                              (lambda (x)
-                                (cons x n)))
-                            (display (foo 'bar))
+                            (define lst (cons 'a (cons 'b 'c)))
+                            (define (cadr x)
+                              (car (cdr x)))
+                            (define (cddr x)
+                              (cdr (cdr x)))
+                            (display (car lst))
+                            (display (cadr lst))
+                            (display (cddr lst))
+;                            (define (foo n)
+;                              (lambda (x)
+;                                (cons x n)))
+;                            (define fun (foo 'bar))
+;                            (display fun)
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

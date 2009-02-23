@@ -21,7 +21,7 @@
                 (display (format "~a\n" (i-func-code x))))
               (ilr-code res)))
 
-  (define funhdr-size 24)
+  (define funhdr-size 6)
 
   (define (assemble-code func)
     (display "Assembling " ) (display func) (newline)
@@ -44,12 +44,12 @@
                          nuse
                          (max nuse stack-size)
                          (+ offset 2)))))))
-      (bytevector-u32-native-set! mem 0 (i-func-size func)) ; env size 
-      (bytevector-u32-native-set! mem 4 (i-func-argc func)) ; argc
-      (bytevector-u32-native-set! mem 8 res-size) ; stack size
-      (bytevector-u32-native-set! mem 12 (length code)) ; op count
-      (bytevector-u32-native-set! mem 16 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
-      (bytevector-u32-native-set! mem 20 (i-func-depth func)) ; function depth
+      (bytevector-u8-set! mem 0 (i-func-size func)) ; env size 
+      (bytevector-u8-set! mem 1 (i-func-argc func)) ; argc
+      (bytevector-u8-set! mem 2 res-size) ; stack size
+      (bytevector-u8-set! mem 3 (length code)) ; op count
+      (bytevector-u8-set! mem 4 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
+      (bytevector-u8-set! mem 5 (i-func-depth func)) ; function depth
       mem))
 
 
@@ -65,13 +65,13 @@
                   strings)
         (- (port-position port) oldpos)))
 
-    (let ((hdr-size 16))
+    (let ((hdr-size 10))
       (set-port-position! port hdr-size)
       (let ((header (make-bytevector hdr-size)))
         (bytevector-u32-native-set! header 0 (write-strings (ilr-imports root)))
         (bytevector-u32-native-set! header 4 (write-strings (ilr-symbols root)))
-        (bytevector-u32-native-set! header 8 (length (ilr-code root)))
-        (bytevector-u32-native-set! header 12 (ilr-entry-point root))
+        (bytevector-u8-set! header 8 (length (ilr-code root)))
+        (bytevector-u8-set! header 9 (ilr-entry-point root))
         (for-each (lambda (func)
                     (put-bytevector port (assemble-code func)))
                   (ilr-code root))

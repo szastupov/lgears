@@ -74,6 +74,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	func_t *func;
 
 	func = load_func(module, module->entry_point);
+	thread->func = func;
 	opcode = func->opcode;
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
@@ -164,6 +165,7 @@ dispatch_func:
 								thread->display[-1-func->depth] = thread->env;
 
 							func = ptr;
+							thread->func = func;
 							if (op_arg != func->argc)
 								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 
@@ -360,7 +362,7 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	if (thread->env)
 		mark_env(&thread->env, visitor);
 
-	for (i = 0; i < thread->depth; i++)
+	for (i = 0; i < thread->func->depth; i++)
 		mark_env(&thread->display[i], visitor);
 
 	for (i = 0; i < thread->op_stack_idx; i++)
@@ -373,7 +375,8 @@ void vm_thread_init(vm_thread_t *thread)
 
 	heap_init(&thread->heap, vm_inspect, thread);
 
-	thread->ssize = sysconf(_SC_PAGE_SIZE);
+	//thread->ssize = sysconf(_SC_PAGE_SIZE);
+	thread->ssize = 1024;
 	void *smem = mmap(NULL, thread->ssize,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
 	thread->opstack = smem;

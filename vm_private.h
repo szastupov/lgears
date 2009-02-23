@@ -57,23 +57,23 @@ typedef struct {
 	obj_t *objects;	
 	env_t *env;
 	env_t **display;
-	int depth;
+	func_t *func;
 } vm_thread_t;
 
 struct func_hdr_s {
-	uint32_t env_size;
-	uint32_t argc;
-	uint32_t stack_size;
-	uint32_t op_count;
-	uint32_t heap_env;
-	uint32_t depth;
+	uint8_t env_size;
+	uint8_t argc;
+	uint8_t stack_size;
+	uint8_t op_count;
+	uint8_t heap_env;
+	uint8_t depth;
 } __attribute__((__packed__));
 
 struct module_hdr_s {
 	uint32_t import_size;
 	uint32_t symbols_size;
-	uint32_t fun_count;
-	uint32_t entry_point;
+	uint8_t fun_count;
+	uint8_t entry_point;
 } __attribute__((__packed__));
 
 #define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)

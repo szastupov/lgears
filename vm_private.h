@@ -46,6 +46,12 @@ typedef struct {
 } env_t;
 
 typedef struct {
+	hobj_hdr_t hdr;
+	env_t **display;
+	func_t *func;
+} closure_t;
+
+typedef struct {
 	heap_t heap;
 	hash_table_t sym_table;
 	hash_table_t ns_global;

@@ -61,6 +61,22 @@ void mark_env(env_t **env, visitor_t *visitor)
 	*env = PTR(tmp);
 }
 
+const type_t closure_type = {
+	.name = "closure",
+};
+
+void* closure_new(heap_t *heap, func_t *func, env_t **display)
+{
+	void *mem = heap_alloc(heap, sizeof(closure_t)+sizeof(env_t*)*func->depth);
+	closure_t *closure = mem;
+	closure->hdr.type = &closure_type;
+	closure->func = func;
+	closure->display = mem + sizeof(closure_t);
+	memcpy(closure->display, display, sizeof(env_t*)*func->depth);
+
+	return make_ptr(mem, id_ptr);
+}
+
 func_t* load_func(module_t *module, int index)
 {
 	if (index > module->fun_count)
@@ -154,13 +170,26 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				void *args;
 				fp.obj = STACK_POP();
 dispatch_func:
-				if (fp.tag != id_func)
-					FATAL("expected function but got tag %d\n", fp.tag);
-				ptr = PTR_GET(fp);
+				if (fp.tag != id_func && fp.tag != id_ptr)
+					FATAL("expected function or closure but got tag %d\n", fp.tag);
+
+				if (fp.tag == id_ptr) {
+					closure_t *closure = get_typed(fp.obj, &closure_type);
+					if (!closure)
+						FATAL("got pointer but it isn't a closure\n");
+
+					memcpy(&thread->display[-closure->func->depth], closure->display,
+							sizeof(env_t*)*closure->func->depth);
+					ptr = closure->func;
+					goto call_inter;
+				} else {
+					ptr = PTR_GET(fp);
+				}
 
 				switch (*((func_type_t*)ptr)) {
 					case func_inter: 
 						{
+call_inter:
 							if (func != ptr)
 								thread->display[-1-func->depth] = thread->env;
 
@@ -238,6 +267,13 @@ dispatch_func:
 			TARGET(SET_IN_ENV) {
 				env_t *env = STACK_POP().ptr;
 				env->objects[op_arg] = STACK_POP();
+			}
+			NEXT();
+
+			TARGET(LOAD_CLOSURE) {
+				func_t *nf = load_func(func->module, op_arg);
+				STACK_PUSH(closure_new(&thread->heap,
+							nf, &thread->display[-nf->depth]));
 			}
 			NEXT();
 		}

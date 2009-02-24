@@ -3,6 +3,7 @@
 
 static const void* opcode_targets[] = {
 	&&TARGET_LOAD_FUNC,
+	&&TARGET_LOAD_CLOSURE,
 	&&TARGET_LOAD_LOCAL,
 	&&TARGET_LOAD_SYM,
 	&&TARGET_LOAD_IMPORT,

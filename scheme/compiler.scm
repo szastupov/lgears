@@ -20,7 +20,9 @@
 (define-record-type env
   (fields parent
     tbl (mutable size)
-    argc (mutable heap) depth)
+    argc depth
+    (mutable onheap)
+    (mutable use-parent))
   (protocol
     (lambda (new)
       (lambda (prev args)
@@ -28,7 +30,7 @@
                (nargc (set-func-args! ntbl args))
                (ndepth (if (null? prev) 0
                          (+ 1(env-depth prev)))))
-          (new prev ntbl nargc nargc #f ndepth))))))
+          (new prev ntbl nargc nargc ndepth #f #f))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
@@ -40,7 +42,7 @@
     code
     (env-size env)
     (env-argc env)
-    (env-heap env)
+    (env-onheap env)
     (env-depth env)))
 
 (define (env-lookup env name)
@@ -53,7 +55,8 @@
           (if (zero? step)
             `(LOCAL . ,res)
             (begin
-              (env-heap-set! cur-env #t)
+              (env-onheap-set! cur-env #t)
+              (env-use-parent-set! env #t)
               `(PARENT ,step ,res)))
           (loop (+ step 1) (env-parent cur-env)))))))
 
@@ -132,8 +135,11 @@
 
     (define (compile-func parent args body)
       (let* ((env (make-env parent args))
-             (compiled (compile-body env body)))
-        `((LOAD_FUNC
+             (compiled (compile-body env body))
+             (cmd (if (env-use-parent env)
+                    'LOAD_CLOSURE
+                    'LOAD_FUNC)))
+        `((,cmd
             ,(store-push! code-store
                           (make-func compiled env))
             1))))
@@ -154,10 +160,10 @@
 
     (define (compile-call env node)
       (let* ((func (compile env (car node)))
+             (argc (length (cdr node)))
              (args (map-append (lambda (x)
-                                  (compile env x))
-                               (cdr node)))
-             (argc (length (cdr node))))
+                                 (compile env x))
+                      (cdr node))))
         `(,@args ,@func
            (FUNC_CALL ,argc ,(- argc)))))
 
@@ -206,6 +212,7 @@
 
 (let ((res (start-compile
              (cps-convert '( 
+                            ; #|
                             (define lst (cons 'a (cons 'b 'c)))
                             (define (cadr x)
                               (car (cdr x)))
@@ -214,11 +221,15 @@
                             (display (car lst))
                             (display (cadr lst))
                             (display (cddr lst))
-;                            (define (foo n)
-;                              (lambda (x)
-;                                (cons x n)))
-;                            (define fun (foo 'bar))
-;                            (display fun)
+                            ;|#
+
+                            #|
+                            (define (foo n)
+                              (lambda (x)
+                                (cons x n)))
+                            (define fun (foo 'bar))
+                            (display (fun 'bla))
+                            |#
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

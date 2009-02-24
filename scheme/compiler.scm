@@ -54,7 +54,7 @@
     (env-argc env)
     (env-onheap env)
     (env-depth env)
-    (env-bindings env)))
+    (reverse (env-bindings env))))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -220,7 +220,7 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                             ;#|
+                            ; #|
                             (define lst (cons 'a (cons 'b 'c)))
                             (define (cadr x)
                               (car (cdr x)))
@@ -236,7 +236,7 @@
                               (lambda (x)
                                 (cons x n)))
                             (define fun (foo 'bar))
-                            (display (fun 'bla))
+                            (display fun)
                             |#
                             )))))
   (print-ilr res)

@@ -82,31 +82,27 @@ void* closure_new(heap_t *heap, func_t *func, env_t **display)
 	return make_ptr(mem, id_ptr);
 }
 
-func_t* load_func(module_t *module, int index)
-{
-	if (index > module->fun_count)
-		FATAL("index %d out of range\n", index);
-	return &module->functions[index];
-}
-
 void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
 	func_t *func;
 	int i;
 
-	func = load_func(module, module->entry_point);
+#define MODULE_FUNC(module, idx) &(module)->functions[idx]
+
+	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
-		thread->display[-1] = thread->env;
+		//thread->display[-1] = thread->env;
 	} else {
 		thread->env = NULL;
 		thread->objects = thread->opstack;
 		thread->op_stack_idx = func->env_size;
 	}
+	printf("Zero env %p\n", thread->env);
 
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
@@ -167,7 +163,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(LOAD_FUNC) 
-				STACK_PUSH(make_ptr(load_func(func->module, op_arg), id_func));
+				STACK_PUSH(make_ptr(MODULE_FUNC(func->module, op_arg), id_func));
 			NEXT();
 
 			TARGET(FUNC_CALL) {
@@ -219,7 +215,9 @@ call_inter:
 								thread->bindings = (void*)&thread->opstack[thread->op_stack_idx];
 								for (i = 0; i < func->bcount; i++) {
 									bind_t *bind = &func->bindings[i];
-									STACK_PUSH(thread->display[-(func->depth-bind->up)-1]);
+									env_t *env = thread->display[-(func->depth-bind->up)-1];
+									STACK_PUSH(env);
+									printf("added binding %p\n", env);
 								}
 							}
 						}
@@ -239,6 +237,7 @@ call_inter:
 									FATAL("try to pass %d args when %d requred by %s\n", op_arg, func->argc, func->name);
 							}
 
+							printf("calling native %s\n", func->name);
 							args = &thread->opstack[thread->op_stack_idx - op_arg];
 							switch (func->call(&thread->heap, &tramp, args, op_arg)) {
 								case RC_EXIT:
@@ -272,11 +271,14 @@ call_inter:
 			NEXT();
 
 			TARGET(LOAD_BIND)
-				STACK_PUSH(thread->bindings[op_arg]->objects[func->bindings[op_arg].idx].ptr);
+			{
+				env_t *env = thread->bindings[op_arg];
+				STACK_PUSH(env->objects[func->bindings[op_arg].idx].ptr);
+			}
 			NEXT();
 
 			TARGET(LOAD_CLOSURE) {
-				func_t *nf = load_func(func->module, op_arg);
+				func_t *nf = MODULE_FUNC(func->module, op_arg);
 				STACK_PUSH(closure_new(&thread->heap,
 							nf, &thread->display[-nf->depth]));
 			}
@@ -405,8 +407,11 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 void module_free(module_t *module)
 {
 	int i;
-	for (i = 0; i < module->fun_count; i++)
+	for (i = 0; i < module->fun_count; i++) {
 		mem_free(module->functions[i].opcode);
+		if (module->functions[i].bindings)
+			mem_free(module->functions[i].bindings);
+	}
 	mem_free(module->functions);
 	mem_free(module->symbols);
 	mem_free(module->imports);

@@ -22,6 +22,11 @@
                 (display (format "~a\n" (i-func-code x))))
               (ilr-code res)))
 
+  (define (write-func-hdr mem . args)
+    (fold-left (lambda (offset x)
+                 (bytevector-u8-set! mem offset x)
+                 (+ 1 offset))
+               0 args))
 
   (define (assemble-code func)
     (define funhdr-size 8)
@@ -60,14 +65,15 @@
                          nuse
                          (max nuse stack-size)
                          (+ offset 2)))))))
-      (bytevector-u8-set! mem 0 (i-func-size func)) ; env size 
-      (bytevector-u8-set! mem 1 (i-func-argc func)) ; argc
-      (bytevector-u8-set! mem 2 res-size) ; stack size
-      (bytevector-u8-set! mem 3 (length code)) ; op count
-      (bytevector-u8-set! mem 4 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
-      (bytevector-u8-set! mem 5 (i-func-depth func)) ; function depth
-      (bytevector-u8-set! mem 6 bcount) ; count of bidings
-      (bytevector-u8-set! mem 7 bmcount) ; size of bindmap
+      (write-func-hdr mem
+                      (i-func-size func)    ; env size
+                      (i-func-argc func)    ; argc
+                      res-size              ; stack size
+                      (length code)         ; op count
+                      (if (i-func-heap? func) 1 0)  ; allocate env on heap?
+                      (i-func-depth func)   ; depth
+                      bcount                ; count of bindings
+                      bmcount)              ; size of bindmap
       mem))
 
 

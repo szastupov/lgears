@@ -30,9 +30,11 @@ typedef struct {
 	int op_count;
 	short heap_env;
 	int depth;
-	int bcount;
 	char *opcode;
 	bind_t *bindings;
+	int bcount;
+	int *bindmap;
+	int bmcount;
 	module_t *module;
 } func_t;
 
@@ -69,7 +71,7 @@ typedef struct {
 	obj_t *objects;	
 	env_t *env;
 	env_t **display;
-	env_t **bindings;
+	env_t **bindmap;
 	func_t *func;
 } vm_thread_t;
 
@@ -81,6 +83,7 @@ struct func_hdr_s {
 	uint8_t heap_env;
 	uint8_t depth;
 	uint8_t bcount;
+	uint8_t bmcount;
 } __attribute__((__packed__));
 
 struct module_hdr_s {

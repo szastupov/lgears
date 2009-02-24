@@ -76,7 +76,9 @@ void* closure_new(heap_t *heap, func_t *func, env_t **display)
 	int i;
 	for (i = 0; i < func->bcount; i++) {
 		bind_t *bind = &func->bindings[i];
-		closure->bindings[i] = display[bind->up-1];
+		env_t *env = display[-(func->depth-bind->up)-1];
+		closure->bindings[i] = env;
+		printf("added binding %p\n", env);
 	}
 
 	return make_ptr(mem, id_ptr);
@@ -181,7 +183,7 @@ dispatch_func:
 						FATAL("got pointer but it isn't a closure\n");
 
 					ptr = closure->func;
-					thread->bindings = closure->bindings;
+					thread->bindmap = closure->bindings;
 					goto call_inter;
 				} else {
 					ptr = PTR_GET(fp);
@@ -212,10 +214,9 @@ call_inter:
 							}
 
 							if (func->bcount && fp.tag != id_ptr) {
-								thread->bindings = (void*)&thread->opstack[thread->op_stack_idx];
-								for (i = 0; i < func->bcount; i++) {
-									bind_t *bind = &func->bindings[i];
-									env_t *env = thread->display[-(func->depth-bind->up)-1];
+								thread->bindmap = (void*)&thread->opstack[thread->op_stack_idx];
+								for (i = 0; i < func->bmcount; i++) {
+									env_t *env = thread->display[-(func->depth-func->bindmap[i])-1];
 									STACK_PUSH(env);
 									printf("added binding %p\n", env);
 								}
@@ -242,6 +243,7 @@ call_inter:
 							switch (func->call(&thread->heap, &tramp, args, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
+									heap_stat(&thread->heap);
 									return;
 								case RC_ERROR:
 								case RC_OK:
@@ -267,20 +269,24 @@ call_inter:
 			NEXT();
 
 			TARGET(SET_BIND)
-				thread->bindings[op_arg]->objects[func->bindings[op_arg].idx] = STACK_POP();
+			{
+				bind_t *bind = &func->bindings[op_arg];
+				thread->bindmap[bind->up]->objects[bind->idx] = STACK_POP();
+			}
 			NEXT();
 
 			TARGET(LOAD_BIND)
 			{
-				env_t *env = thread->bindings[op_arg];
-				STACK_PUSH(env->objects[func->bindings[op_arg].idx].ptr);
+				bind_t *bind = &func->bindings[op_arg];
+				env_t *env = thread->bindmap[bind->up];
+				STACK_PUSH(env->objects[bind->idx].ptr);
 			}
 			NEXT();
 
 			TARGET(LOAD_CLOSURE) {
 				func_t *nf = MODULE_FUNC(func->module, op_arg);
 				STACK_PUSH(closure_new(&thread->heap,
-							nf, &thread->display[-nf->depth]));
+							nf, thread->display));
 			}
 			NEXT();
 		}
@@ -374,16 +380,29 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		func->heap_env = hdr.heap_env;
 		func->depth = hdr.depth;
 		func->bcount = hdr.bcount;
+		func->bmcount = hdr.bmcount;
 
 		if (hdr.bcount) {
+			int i;
+			char *cur;
+
 			int bind_size = hdr.bcount * 2;
-			char* bindings = mem_alloc(bind_size);
+			char *bindings = mem_alloc(bind_size);
 			func->bindings = mem_calloc(hdr.bcount, sizeof(bind_t));
 			if (read(fd, bindings, bind_size) != bind_size)
 				FATAL("Failet to read bindings");
 
-			char *cur = bindings;
-			int i;
+			char *bindmap = mem_alloc(hdr.bmcount);
+			if (read(fd, bindmap, hdr.bmcount) != hdr.bmcount)
+				FATAL("Failed to read bindmap");
+			func->bindmap = mem_calloc(hdr.bmcount, sizeof(int));
+			cur = bindmap;
+			for (i = 0; i < hdr.bmcount; i++) {
+				func->bindmap[i] = *(cur++);
+			}
+			mem_free(bindmap);
+
+			cur = bindings;
 			for (i = 0; i < hdr.bcount; i++) {
 				func->bindings[i].up = *(cur++);
 				func->bindings[i].idx = *(cur++);
@@ -411,6 +430,8 @@ void module_free(module_t *module)
 		mem_free(module->functions[i].opcode);
 		if (module->functions[i].bindings)
 			mem_free(module->functions[i].bindings);
+		if (module->functions[i].bindmap)
+			mem_free(module->functions[i].bindmap);
 	}
 	mem_free(module->functions);
 	mem_free(module->symbols);

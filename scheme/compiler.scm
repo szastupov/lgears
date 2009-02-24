@@ -22,7 +22,8 @@
     tbl (mutable size)
     argc depth
     (mutable onheap)
-    (mutable bindings))
+    (mutable bindings)
+    (mutable bindmap))
   (protocol
     (lambda (new)
       (lambda (prev args)
@@ -30,7 +31,7 @@
                (nargc (set-func-args! ntbl args))
                (ndepth (if (null? prev) 0
                          (+ 1(env-depth prev)))))
-          (new prev ntbl nargc nargc ndepth #f '()))))))
+          (new prev ntbl nargc nargc ndepth #f '() '()))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
@@ -38,14 +39,24 @@
     (env-size-set! env (+ size 1))))
 
 (define (env-bind env up idx)
-  (let* ((key (cons up idx))
-        (lst (env-bindings env))
-        (found (member key lst)))
-    (if found
-      (- (length found) 1)
-      (let ((newlst (cons key lst)))
-        (env-bindings-set! env newlst)
-        (- (length newlst) 1)))))
+  (define (set-binding! midx)
+    (let* ((bindings (env-bindings env))
+           (nmidx (- midx 1))
+           (key (cons nmidx idx))
+           (found (member key bindings)))
+      (if found
+        (- (length found) 1)
+        (let ((newbind (cons key bindings)))
+          (env-bindings-set! env newbind)
+          (- (length newbind) 1)))))
+
+  (let* ((bindmap (env-bindmap env))
+         (inmap (memv up bindmap)))
+    (if inmap
+      (set-binding! (length inmap))
+      (let ((nb (cons up bindmap)))
+        (env-bindmap-set! env nb)
+        (set-binding! (length nb))))))
 
 (define (make-func code env)
   (make-i-func
@@ -54,7 +65,8 @@
     (env-argc env)
     (env-onheap env)
     (env-depth env)
-    (reverse (env-bindings env))))
+    (reverse (env-bindings env))
+    (reverse (env-bindmap env))))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -220,7 +232,7 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                            ; #|
+                            ;#|
                             (define lst (cons 'a (cons 'b 'c)))
                             (define (cadr x)
                               (car (cdr x)))

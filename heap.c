@@ -189,3 +189,8 @@ void heap_destroy(heap_t *heap)
 {
 	munmap(heap->page, heap->page_size);
 }
+
+void heap_stat(heap_t *heap)
+{
+	printf("mem used %d\n", heap->from->size - heap->from->free_mem);
+}

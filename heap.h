@@ -76,4 +76,6 @@ void heap_destroy(heap_t *heap);
 void* heap_alloc(heap_t *heap, int size);
 void* heap_alloc0(heap_t *heap, int size);
 
+void heap_stat(heap_t *heap);
+
 #endif /* HEAP_H */

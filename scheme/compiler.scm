@@ -22,7 +22,7 @@
     tbl (mutable size)
     argc depth
     (mutable onheap)
-    (mutable use-parent))
+    (mutable bindings))
   (protocol
     (lambda (new)
       (lambda (prev args)
@@ -30,12 +30,22 @@
                (nargc (set-func-args! ntbl args))
                (ndepth (if (null? prev) 0
                          (+ 1(env-depth prev)))))
-          (new prev ntbl nargc nargc ndepth #f #f))))))
+          (new prev ntbl nargc nargc ndepth #f '()))))))
 
 (define (env-define env name)
   (let ((size (env-size env)))
     (hashtable-set! (env-tbl env) name size)
     (env-size-set! env (+ size 1))))
+
+(define (env-bind env up idx)
+  (let* ((key (cons up idx))
+        (lst (env-bindings env))
+        (found (member key lst)))
+    (if found
+      (- (length found) 1)
+      (let ((newlst (cons key lst)))
+        (env-bindings-set! env newlst)
+        (- (length newlst) 1)))))
 
 (define (make-func code env)
   (make-i-func
@@ -43,7 +53,8 @@
     (env-size env)
     (env-argc env)
     (env-onheap env)
-    (env-depth env)))
+    (env-depth env)
+    (env-bindings env)))
 
 (define (env-lookup env name)
   (let loop ((step 0)
@@ -56,8 +67,7 @@
             `(LOCAL . ,res)
             (begin
               (env-onheap-set! cur-env #t)
-              (env-use-parent-set! env #t)
-              `(PARENT ,step ,res)))
+              `(BINDING . ,(env-bind env step res))))
           (loop (+ step 1) (env-parent cur-env)))))))
 
 (define (env-idx env name)
@@ -136,10 +146,10 @@
     (define (compile-func parent args body)
       (let* ((env (make-env parent args))
              (compiled (compile-body env body))
-             (cmd (if (env-use-parent env)
-                    'LOAD_CLOSURE
-                    'LOAD_FUNC)))
-        `((,cmd
+             (cmd (if (null? (env-bindings env))
+                    'LOAD_FUNC
+                    'LOAD_CLOSURE)))
+        `((LOAD_FUNC ;,cmd
             ,(store-push! code-store
                           (make-func compiled env))
             1))))
@@ -175,8 +185,7 @@
           `(,@(compile env (cadr node))
              ,@(if (eq? (car slot) 'LOCAL)
                  `((SET_LOCAL ,(cdr slot), -1))
-                 `((LOAD_ENV ,(cadr slot) 1)
-                   (SET_IN_ENV ,(caddr slot) 0)))))))
+                 `((SET_BIND ,(cdr slot) -1)))))))
 
     (define (compile env node)
       (cond ((pair? node)
@@ -200,8 +209,7 @@
                 (if res
                   (if (eq? (car res) 'LOCAL)
                     `((LOAD_LOCAL ,(cdr res) 1))
-                    `((LOAD_ENV ,(cadr res) 1)
-                      (LOAD_FROM_ENV ,(caddr res) 0)))
+                    `((LOAD_BIND ,(cdr res) 1)))
                   `((LOAD_IMPORT ,(sym-table-insert undefs node) 1)))))))
 
     (let ((entry-point (compile-func '() '() root)))
@@ -212,7 +220,7 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                            ; #|
+                             ;#|
                             (define lst (cons 'a (cons 'b 'c)))
                             (define (cadr x)
                               (car (cdr x)))

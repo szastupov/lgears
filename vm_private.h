@@ -17,6 +17,10 @@
 #ifndef VM_PRIVATE_H
 #define VM_PRIVATE_H 
 
+typedef struct {
+	short up, idx;
+} bind_t;
+
 typedef struct module_s module_t;
 typedef struct {
 	func_type_t type;
@@ -26,7 +30,9 @@ typedef struct {
 	int op_count;
 	short heap_env;
 	int depth;
+	int bcount;
 	char *opcode;
+	bind_t *bindings;
 	module_t *module;
 } func_t;
 
@@ -47,7 +53,7 @@ typedef struct {
 
 typedef struct {
 	hobj_hdr_t hdr;
-	env_t **display;
+	env_t **bindings;
 	func_t *func;
 } closure_t;
 
@@ -63,6 +69,7 @@ typedef struct {
 	obj_t *objects;	
 	env_t *env;
 	env_t **display;
+	env_t **bindings;
 	func_t *func;
 } vm_thread_t;
 
@@ -73,6 +80,7 @@ struct func_hdr_s {
 	uint8_t op_count;
 	uint8_t heap_env;
 	uint8_t depth;
+	uint8_t bcount;
 } __attribute__((__packed__));
 
 struct module_hdr_s {

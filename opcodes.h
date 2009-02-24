@@ -6,16 +6,15 @@
 #define LOAD_FUNC	0	/* Load function local to module */
 #define LOAD_CLOSURE	1	/* Make closure object */
 #define LOAD_LOCAL	2	/* Load object from frame-local area */
-#define LOAD_SYM	3	/* Load predefined symbol local to module */
-#define LOAD_IMPORT	4	/* Load object from module import table */
-#define JUMP_IF_FALSE	5	/* Jump if false */
-#define JUMP_IF_TRUE	6	/* Jump if true */
-#define JUMP_FORWARD	7	/* Jump forward */
-#define FUNC_CALL	8	/* Call function */
-#define SET_LOCAL	9	/* Assign new value to local binding */
-#define SET_IN_ENV	10	/* Assing new value to evn binding */
-#define LOAD_ENV	11	/* Load env from display */
-#define LOAD_FROM_ENV	12	/* Load object from env */
+#define LOAD_BIND	3	/* Load object form binding */
+#define LOAD_SYM	4	/* Load predefined symbol local to module */
+#define LOAD_IMPORT	5	/* Load object from module import table */
+#define JUMP_IF_FALSE	6	/* Jump if false */
+#define JUMP_IF_TRUE	7	/* Jump if true */
+#define JUMP_FORWARD	8	/* Jump forward */
+#define FUNC_CALL	9	/* Call function */
+#define SET_LOCAL	10	/* Assign new value to local binding */
+#define SET_BIND	11	/* Asign new value to non-local binding */
 
 #define OP_CASE(code) case code: return #code
 
@@ -25,6 +24,7 @@ const char* opcode_name(int code)
 		OP_CASE(LOAD_FUNC);
 		OP_CASE(LOAD_CLOSURE);
 		OP_CASE(LOAD_LOCAL);
+		OP_CASE(LOAD_BIND);
 		OP_CASE(LOAD_SYM);
 		OP_CASE(LOAD_IMPORT);
 		OP_CASE(JUMP_IF_FALSE);
@@ -32,9 +32,7 @@ const char* opcode_name(int code)
 		OP_CASE(JUMP_FORWARD);
 		OP_CASE(FUNC_CALL);
 		OP_CASE(SET_LOCAL);
-		OP_CASE(SET_IN_ENV);
-		OP_CASE(LOAD_ENV);
-		OP_CASE(LOAD_FROM_ENV);
+		OP_CASE(SET_BIND);
 	}
 	return "unknown";
 }

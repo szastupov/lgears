@@ -9,6 +9,7 @@
   (define oplist '((LOAD_FUNC . "Load function local to module")
                    (LOAD_CLOSURE . "Make closure object")
                    (LOAD_LOCAL . "Load object from frame-local area")
+                   (LOAD_BIND . "Load object form binding")
                    (LOAD_SYM . "Load predefined symbol local to module")
                    (LOAD_IMPORT . "Load object from module import table")
                    (JUMP_IF_FALSE . "Jump if false")
@@ -16,9 +17,7 @@
                    (JUMP_FORWARD . "Jump forward")
                    (FUNC_CALL . "Call function")
                    (SET_LOCAL . "Assign new value to local binding")
-                   (SET_IN_ENV . "Assing new value to evn binding")
-                   (LOAD_ENV . "Load env from display")
-                   (LOAD_FROM_ENV . "Load object from env")))
+                   (SET_BIND . "Asign new value to non-local binding")))
 
   (define (oplist-for-each func)
     (fold-left (lambda (idx op)

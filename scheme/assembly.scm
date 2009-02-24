@@ -9,7 +9,7 @@
     (fields imports symbols code entry-point))
 
   (define-record-type i-func
-    (fields code size argc heap? depth))
+    (fields code size argc heap? depth bindings))
 
   (define (print-ilr res)
     (display "ILR: \n")
@@ -21,18 +21,26 @@
                 (display (format "~a\n" (i-func-code x))))
               (ilr-code res)))
 
-  (define funhdr-size 6)
 
   (define (assemble-code func)
+    (define funhdr-size 7)
     (display "Assembling " ) (display func) (newline)
     (let* ((code (i-func-code func))
+           (bcount (length (i-func-bindings func)))
            (mem (make-bytevector (+ funhdr-size
-                                    (* 2 (length code)))))
+                                    (* 2 (length code))
+                                    (* 2 bcount))))
+           (code-offset
+             (fold-left (lambda (offset bind)
+                          (bytevector-u8-set! mem offset (car bind))
+                          (bytevector-u8-set! mem (+ 1 offset) (cdr bind))
+                          (+ offset 2))
+                        funhdr-size (i-func-bindings func)))
            (res-size
              (let loop ((cur code)
                         (stack-use 0)
                         (stack-size 0)
-                        (offset funhdr-size))
+                        (offset code-offset))
                (if (null? cur)
                  stack-size
                  (let* ((cmd (car cur))
@@ -50,6 +58,7 @@
       (bytevector-u8-set! mem 3 (length code)) ; op count
       (bytevector-u8-set! mem 4 (if (i-func-heap? func) 1 0)) ; allocate env on heap?
       (bytevector-u8-set! mem 5 (i-func-depth func)) ; function depth
+      (bytevector-u8-set! mem 6 bcount) ; count of bidings
       mem))
 
 

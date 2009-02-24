@@ -5,6 +5,7 @@ static const void* opcode_targets[] = {
 	&&TARGET_LOAD_FUNC,
 	&&TARGET_LOAD_CLOSURE,
 	&&TARGET_LOAD_LOCAL,
+	&&TARGET_LOAD_BIND,
 	&&TARGET_LOAD_SYM,
 	&&TARGET_LOAD_IMPORT,
 	&&TARGET_JUMP_IF_FALSE,
@@ -12,9 +13,7 @@ static const void* opcode_targets[] = {
 	&&TARGET_JUMP_FORWARD,
 	&&TARGET_FUNC_CALL,
 	&&TARGET_SET_LOCAL,
-	&&TARGET_SET_IN_ENV,
-	&&TARGET_LOAD_ENV,
-	&&TARGET_LOAD_FROM_ENV,
+	&&TARGET_SET_BIND,
 };
 
 #endif

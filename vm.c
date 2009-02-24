@@ -67,12 +67,17 @@ const type_t closure_type = {
 
 void* closure_new(heap_t *heap, func_t *func, env_t **display)
 {
-	void *mem = heap_alloc(heap, sizeof(closure_t)+sizeof(env_t*)*func->depth);
+	void *mem = heap_alloc(heap, sizeof(closure_t)+sizeof(env_t*)*func->bcount);
 	closure_t *closure = mem;
 	closure->hdr.type = &closure_type;
 	closure->func = func;
-	closure->display = mem + sizeof(closure_t);
-	memcpy(closure->display, display, sizeof(env_t*)*func->depth);
+	closure->bindings = mem + sizeof(closure_t);
+
+	int i;
+	for (i = 0; i < func->bcount; i++) {
+		bind_t *bind = &func->bindings[i];
+		closure->bindings[i] = display[bind->up-1];
+	}
 
 	return make_ptr(mem, id_ptr);
 }
@@ -88,6 +93,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
 	func_t *func;
+	int i;
 
 	func = load_func(module, module->entry_point);
 	thread->func = func;
@@ -178,9 +184,8 @@ dispatch_func:
 					if (!closure)
 						FATAL("got pointer but it isn't a closure\n");
 
-					memcpy(&thread->display[-closure->func->depth], closure->display,
-							sizeof(env_t*)*closure->func->depth);
 					ptr = closure->func;
+					thread->bindings = closure->bindings;
 					goto call_inter;
 				} else {
 					ptr = PTR_GET(fp);
@@ -208,6 +213,14 @@ call_inter:
 							} else {
 								thread->env = NULL;
 								thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
+							}
+
+							if (func->bcount && fp.tag != id_ptr) {
+								thread->bindings = (void*)&thread->opstack[thread->op_stack_idx];
+								for (i = 0; i < func->bcount; i++) {
+									bind_t *bind = &func->bindings[i];
+									STACK_PUSH(thread->display[-(func->depth-bind->up)-1]);
+								}
 							}
 						}
 						NEXT();
@@ -254,20 +267,12 @@ call_inter:
 				thread->objects[op_arg] = STACK_POP();
 			NEXT();
 
-			TARGET(LOAD_ENV)
-				STACK_PUSH(thread->display[-func->depth+op_arg-1]);
+			TARGET(SET_BIND)
+				thread->bindings[op_arg]->objects[func->bindings[op_arg].idx] = STACK_POP();
 			NEXT();
 
-			TARGET(LOAD_FROM_ENV) {
-				env_t *env = STACK_POP().ptr;
-				STACK_PUSH(env->objects[op_arg].ptr);
-			}
-			NEXT();
-
-			TARGET(SET_IN_ENV) {
-				env_t *env = STACK_POP().ptr;
-				env->objects[op_arg] = STACK_POP();
-			}
+			TARGET(LOAD_BIND)
+				STACK_PUSH(thread->bindings[op_arg]->objects[func->bindings[op_arg].idx].ptr);
 			NEXT();
 
 			TARGET(LOAD_CLOSURE) {
@@ -366,6 +371,25 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		func->op_count = hdr.op_count;
 		func->heap_env = hdr.heap_env;
 		func->depth = hdr.depth;
+		func->bcount = hdr.bcount;
+
+		if (hdr.bcount) {
+			int bind_size = hdr.bcount * 2;
+			char* bindings = mem_alloc(bind_size);
+			func->bindings = mem_calloc(hdr.bcount, sizeof(bind_t));
+			if (read(fd, bindings, bind_size) != bind_size)
+				FATAL("Failet to read bindings");
+
+			char *cur = bindings;
+			int i;
+			for (i = 0; i < hdr.bcount; i++) {
+				func->bindings[i].up = *(cur++);
+				func->bindings[i].idx = *(cur++);
+			}
+
+			mem_free(bindings);
+		} else
+			func->bindings = NULL;
 
 		int opcode_size = hdr.op_count * 2;
 		func->opcode = mem_alloc(opcode_size);

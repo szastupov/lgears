@@ -104,7 +104,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 		thread->objects = thread->opstack;
 		thread->op_stack_idx = func->env_size;
 	}
-	printf("Zero env %p\n", thread->env);
 
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
@@ -123,12 +122,12 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	TARGET_##op: \
 	op_code = *(opcode++); \
 	op_arg = *(opcode++); \
-	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
+	DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op:\
-	printf("\t%s : %d\n", opcode_name(op_code), op_arg);
+	DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() continue
 #define DISPATCH() \
 	op_code = *(opcode++); \
@@ -240,9 +239,11 @@ call_inter:
 									FATAL("try to pass %d args when %d requred by %s\n", op_arg, func->argc, func->name);
 							}
 
-							printf("calling native %s\n", func->name);
-							args = &thread->opstack[thread->op_stack_idx - op_arg];
-							switch (func->call(&thread->heap, &tramp, args, op_arg)) {
+							DBG("calling native %s\n", func->name);
+							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
+							tramp.argc = 1;
+							tramp.func.obj = argv[0];
+							switch (func->call(&thread->heap, &tramp, argv, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
 									heap_stat(&thread->heap);
@@ -296,17 +297,22 @@ call_inter:
 			}
 			NEXT();
 
-			TARGET(LOAD_BOOL) {
+			TARGET(PUSH_BOOL) {
 				bool_t b;
 				BOOL_INIT(b, op_arg);
 				STACK_PUSH(b.ptr);
 			}
 			NEXT();
 
-			TARGET(LOAD_FIXNUM) {
+			TARGET(PUSH_FIXNUM) {
 				fixnum_t n;
 				FIXNUM_INIT(n, op_arg);
 				STACK_PUSH(n.ptr);
+			}
+			NEXT();
+
+			TARGET(LOAD_CONST) {
+				STACK_PUSH(const_null.ptr);
 			}
 			NEXT();
 		}

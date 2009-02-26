@@ -48,7 +48,7 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 {
 	size_t minimal = size+BHDR_SIZE;
 	if (minimal > heap->free_mem) {
-		printf("out of free mem on heap (need %ld)\n", minimal);
+		DBG("out of free mem on heap (need %ld)\n", minimal);
 		return NULL;
 	}
 
@@ -73,7 +73,7 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 	heap->pos += hdr->size;
 	heap->blocks++;
 
-	printf("allocated %d bytes\n", hdr->size);
+	DBG("allocated %d bytes\n", hdr->size);
 
 	return res;
 }
@@ -102,7 +102,7 @@ void* heap_alloc(heap_t *heap, int size)
 {
 	void *res = copy_heap_alloc(heap->from, size);
 	if (!res) {
-		printf("!!!Starting garbage collection, DON'T PANIC!!!!\n");
+		DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
 		heap->vm_inspect(&heap->visitor, heap->vm);
 		heap_swap(heap);
 		res = copy_heap_alloc(heap->from, size);
@@ -136,7 +136,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * Use forward pointer if object already moved
 	 */
 	if (hdr->forward) {
-		printf("Forwarding to %p\n", hdr->forward);
+		DBG("Forwarding to %p\n", hdr->forward);
 		PTR_SET(ptr, hdr->forward);
 		obj->ptr = ptr.ptr;
 		return;
@@ -192,5 +192,5 @@ void heap_destroy(heap_t *heap)
 
 void heap_stat(heap_t *heap)
 {
-	printf("mem used %d\n", heap->from->size - heap->from->free_mem);
+	DBG("mem used %d\n", heap->from->size - heap->from->free_mem);
 }

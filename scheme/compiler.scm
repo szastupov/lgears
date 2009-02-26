@@ -207,17 +207,19 @@
                ((if)
                 (compile-if env (cdr node)))
                ((quote)
-                `((LOAD_SYM ,(sym-table-insert symbols (cadr node)) 1)))
+                (if (null? (cadr node))
+                  `((LOAD_CONST 0 1))
+                  `((LOAD_SYM ,(sym-table-insert symbols (cadr node)) 1))))
                ((set!)
                 (compile-assigment env (cdr node)))
                (else
                  (compile-call env node))))
             ((number? node)
-             `((LOAD_FIXNUM ,node 1)))
+             `((PUSH_FIXNUM ,node 1)))
             ((string? node)
              (cons 'STRING node))
             ((boolean? node)
-             `((LOAD_BOOL ,(if node 1 0) 1)))
+             `((PUSH_BOOL ,(if node 1 0) 1)))
             (else
               (let ((res (env-lookup env node)))
                 (if res
@@ -234,16 +236,24 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                            #|
-                            (define lst (cons 'a (cons 'b 'c)))
+                             #|
                             (define (cadr x)
                               (car (cdr x)))
                             (define (cddr x)
                               (cdr (cdr x)))
-                            (display (car lst))
-                            (display (cadr lst))
-                            (display (cddr lst))
+                            (define (caddr x)
+                              (car (cddr x)))
+
+                            (define (not x)
+                              (if x #f #t))
+
+                            (define (for-each func lst)
+                              (if (not (null? lst))
+                                (begin
+                                  (func (car lst))
+                                  (for-each func (cdr lst)))))
                             |#
+
 
                             #|
                             (display 'start)
@@ -259,11 +269,6 @@
                                 a
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 10 1))
-
-                            #|
-                            (define (not x)
-                              (if x #f #t))
-                            |#
 
                             #|
                             (define (foo n)

@@ -41,6 +41,8 @@
 	abort();							\
 }
 
+#define DBG(msg...) fprintf(stderr, msg);
+
 static inline void* _mem_alloc(const char *file, int line,
 		const char *func, size_t size)
 {

@@ -33,7 +33,7 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 			int len = *(str++);
 			void *sym = make_symbol(&thread->sym_table, str);
 			mod->symbols[i].ptr = sym;
-			printf("Created symbol for '%s' = %p\n", str, sym);
+			DBG("Created symbol for '%s' = %p\n", str, sym);
 			str += len+1;
 		}
 	}

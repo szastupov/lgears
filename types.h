@@ -49,7 +49,12 @@ enum {
 	id_bool,	/**< Boolean */
 	id_func,	/**< Function pointer */
 	id_symbol,	/**< Symbol pointer */
-	id_cont		/**< Continuation */
+	id_cont,	/**< Continuation */
+	id_const
+};
+
+static const obj_t const_null = {
+	.tag = id_const,
 };
 
 #define DEFINE_TYPE(name, members...) \
@@ -165,5 +170,7 @@ static inline void* get_typed(obj_t obj, const type_t *type)
 	}
 	return res;
 }
+
+#define TYPE_NAME(ptr) ((hobj_hdr_t*)ptr)->type->name
 
 #endif /* TYPES_H */

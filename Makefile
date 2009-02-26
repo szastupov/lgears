@@ -1,5 +1,5 @@
-CFLAGS += -Wall -ggdb -DCOMPUTED_GOTO #-pg
-#LDFLAGS += -pg
+CFLAGS += -Wall -ggdb -DCOMPUTED_GOTO -pg
+LDFLAGS += -pg
 
 vm_obj = vm.o heap.o primitives.o hash.o module.o
 targets = vm

@@ -34,20 +34,48 @@ const type_t pair_type = {
 	.visit = pair_visit
 };
 
-static int cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
-	pair->car = argv[1];
-	pair->cdr = argv[2];
+	pair->car = car;
+	pair->cdr = cdr;
 	pair->hdr.type = &pair_type;
 
-	tramp->arg[0].ptr = make_ptr(pair, id_ptr);
-	tramp->func.obj = argv[0];
-	tramp->argc = 1;
+	return make_ptr(pair, id_ptr);
+}
+
+static int cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	tramp->arg[0].ptr = _cons(heap, argv[1], argv[2]);
 
 	return RC_OK;
 }
 MAKE_NATIVE(cons, 2, 0);
+
+static int list(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	obj_t res = const_null;
+
+	int i;
+	for (i = argc; i > 0; i--)
+		res.ptr = _cons(heap, argv[i], res);
+
+	tramp->arg[0] = res;
+
+	return RC_OK;
+}
+MAKE_NATIVE(list, 0, 1);
+
+static int is_null(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	bool_t t;
+	BOOL_INIT(t, argv[1].tag == id_const);
+
+	tramp->arg[0] = t.obj;
+
+	return RC_OK;
+}
+MAKE_NATIVE(is_null, 1, 0);
 
 static int car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
@@ -56,8 +84,6 @@ static int car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 		tramp->arg[0] = pair->car;
 	else
 		tramp->arg[0].ptr = NULL;
-	tramp->func.obj = argv[0];
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -70,8 +96,6 @@ static int cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 		tramp->arg[0] = pair->cdr;
 	else
 		tramp->arg[0].ptr = NULL;
-	tramp->func.obj = argv[0];
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -82,9 +106,7 @@ static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	bool_t res;
 	BOOL_INIT(res, (argv[1].ptr == argv[2].ptr));
 
-	tramp->func.obj = argv[0];
 	tramp->arg[0] = res.obj;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -98,9 +120,7 @@ static int fxsum(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	for (i = 1; i < argc; i++)
 		res.val += FIXNUM(argv[i]);
 
-	tramp->func.obj = argv[0];
 	tramp->arg[0] = res.obj;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -114,9 +134,7 @@ static int fxsub(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	for (i = 2; i < argc; i++)
 		res.val -= FIXNUM(argv[i]);
 
-	tramp->func.obj = argv[0];
 	tramp->arg[0] = res.obj;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -130,9 +148,7 @@ static int fxmul(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	for (i = 1; i < argc; i++)
 		res.val *= FIXNUM(argv[i]);
 
-	tramp->func.obj = argv[0];
 	tramp->arg[0] = res.obj;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -146,9 +162,7 @@ static int fxdiv(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	for (i = 2; i < argc; i++)
 		res.val /= FIXNUM(argv[i]);
 
-	tramp->func.obj = argv[0];
 	tramp->arg[0] = res.obj;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -166,9 +180,7 @@ static int fxeq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 			break;
 		}
 
-	tramp->func.obj = argv[0];
 	tramp->arg[0] = t.obj;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -178,7 +190,7 @@ void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
 		case id_ptr:
-			printf("ptr: %p\n", PTR(obj));
+			printf("ptr: %s\n", TYPE_NAME(PTR(obj)));
 			break;
 		case id_fixnum:
 			printf("fixnum: %d\n", FIXNUM(obj));
@@ -195,6 +207,9 @@ void print_obj(obj_t obj)
 		case id_symbol:
 			printf("symbol: %s\n", (const char*)PTR(obj));
 			break;
+		case id_const:
+			printf("const\n");
+			break;
 		default:
 			printf("unknown obj\n");
 	}
@@ -206,7 +221,6 @@ static int display(heap_t *heap, trampoline_t *tramp,
 	print_obj(argv[1]);
 	tramp->func.ptr = argv[0].ptr;
 	tramp->arg[0].ptr = NULL;
-	tramp->argc = 1;
 
 	return RC_OK;
 }
@@ -232,13 +246,12 @@ static int call_cc(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	// Pass current continuation to both arguments
 	tramp->arg[0] = argv[0];
 	tramp->arg[1] = argv[0];
+	tramp->argc = 2;
 
 	// But for second, change tag
 	tramp->arg[1].tag = id_cont;
 	//TODO check for valid function
 
-	tramp->argc = 2;
-	
 	return RC_OK;
 }
 MAKE_NATIVE(call_cc, 1, 0);
@@ -249,6 +262,8 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
 	ns_install_native(tbl, "call/cc", &call_cc_nt);
 	ns_install_native(tbl, "cons", &cons_nt);
+	ns_install_native(tbl, "list", &list_nt);
+	ns_install_native(tbl, "null?", &is_null_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "eq?", &eq_nt);

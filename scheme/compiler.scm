@@ -213,7 +213,7 @@
                (else
                  (compile-call env node))))
             ((number? node)
-             (cons 'NUMBER node))
+             `((LOAD_FIXNUM ,node 1)))
             ((string? node)
              (cons 'STRING node))
             ((boolean? node)
@@ -245,12 +245,16 @@
                             (display (cddr lst))
                             |#
 
+                            #|
                             (display 'start)
                             (display (call/cc
                                        (lambda (c)
                                          (c 'ok)
                                          (display 'failed))))
                             (display 'end)
+                            |#
+
+                            (display (* 10 2))
 
                             #|
                             (define (not x)

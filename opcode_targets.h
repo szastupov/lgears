@@ -8,6 +8,7 @@ static const void* opcode_targets[] = {
 	&&TARGET_LOAD_BIND,
 	&&TARGET_LOAD_SYM,
 	&&TARGET_LOAD_BOOL,
+	&&TARGET_LOAD_FIXNUM,
 	&&TARGET_LOAD_IMPORT,
 	&&TARGET_JUMP_IF_FALSE,
 	&&TARGET_JUMP_IF_TRUE,

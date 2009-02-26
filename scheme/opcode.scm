@@ -12,6 +12,7 @@
                    (LOAD_BIND . "Load object form binding")
                    (LOAD_SYM . "Load predefined symbol local to module")
                    (LOAD_BOOL . "Push boolean value")
+                   (LOAD_FIXNUM . "Push fixed number")
                    (LOAD_IMPORT . "Load object from module import table")
                    (JUMP_IF_FALSE . "Jump if false")
                    (JUMP_IF_TRUE . "Jump if true")

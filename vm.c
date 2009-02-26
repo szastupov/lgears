@@ -299,6 +299,12 @@ call_inter:
 				STACK_PUSH(b.ptr);
 			}
 			NEXT();
+
+			TARGET(LOAD_FIXNUM) {
+				fixnum_t n;
+				FIXNUM_INIT(n, op_arg);
+				STACK_PUSH(n.ptr);
+			}
 		}
 	}
 }

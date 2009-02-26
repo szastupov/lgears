@@ -77,24 +77,32 @@ static int cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 }
 MAKE_NATIVE(cdr, 1, 0);
 
-#if 0
-static void* eq(heap_t *heap, obj_t *argv, int argc)
+static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	bool_t res;
-	bool_init(res, (argv[0].ptr == argv[1].ptr));
-	return res.ptr;
+	BOOL_INIT(res, (argv[1].ptr == argv[2].ptr));
+
+	tramp->func.obj = argv[0];
+	tramp->arg[0] = res.obj;
+	tramp->argc = 1;
+
+	return RC_OK;
 }
 MAKE_NATIVE(eq, 2, 0);
 
+//FIXME
 #define DEFINE_ARITH(name, init, op, min) \
-	static void* arith_##name(heap_t *heap, obj_t *argv, int argc) \
+	static int arith_##name(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc) \
 { \
 	fixnum_t res; \
-	fixnum_init(res, init); \
+	FIXNUM_INIT(res, init); \
 	int i; \
-	for (i = 0; i < argc; i++) \
-		res.val op##= fixnum_from_obj(argv[i]); \
-	return res.ptr; \
+	for (i = 1; i < argc; i++) \
+		res.val op##= FIXNUM(argv[i]); \
+	tramp->func.obj = argv[0]; \
+	tramp->arg[0] = res.obj; \
+	tramp->argc = 1; \
+	return RC_OK; \
 }\
 MAKE_NATIVE(arith_##name, min, 1);
 
@@ -102,8 +110,6 @@ DEFINE_ARITH(add, 0, +, 0);
 DEFINE_ARITH(sub, 0, -, 1);
 DEFINE_ARITH(mul, 1, *, 0);
 DEFINE_ARITH(div, 1, /, 1);
-
-#endif
 
 void print_obj(obj_t obj)
 {
@@ -182,11 +188,10 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
-#if 0
 	ns_install_native(tbl, "eq?", &eq_nt);
+
 	ns_install_native(tbl, "+", &arith_add_nt);
 	ns_install_native(tbl, "-", &arith_sub_nt);
 	ns_install_native(tbl, "*", &arith_mul_nt);
 	ns_install_native(tbl, "/", &arith_div_nt);
-#endif
 }

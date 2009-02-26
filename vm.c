@@ -77,7 +77,6 @@ void* closure_new(heap_t *heap, func_t *func, env_t **display)
 	for (i = 0; i < func->bmcount; i++) {
 		env_t *env = display[-(func->depth-func->bindmap[i])-1];
 		closure->bindmap[i] = env;
-		printf("added binding %d:%d %p\n", func->depth, func->bindmap[i], env);
 	}
 
 	return make_ptr(mem, id_ptr);
@@ -173,7 +172,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 				void *args;
 				fp.obj = STACK_POP();
 dispatch_func:
-				if (fp.tag != id_func && fp.tag != id_ptr)
+				if (fp.tag != id_func && fp.tag != id_ptr && fp.tag != id_cont)
 					FATAL("expected function or closure but got tag %d\n", fp.tag);
 
 				if (fp.tag == id_ptr) {
@@ -184,6 +183,9 @@ dispatch_func:
 					ptr = closure->func;
 					thread->bindmap = closure->bindmap;
 					goto call_inter;
+				} else if (fp.tag == id_cont) {
+					op_arg--;
+					ptr = PTR_GET(fp);
 				} else {
 					ptr = PTR_GET(fp);
 				}
@@ -216,7 +218,6 @@ call_inter:
 								for (i = 0; i < func->bmcount; i++) {
 									env_t *env = thread->display[-(func->depth-func->bindmap[i])-1];
 									STACK_PUSH(env);
-									printf("added binding %d:%d %p\n", func->depth, func->bindmap[i], env);
 								}
 							}
 						}
@@ -250,9 +251,12 @@ call_inter:
 							}
 
 							thread->op_stack_idx = 0;
-							STACK_PUSH(tramp.arg.ptr);
+							op_arg = 0;
+							for (i = 0; i < tramp.argc; i++) {
+								STACK_PUSH(tramp.arg[i].ptr);
+								op_arg++;
+							}
 							fp = tramp.func;
-							op_arg = 1;
 							goto dispatch_func;
 						}
 						break;
@@ -449,9 +453,6 @@ static void vm_inspect(visitor_t *visitor, void *self)
 
 	for (i = 0; i < thread->func->depth; i++)
 		mark_env(&thread->display[i], visitor);
-
-	for (i = 0; i < thread->func->bmcount; i++)
-		mark_env(&thread->bindmap[i], visitor);
 
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);

@@ -243,13 +243,20 @@
                             (display (cddr lst))
                             |#
 
-                            ;#|
+                            (display 'start)
+                            (display (call/cc
+                                       (lambda (c)
+                                         (c 'ok)
+                                         (display 'failed))))
+                            (display 'end)
+
+                            #|
                             (define (foo n)
                               (lambda (x)
                                 (cons x n)))
                             (define fun (foo 'bar))
                             (display (cdr (fun 'zoo)))
-                            ;|#
+                            |#
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

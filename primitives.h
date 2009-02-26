@@ -22,7 +22,8 @@
 
 typedef struct {
 	ptr_t func;
-	obj_t arg;
+	obj_t arg[2];
+	int argc;
 } trampoline_t;
 
 typedef struct native_s native_t;

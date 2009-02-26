@@ -48,7 +48,8 @@ enum {
 	id_char,	/**< Character */
 	id_bool,	/**< Boolean */
 	id_func,	/**< Function pointer */
-	id_symbol	/**< Symbol pointer */
+	id_symbol,	/**< Symbol pointer */
+	id_cont		/**< Continuation */
 };
 
 #define DEFINE_TYPE(name, members...) \
@@ -75,6 +76,7 @@ DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 #define PTR_SET(p,a) (p).addr = (unsigned long)a >> 2
 #define PTR_GET(p) (void*)(unsigned long)((p).addr << 2)
 #define PTR_INIT(p, a) { (p).tag = id_ptr; PTR_SET(p, a); }
+
 #define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }
 #define SYMBOL_INIT(i, v) { (i).tag = id_symbol; PTR_SET(i, v); }
 

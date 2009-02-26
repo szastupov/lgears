@@ -161,7 +161,7 @@
              (cmd (if (null? (env-bindings env))
                     'LOAD_FUNC
                     'LOAD_CLOSURE)))
-        `((LOAD_FUNC ;,cmd
+        `((,cmd
             ,(store-push! code-store
                           (make-func compiled env))
             1))))
@@ -232,7 +232,7 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                            ;#|
+                            #|
                             (define lst (cons 'a (cons 'b 'c)))
                             (define (cadr x)
                               (car (cdr x)))
@@ -241,15 +241,15 @@
                             (display (car lst))
                             (display (cadr lst))
                             (display (cddr lst))
-                            ;|#
+                            |#
 
-                            #|
+                            ;#|
                             (define (foo n)
                               (lambda (x)
                                 (cons x n)))
                             (define fun (foo 'bar))
-                            (display fun)
-                            |#
+                            (display (cdr (fun 'zoo)))
+                            ;|#
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")

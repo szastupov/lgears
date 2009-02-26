@@ -55,7 +55,7 @@ typedef struct {
 
 typedef struct {
 	hobj_hdr_t hdr;
-	env_t **bindings;
+	env_t **bindmap;
 	func_t *func;
 } closure_t;
 

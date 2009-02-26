@@ -71,14 +71,13 @@ void* closure_new(heap_t *heap, func_t *func, env_t **display)
 	closure_t *closure = mem;
 	closure->hdr.type = &closure_type;
 	closure->func = func;
-	closure->bindings = mem + sizeof(closure_t);
+	closure->bindmap = mem + sizeof(closure_t);
 
 	int i;
-	for (i = 0; i < func->bcount; i++) {
-		bind_t *bind = &func->bindings[i];
-		env_t *env = display[-(func->depth-bind->up)-1];
-		closure->bindings[i] = env;
-		printf("added binding %p\n", env);
+	for (i = 0; i < func->bmcount; i++) {
+		env_t *env = display[-(func->depth-func->bindmap[i])-1];
+		closure->bindmap[i] = env;
+		printf("added binding %d:%d %p\n", func->depth, func->bindmap[i], env);
 	}
 
 	return make_ptr(mem, id_ptr);
@@ -98,7 +97,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
-		//thread->display[-1] = thread->env;
 	} else {
 		thread->env = NULL;
 		thread->objects = thread->opstack;
@@ -109,6 +107,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
 #define STACK_HEAD() thread->opstack[thread->op_stack_idx-1]
+#define STORE_ENV() thread->display[-1-func->depth] = thread->env;
 
 	/*
 	 * On dispatching speed-up:
@@ -183,7 +182,7 @@ dispatch_func:
 						FATAL("got pointer but it isn't a closure\n");
 
 					ptr = closure->func;
-					thread->bindmap = closure->bindings;
+					thread->bindmap = closure->bindmap;
 					goto call_inter;
 				} else {
 					ptr = PTR_GET(fp);
@@ -193,8 +192,7 @@ dispatch_func:
 					case func_inter: 
 						{
 call_inter:
-							if (func != ptr)
-								thread->display[-1-func->depth] = thread->env;
+							STORE_ENV();
 
 							func = ptr;
 							thread->func = func;
@@ -218,7 +216,7 @@ call_inter:
 								for (i = 0; i < func->bmcount; i++) {
 									env_t *env = thread->display[-(func->depth-func->bindmap[i])-1];
 									STACK_PUSH(env);
-									printf("added binding %p\n", env);
+									printf("added binding %d:%d %p\n", func->depth, func->bindmap[i], env);
 								}
 							}
 						}
@@ -284,6 +282,7 @@ call_inter:
 			NEXT();
 
 			TARGET(LOAD_CLOSURE) {
+				STORE_ENV();
 				func_t *nf = MODULE_FUNC(func->module, op_arg);
 				STACK_PUSH(closure_new(&thread->heap,
 							nf, thread->display));
@@ -450,6 +449,9 @@ static void vm_inspect(visitor_t *visitor, void *self)
 
 	for (i = 0; i < thread->func->depth; i++)
 		mark_env(&thread->display[i], visitor);
+
+	for (i = 0; i < thread->func->bmcount; i++)
+		mark_env(&thread->bindmap[i], visitor);
 
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);

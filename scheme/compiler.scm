@@ -254,7 +254,11 @@
                             (display 'end)
                             |#
 
-                            (display (* 10 2))
+                            (define (f-aux n a)
+                              (if (= n 0)
+                                a
+                                (f-aux (- n 1) (* n a))))
+                            (display (f-aux 10 1))
 
                             #|
                             (define (not x)

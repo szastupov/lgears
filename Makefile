@@ -1,7 +1,7 @@
 CFLAGS += -Wall -ggdb -DCOMPUTED_GOTO #-pg
 #LDFLAGS += -pg
 
-vm_obj = vm.o heap.o primitives.o hash.o
+vm_obj = vm.o heap.o primitives.o hash.o module.o
 targets = vm
 
 include include.mk

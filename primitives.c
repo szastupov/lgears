@@ -90,26 +90,89 @@ static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 }
 MAKE_NATIVE(eq, 2, 0);
 
-//FIXME
-#define DEFINE_ARITH(name, init, op, min) \
-	static int arith_##name(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc) \
-{ \
-	fixnum_t res; \
-	FIXNUM_INIT(res, init); \
-	int i; \
-	for (i = 1; i < argc; i++) \
-		res.val op##= FIXNUM(argv[i]); \
-	tramp->func.obj = argv[0]; \
-	tramp->arg[0] = res.obj; \
-	tramp->argc = 1; \
-	return RC_OK; \
-}\
-MAKE_NATIVE(arith_##name, min, 1);
+static int fxsum(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	fixnum_t res;
+	FIXNUM_INIT(res, 0);
+	int i;
+	for (i = 1; i < argc; i++)
+		res.val += FIXNUM(argv[i]);
 
-DEFINE_ARITH(add, 0, +, 0);
-DEFINE_ARITH(sub, 0, -, 1);
-DEFINE_ARITH(mul, 1, *, 0);
-DEFINE_ARITH(div, 1, /, 1);
+	tramp->func.obj = argv[0];
+	tramp->arg[0] = res.obj;
+	tramp->argc = 1;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fxsum, 0, 1);
+
+static int fxsub(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	fixnum_t res;
+	FIXNUM_INIT(res, FIXNUM(argv[1]));
+	int i;
+	for (i = 2; i < argc; i++)
+		res.val -= FIXNUM(argv[i]);
+
+	tramp->func.obj = argv[0];
+	tramp->arg[0] = res.obj;
+	tramp->argc = 1;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fxsub, 2, 1);
+
+static int fxmul(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	fixnum_t res;
+	FIXNUM_INIT(res, 1);
+	int i;
+	for (i = 1; i < argc; i++)
+		res.val *= FIXNUM(argv[i]);
+
+	tramp->func.obj = argv[0];
+	tramp->arg[0] = res.obj;
+	tramp->argc = 1;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fxmul, 0, 1);
+
+static int fxdiv(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	fixnum_t res;
+	FIXNUM_INIT(res, FIXNUM(argv[1]));
+	int i;
+	for (i = 2; i < argc; i++)
+		res.val /= FIXNUM(argv[i]);
+
+	tramp->func.obj = argv[0];
+	tramp->arg[0] = res.obj;
+	tramp->argc = 1;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fxdiv, 2, 1);
+
+static int fxeq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	bool_t t;
+	BOOL_INIT(t, 1);
+
+	int i;
+	for (i = 2; i < argc; i++)
+		if (FIXNUM(argv[i-1]) != FIXNUM(argv[i])) {
+			t.val = 0;
+			break;
+		}
+
+	tramp->func.obj = argv[0];
+	tramp->arg[0] = t.obj;
+	tramp->argc = 1;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fxeq, 2, 1);
 
 void print_obj(obj_t obj)
 {
@@ -190,8 +253,9 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "eq?", &eq_nt);
 
-	ns_install_native(tbl, "+", &arith_add_nt);
-	ns_install_native(tbl, "-", &arith_sub_nt);
-	ns_install_native(tbl, "*", &arith_mul_nt);
-	ns_install_native(tbl, "/", &arith_div_nt);
+	ns_install_native(tbl, "+", &fxsum_nt);
+	ns_install_native(tbl, "-", &fxsub_nt);
+	ns_install_native(tbl, "*", &fxmul_nt);
+	ns_install_native(tbl, "/", &fxdiv_nt);
+	ns_install_native(tbl, "=", &fxeq_nt);
 }

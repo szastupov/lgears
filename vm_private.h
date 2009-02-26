@@ -16,6 +16,11 @@
  */
 #ifndef VM_PRIVATE_H
 #define VM_PRIVATE_H 
+#include <stdint.h>
+#include "memory.h"
+#include "types.h"
+#include "heap.h"
+#include "hash.h"
 
 typedef struct {
 	short up, idx;
@@ -96,5 +101,6 @@ struct module_hdr_s {
 #define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)
 #define FUN_HDR_SIZE sizeof(struct func_hdr_s)
 
+void* make_symbol(hash_table_t *tbl, const char *str);
 
 #endif /* VM_PRIVATE_H */

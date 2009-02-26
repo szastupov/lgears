@@ -292,6 +292,13 @@ call_inter:
 							nf, thread->display));
 			}
 			NEXT();
+
+			TARGET(LOAD_BOOL) {
+				bool_t b;
+				BOOL_INIT(b, op_arg);
+				STACK_PUSH(b.ptr);
+			}
+			NEXT();
 		}
 	}
 }

@@ -216,6 +216,8 @@
              (cons 'NUMBER node))
             ((string? node)
              (cons 'STRING node))
+            ((boolean? node)
+             `((LOAD_BOOL ,(if node 1 0) 1)))
             (else
               (let ((res (env-lookup env node)))
                 (if res
@@ -249,6 +251,11 @@
                                          (c 'ok)
                                          (display 'failed))))
                             (display 'end)
+
+                            #|
+                            (define (not x)
+                              (if x #f #t))
+                            |#
 
                             #|
                             (define (foo n)

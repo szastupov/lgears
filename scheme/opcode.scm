@@ -11,6 +11,7 @@
                    (LOAD_LOCAL . "Load object from frame-local area")
                    (LOAD_BIND . "Load object form binding")
                    (LOAD_SYM . "Load predefined symbol local to module")
+                   (LOAD_BOOL . "Push boolean value")
                    (LOAD_IMPORT . "Load object from module import table")
                    (JUMP_IF_FALSE . "Jump if false")
                    (JUMP_IF_TRUE . "Jump if true")

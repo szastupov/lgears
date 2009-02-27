@@ -54,6 +54,4 @@ void ns_install_native(hash_table_t *tbl,
 
 void ns_install_primitives(hash_table_t *tbl);
 
-void print_obj(obj_t obj);
-
 #endif /* PRIMITIVES_H */

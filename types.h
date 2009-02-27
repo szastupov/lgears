@@ -46,15 +46,10 @@ enum {
 	id_ptr,		/**< Pointer on a heap-allocated object */
 	id_fixnum,	/**< Integer */
 	id_char,	/**< Character */
-	id_bool,	/**< Boolean */
 	id_func,	/**< Function pointer */
 	id_symbol,	/**< Symbol pointer */
 	id_cont,	/**< Continuation */
-	id_const
-};
-
-static const obj_t const_null = {
-	.tag = id_const,
+	id_const	/**< Constant */
 };
 
 #define DEFINE_TYPE(name, members...) \
@@ -66,6 +61,29 @@ static const obj_t const_null = {
 		void *ptr; \
 		obj_t obj; \
 	} name;
+
+typedef union {
+	struct {
+		TYPE_TAG;
+		short id;
+	} st;
+	void *ptr;
+	obj_t obj;
+} const_t;
+
+#define DEFINE_CONST(name, nid) \
+	static const const_t name = { \
+		.st.tag = id_const, \
+		.st.id = nid \
+	};
+
+DEFINE_CONST(cnull, 0);
+DEFINE_CONST(ctrue, 1);
+DEFINE_CONST(cfalse, 2);
+DEFINE_CONST(cvoid, 3);
+
+#define CIF(a) ((a) ? ctrue : cfalse)
+#define IS_FALSE(obj) ((obj).ptr == cfalse.ptr)
 
 /**
  * @brief Tagged poiner repesintation
@@ -107,19 +125,9 @@ DEFINE_TYPE(char_t, char val);
 #define CHAR_INIT(c,v) { (c).tag = id_char; (c).val = v; }
 #define CHAR(o) TYPE_CAST(o, char_t).val
 
-DEFINE_TYPE(bool_t, short val);
-#define BOOL_INIT(b,v) { (b).tag = id_bool; (b).val = v; }
-#define BOOL(o) TYPE_CAST(o, bool_t).val
-
 /*
  * Utilites
  */
-
-static inline int is_false(obj_t obj)
-{
-	bool_t b = { .ptr = obj.ptr };
-	return obj.tag == id_bool && b.val == 0;
-}
 
 static inline void* make_ptr(void *ptr, int tag)
 {
@@ -142,6 +150,7 @@ typedef void (*visitor_fun)(visitor_t*, void*);
 typedef struct {
 	const char *name;
 	void (*destructor)(void*);
+	void (*repr)(void*);
 	visitor_fun visit;
 } type_t;
 
@@ -172,5 +181,6 @@ static inline void* get_typed(obj_t obj, const type_t *type)
 }
 
 #define TYPE_NAME(ptr) ((hobj_hdr_t*)ptr)->type->name
+#define IS_TYPE(obj, tp) ((obj).tag == id_ptr && ((hobj_hdr_t*)PTR(obj))->type == tp)
 
 #endif /* TYPES_H */

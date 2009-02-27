@@ -151,12 +151,12 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
-				if (is_false(STACK_HEAD()))
+				if (IS_FALSE(STACK_HEAD()))
 					opcode += op_arg*2;
 			NEXT();
 
 			TARGET(JUMP_IF_TRUE)
-				if (!is_false(STACK_HEAD()))
+				if (!IS_FALSE(STACK_HEAD()))
 					opcode += op_arg*2;
 			NEXT();
 
@@ -297,11 +297,8 @@ call_inter:
 			}
 			NEXT();
 
-			TARGET(PUSH_BOOL) {
-				bool_t b;
-				BOOL_INIT(b, op_arg);
-				STACK_PUSH(b.ptr);
-			}
+			TARGET(PUSH_BOOL)
+				STACK_PUSH(CIF(op_arg).ptr);
 			NEXT();
 
 			TARGET(PUSH_FIXNUM) {
@@ -311,9 +308,8 @@ call_inter:
 			}
 			NEXT();
 
-			TARGET(LOAD_CONST) {
-				STACK_PUSH(const_null.ptr);
-			}
+			TARGET(LOAD_CONST)
+				STACK_PUSH(cnull.ptr);
 			NEXT();
 		}
 	}

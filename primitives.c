@@ -15,7 +15,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include "primitives.h"
+#include "memory.h"
 #include <string.h>
+
+static void print_obj(obj_t obj);
 
 typedef struct {
 	hobj_hdr_t hdr;
@@ -29,10 +32,33 @@ static void pair_visit(visitor_t *vs, void *data)
 	vs->visit(vs, &pair->cdr);
 }
 
+static void pair_repr(void *ptr);
 const type_t pair_type = {
 	.name = "pair",
-	.visit = pair_visit
+	.visit = pair_visit,
+	.repr = pair_repr
 };
+
+static void disp_pair(pair_t *pair)
+{
+	printf(" ");
+	if (IS_TYPE(pair->cdr, &pair_type)) {
+		pair_t *np = PTR(pair->cdr);
+		print_obj(np->car);
+		disp_pair(np);
+	} else
+		print_obj(pair->cdr);
+}
+
+static void pair_repr(void *ptr)
+{
+	pair_t *pair = ptr;
+	printf("(");
+	print_obj(pair->car);
+	disp_pair(pair);
+	printf(")");
+}
+
 
 static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 {
@@ -54,10 +80,10 @@ MAKE_NATIVE(cons, 2, 0);
 
 static int list(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	obj_t res = const_null;
+	obj_t res = cnull.obj;
 
 	int i;
-	for (i = argc; i > 0; i--)
+	for (i = argc-1; i > 0; i--)
 		res.ptr = _cons(heap, argv[i], res);
 
 	tramp->arg[0] = res;
@@ -68,10 +94,8 @@ MAKE_NATIVE(list, 0, 1);
 
 static int is_null(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	bool_t t;
-	BOOL_INIT(t, argv[1].tag == id_const);
-
-	tramp->arg[0] = t.obj;
+	const_t res = CIF(argv[1].ptr == cnull.ptr);
+	tramp->arg[0] = res.obj;
 
 	return RC_OK;
 }
@@ -103,9 +127,7 @@ MAKE_NATIVE(cdr, 1, 0);
 
 static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	bool_t res;
-	BOOL_INIT(res, (argv[1].ptr == argv[2].ptr));
-
+	const_t res = CIF(argv[1].ptr == cnull.ptr);
 	tramp->arg[0] = res.obj;
 
 	return RC_OK;
@@ -170,48 +192,71 @@ MAKE_NATIVE(fxdiv, 2, 1);
 
 static int fxeq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	bool_t t;
-	BOOL_INIT(t, 1);
+	const_t res = ctrue;
 
 	int i;
 	for (i = 2; i < argc; i++)
 		if (FIXNUM(argv[i-1]) != FIXNUM(argv[i])) {
-			t.val = 0;
+			res = cfalse;
 			break;
 		}
 
-	tramp->arg[0] = t.obj;
+	tramp->arg[0] = res.obj;
 
 	return RC_OK;
 }
 MAKE_NATIVE(fxeq, 2, 1);
 
-void print_obj(obj_t obj)
+static void print_const(obj_t obj)
+{
+	const_t c = { .obj = obj };
+	static const char* descr[] = {
+		"()",
+		"#t",
+		"#f",
+		"<void>"
+	};
+	int max_id = sizeof(descr)/sizeof(char*)-1;
+	if (c.st.id < 0 || c.st.id > max_id)
+		FATAL("wrong const id %d\n", c.st.id);
+
+	printf("%s", descr[c.st.id]);
+}
+
+static void print_ptr(obj_t obj)
+{
+	void *ptr = PTR(obj);
+	hobj_hdr_t *ohdr = ptr;
+
+	if (ohdr->type->repr)
+		ohdr->type->repr(ptr);
+	else
+		printf("<ptr:%s>", ohdr->type->name);
+}
+
+static void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
 		case id_ptr:
-			printf("ptr: %s\n", TYPE_NAME(PTR(obj)));
+			print_ptr(obj);
 			break;
 		case id_fixnum:
-			printf("fixnum: %d\n", FIXNUM(obj));
-			break;
-		case id_bool:
-			printf("bool: #%c\n", BOOL(obj) ? 't' : 'f');
+			printf("%d", FIXNUM(obj));
 			break;
 		case id_char:
-			printf("char: %c\n", CHAR(obj));
+			printf("%c", CHAR(obj));
 			break;
 		case id_func:
-			printf("func: %p\n", PTR(obj));
+			printf("func: %p", PTR(obj));
 			break;
 		case id_symbol:
-			printf("symbol: %s\n", (const char*)PTR(obj));
+			printf("%s", (const char*)PTR(obj));
 			break;
 		case id_const:
-			printf("const\n");
+			print_const(obj);
 			break;
 		default:
-			printf("unknown obj\n");
+			printf("unknown obj");
 	}
 }
 
@@ -219,8 +264,9 @@ static int display(heap_t *heap, trampoline_t *tramp,
 		obj_t *argv, int argc)
 {
 	print_obj(argv[1]);
+	printf("\n");
 	tramp->func.ptr = argv[0].ptr;
-	tramp->arg[0].ptr = NULL;
+	tramp->arg[0] = cvoid.obj;
 
 	return RC_OK;
 }

@@ -32,8 +32,10 @@
                  (define lst (cons 'a (cons 'b 'c)))
 
                  (bla 10)
-                 (foo 'bar)
-                 700
+                 (letrec ((foo (lambda (x) (bar x)))
+                          (bar (lambda (y) (foo y))))
+                   (foo bar)
+                   (display "ok"))
                  ))
 
 
@@ -54,19 +56,31 @@
       (convert res (func node) name)
       node))
 
-  (define (convert-func res args body)
+  (define (convert-func args body)
     (let ((name (gen-name)))
       `(lambda (,name ,@args)
-         ,@(convert-body res body name))))
+         ,@(convert-body body name))))
+
+  (define (unletrec node)
+    `(,@(map (lambda (x)
+               `(define ,(car x) ,(cadr x)))
+             (cadr node))
+       ,@(cddr node)))
 
   (define (convert res node name)
     (if (pair? node)
       (case (car node)
         ((lambda) ;FIXME inline lambda if possible
-         (let ((func (convert-func '() (cadr node) (cddr node))))
+         (let ((func (convert-func (cadr node) (cddr node))))
            (if (null? res)
              (list name func)
              `((lambda (,name) ,res) ,func))))
+
+        ((letrec)
+         (let ((func (convert-func '() (unletrec node))))
+           (if (null? res)
+             (list name func)
+             `(,func (lambda (,name) ,res)))))
 
         ((if)
          (let* ((args (cdr node))
@@ -120,7 +134,7 @@
   (define (convert-define res def)
     (cond ((pair? (car def))
            `((set! ,(caar def)
-               ,(convert-func '() (cdar def) (cdr def)))
+               ,(convert-func (cdar def) (cdr def)))
              ,@res))
           ((self-eval? (cadr def))
            `((set! ,(car def) ,(cadr def))
@@ -145,7 +159,7 @@
   (define (defination? x)
     (and (pair? x) (eq? (car x) 'define)))
 
-  (define (convert-body res body name)
+  (define (convert-body body name)
     (let-values (((defines expressions)
                   (partition defination? body)))
       (if (null? expressions)
@@ -166,7 +180,7 @@
                         (list rest) (reverse defines))))))
 
   (define (cps-convert source)
-    (let ((res (convert-body '() source '__exit)))
+    (let ((res (convert-body source '__exit)))
       (display "CPS: \n")
       (pretty-print res)
       (newline)
@@ -174,5 +188,5 @@
         res
         (list res))))
 
-  ;(pretty-print (convert-body '() orig (gen-name)))
+  ;(pretty-print (convert-body orig (gen-name)))
   )

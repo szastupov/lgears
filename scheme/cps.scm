@@ -188,5 +188,14 @@
         res
         (list res))))
 
+  (define (read-source file)
+    (let* ((port (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder)))
+           (res (get-datum port)))
+      (close-port port)
+      res))
+
+  ;(define p (read-source "/home/redchrom/psyntax.pp"))
+  ;(convert-body p (gen-name))
+
   ;(pretty-print (convert-body orig (gen-name)))
   )

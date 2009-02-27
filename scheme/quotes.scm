@@ -10,19 +10,21 @@
 
   ; Common transquote routine
   (define (trquote-common qv pfunc)
-    (cons 'list 
-          (let loop ((cur qv))
-            (cond ((null? cur)
-                   '())
-                  ((pair? cur)
-                   (cons (let ((head (car cur)))
-                           (cond ((pair? head)
-                                  (pfunc head))
-                                 ((self-eval? head)
-                                  head)
-                                 (else `(quote ,(car cur)))))
-                         (loop (cdr cur))))
-                  (else cur)))))
+    (define (apply-pfunc x)
+      (cond ((pair? x)
+             (pfunc x))
+            ((symbol? x)
+             `(quote ,x))
+            (else x)))
+
+    (cond ((list? qv)
+           (cons 'list (map apply-pfunc qv)))
+          ((null? qv)
+           '())
+          ((pair? qv)
+           `(cons ,(apply-pfunc (car qv))
+                  ,(trquote-common (cdr qv) pfunc)))
+          (else (apply-pfunc qv))))
 
   ; Translate quotation to functions
   (define (trquote qv)
@@ -41,4 +43,5 @@
            (cadr head))
           (else
             (trquasiquote head))))))
+
   )

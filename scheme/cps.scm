@@ -7,6 +7,7 @@
 
   ;For testing
   (define orig '(
+                 #|
                  (define (f-aux n a)
                    (if (= n 0)
                      a
@@ -36,6 +37,8 @@
                           (bar (lambda (y) (foo y))))
                    (foo bar)
                    (display "ok"))
+                 |#
+                 (display '(1 2 3 . 4))
                  ))
 
 
@@ -195,7 +198,7 @@
       res))
 
   ;(define p (read-source "/home/redchrom/psyntax.pp"))
-  ;(convert-body p (gen-name))
+  ;(pretty-print (convert-body p (gen-name)))
 
   ;(pretty-print (convert-body orig (gen-name)))
   )

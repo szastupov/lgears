@@ -62,7 +62,7 @@
   (define (convert res node name)
     (if (pair? node)
       (case (car node)
-        ((lambda)
+        ((lambda) ;FIXME inline lambda if possible
          (let ((func (convert-func '() (cadr node) (cddr node))))
            (if (null? res)
              (list name func)

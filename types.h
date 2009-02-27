@@ -111,6 +111,8 @@ typedef enum {
 	func_native	/**< Native C-function */
 } func_type_t;
 
+#define FUNC_TYPE(ptr) *((func_type_t*)ptr)
+
 #if __WORDSIZE == 64
 #define FIXNUM_TYPE int
 #else

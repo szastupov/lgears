@@ -93,15 +93,6 @@ static int list(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 }
 MAKE_NATIVE(list, 0, 1);
 
-static int is_null(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
-{
-	const_t res = CIF(argv[1].ptr == cnull.ptr);
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE(is_null, 1, 0);
-
 static int car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[1], &pair_type);
@@ -217,7 +208,7 @@ static void print_const(obj_t obj)
 		"#f",
 		"<void>"
 	};
-	int max_id = sizeof(descr)/sizeof(char*)-1;
+	static int max_id = sizeof(descr)/sizeof(char*)-1;
 	if (c.st.id < 0 || c.st.id > max_id)
 		FATAL("wrong const id %d\n", c.st.id);
 
@@ -240,7 +231,7 @@ static void print_func(obj_t obj)
 	void *ptr = PTR(obj);
 	native_t *native;
 	func_t *interp;
-	switch (*((func_type_t*)ptr)) {
+	switch (FUNC_TYPE(ptr)) {
 		case func_inter:
 			interp = ptr;
 			printf("<lambda/%d>", interp->argc);
@@ -285,7 +276,6 @@ static int display(heap_t *heap, trampoline_t *tramp,
 {
 	print_obj(argv[1]);
 	printf("\n");
-	tramp->func.ptr = argv[0].ptr;
 	tramp->arg[0] = cvoid.obj;
 
 	return RC_OK;
@@ -329,7 +319,6 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "call/cc", &call_cc_nt);
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "list", &list_nt);
-	ns_install_native(tbl, "null?", &is_null_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "eq?", &eq_nt);

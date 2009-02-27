@@ -192,7 +192,7 @@ dispatch_func:
 					ptr = PTR_GET(fp);
 				}
 
-				switch (*((func_type_t*)ptr)) {
+				switch (FUNC_TYPE(ptr)) {
 					case func_inter: 
 						{
 call_inter:

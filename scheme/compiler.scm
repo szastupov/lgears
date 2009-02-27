@@ -252,7 +252,8 @@
                                   (func (car lst))
                                   (for-each func (cdr lst)))))
 
-                            (for-each display '(1 2 3 4))
+                            ;(for-each display '(1 2 3 4))
+                            (display display)
 
                             #|
                             (display 'start)

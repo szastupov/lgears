@@ -14,9 +14,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+#include <string.h>
 #include "primitives.h"
 #include "memory.h"
-#include <string.h>
+#include "vm_private.h"
 
 static void print_obj(obj_t obj);
 
@@ -234,6 +235,25 @@ static void print_ptr(obj_t obj)
 		printf("<ptr:%s>", ohdr->type->name);
 }
 
+static void print_func(obj_t obj)
+{
+	void *ptr = PTR(obj);
+	native_t *native;
+	func_t *interp;
+	switch (*((func_type_t*)ptr)) {
+		case func_inter:
+			interp = ptr;
+			printf("<lambda/%d>", interp->argc);
+			break;
+		case func_native:
+			native = ptr;
+			printf("<native %s/%d>", native->name, native->argc);
+			break;
+		default:
+			printf("<unknown func>");
+	}
+}
+
 static void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
@@ -247,7 +267,7 @@ static void print_obj(obj_t obj)
 			printf("%c", CHAR(obj));
 			break;
 		case id_func:
-			printf("func: %p", PTR(obj));
+			print_func(obj);
 			break;
 		case id_symbol:
 			printf("%s", (const char*)PTR(obj));

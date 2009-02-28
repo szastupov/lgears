@@ -3,7 +3,7 @@
           make-ilr make-i-func print-ilr)
   (import (rnrs)
           (opcode)
-          (slib format))
+          (format))
 
   (define-record-type ilr
     (fields imports symbols code entry-point))

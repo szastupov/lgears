@@ -1,6 +1,6 @@
 #!r6rs
 (import (rnrs)
-        (slib format)
+        (format)
         (opcode))
 
 ;;;

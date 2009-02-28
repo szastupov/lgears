@@ -1,5 +1,5 @@
 (import (rnrs)
-        (slib format))
+        (format))
 
 (if (< (length (command-line)) 3)
   (begin

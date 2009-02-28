@@ -198,7 +198,7 @@
       res))
 
   ;(define p (read-source "/home/redchrom/psyntax.pp"))
-  ;(pretty-print (convert-body p (gen-name)))
+  ;(display (convert-body p (gen-name)))
 
   ;(pretty-print (convert-body orig (gen-name)))
   )

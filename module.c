@@ -18,11 +18,62 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "vm_private.h"
 
-module_t* module_load(vm_thread_t *thread, const char *path)
+typedef struct {
+	void *addr;
+	size_t size;
+} map_t;
+
+int mapfile(const char *path, map_t *map)
 {
-	module_t *mod;
+	int fd = open(path, O_RDONLY);
+	if (fd == -1) {
+		fprintf(stderr, "Failed to open file %s : %s\n", path, strerror(errno));
+		return -1;
+	}
+	struct stat st;
+	fstat(fd, &st);
+
+	void *res = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	int ret = -1;
+	if (res == MAP_FAILED)
+		fprintf(stderr, "mmap() failed %s\n", strerror(errno));
+	else {
+		ret = 0;
+		map->addr = res;
+		map->size = st.st_size;
+	}
+	close(fd);
+
+	return ret;
+}
+
+static module_t* module_parse(vm_thread_t *thread, const uint8_t *code, size_t code_size)
+{
+	module_t *mod = type_alloc(module_t);
+	int codecpy(void *dest, size_t size)
+	{
+		if (size > code_size)
+			return -1;
+		memcpy(dest, code, size);
+		code += size;
+		code_size -= size;
+
+		return 0;
+	}
+
+	const void* code_assign(size_t size)
+	{
+		if (size > code_size)
+			return NULL;
+		const void *res = code;
+		code += size;
+		code_size -= size;
+
+		return res;
+	}
 
 	void populate_sym_table(const char *str)
 	{
@@ -54,90 +105,84 @@ module_t* module_load(vm_thread_t *thread, const char *path)
 		}
 	}
 
-	int fd = open(path, O_RDONLY);
-	if (fd == -1)
-		FATAL("nothing to load\n");
-
-	mod = type_alloc(module_t);
-
 	/* Read module header */
-	struct module_hdr_s mhdr;
-	if (read(fd, &mhdr, MODULE_HDR_OFFSET) != MODULE_HDR_OFFSET)
-		FATAL("Failed to read module header\n");
+	const struct module_hdr_s *mhdr = code_assign(MODULE_HDR_OFFSET);
 
 	/* Allocate functions storage */
-	mod->functions = mem_calloc(mhdr.fun_count, sizeof(func_t));
-	mod->fun_count = mhdr.fun_count;
-	mod->entry_point = mhdr.entry_point;
+	mod->functions = mem_calloc(mhdr->fun_count, sizeof(func_t));
+	mod->fun_count = mhdr->fun_count;
+	mod->entry_point = mhdr->entry_point;
 
 
-	char *import = mem_alloc(mhdr.import_size);
-	if (read(fd, import, mhdr.import_size) != mhdr.import_size)
-		FATAL("Failed to read imports");
+	const void *import = code_assign(mhdr->import_size);
 	load_imports(import);
-	mem_free(import);
 
-	char *symbols = mem_alloc(mhdr.symbols_size);
-	if (read(fd, symbols, mhdr.symbols_size) != mhdr.symbols_size)
-		FATAL("Failed to read symbols");
+	const void *symbols = code_assign(mhdr->symbols_size);
 	populate_sym_table(symbols);
-	mem_free(symbols);
 
 	int count;
-	struct func_hdr_s hdr;
-	for (count = 0; count < mhdr.fun_count; count++) {
-		if (read(fd, &hdr, FUN_HDR_SIZE) != FUN_HDR_SIZE)
-			FATAL("Failed to read func header\n");
+	const struct func_hdr_s *hdr;
+	for (count = 0; count < mhdr->fun_count; count++) {
+		hdr = code_assign(FUN_HDR_SIZE);
 		func_t *func = &mod->functions[count];
 		func->type = func_inter;
-		func->env_size = hdr.env_size;
-		func->argc = hdr.argc;
-		func->stack_size = hdr.stack_size;
-		func->op_count = hdr.op_count;
-		func->heap_env = hdr.heap_env;
-		func->depth = hdr.depth;
-		func->bcount = hdr.bcount;
-		func->bmcount = hdr.bmcount;
+		func->env_size = hdr->env_size;
+		func->argc = hdr->argc;
+		func->stack_size = hdr->stack_size;
+		func->op_count = hdr->op_count;
+		func->heap_env = hdr->heap_env;
+		func->depth = hdr->depth;
+		func->bcount = hdr->bcount;
+		func->bmcount = hdr->bmcount;
 
-		if (hdr.bcount) {
+		if (hdr->bcount) {
 			int i;
-			char *cur;
+			const char *cur;
 
-			int bind_size = hdr.bcount * 2;
-			char *bindings = mem_alloc(bind_size);
-			func->bindings = mem_calloc(hdr.bcount, sizeof(bind_t));
-			if (read(fd, bindings, bind_size) != bind_size)
-				FATAL("Failet to read bindings");
+			int bind_size = hdr->bcount * 2;
+			const char *bindings = code_assign(bind_size);
+			func->bindings = mem_calloc(hdr->bcount, sizeof(bind_t));
 
-			char *bindmap = mem_alloc(hdr.bmcount);
-			if (read(fd, bindmap, hdr.bmcount) != hdr.bmcount)
-				FATAL("Failed to read bindmap");
-			func->bindmap = mem_calloc(hdr.bmcount, sizeof(int));
+			const char *bindmap = code_assign(hdr->bmcount);
+			func->bindmap = mem_calloc(hdr->bmcount, sizeof(int));
 			cur = bindmap;
-			for (i = 0; i < hdr.bmcount; i++) {
+			for (i = 0; i < hdr->bmcount; i++) {
 				func->bindmap[i] = *(cur++);
 			}
-			mem_free(bindmap);
 
 			cur = bindings;
-			for (i = 0; i < hdr.bcount; i++) {
+			for (i = 0; i < hdr->bcount; i++) {
 				func->bindings[i].up = *(cur++);
 				func->bindings[i].idx = *(cur++);
 			}
 
-			mem_free(bindings);
 		} else
 			func->bindings = NULL;
 
-		int opcode_size = hdr.op_count * 2;
+		int opcode_size = hdr->op_count * 2;
 		func->opcode = mem_alloc(opcode_size);
-		if (read(fd, func->opcode, opcode_size) != opcode_size)
+		if (codecpy(func->opcode, opcode_size) != 0)
 			FATAL("Failed to read opcode");
 		func->module = mod;
 	}
 
-	close(fd);
 	return mod;
+}
+
+module_t* module_load(vm_thread_t *thread, const char *path)
+{
+	map_t map;
+
+	mapfile(path, &map);
+	module_t *mod = module_parse(thread, map.addr, map.size); //TODO add error check
+	munmap(map.addr, map.size);
+
+	return mod;
+}
+
+module_t* module_load_static(vm_thread_t *thread, const uint8_t *mem, int size)
+{
+	return module_parse(thread, mem, size);
 }
 
 void module_free(module_t *module)

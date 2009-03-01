@@ -119,7 +119,7 @@ MAKE_NATIVE(cdr, 1, 0);
 
 static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	const_t res = CIF(argv[1].ptr == cnull.ptr);
+	const_t res = CIF(argv[1].ptr == argv[2].ptr);
 	tramp->arg[0] = res.obj;
 
 	return RC_OK;

@@ -151,7 +151,6 @@ typedef void (*visitor_fun)(visitor_t*, void*);
  */
 typedef struct {
 	const char *name;
-	void (*destructor)(void*);
 	void (*repr)(void*);
 	visitor_fun visit;
 } type_t;

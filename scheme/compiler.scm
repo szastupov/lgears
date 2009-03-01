@@ -243,19 +243,19 @@
                               (cdr (cdr x)))
                             (define (caddr x)
                               (car (cddr x)))
+                            |#
                             (define (null? x)
                               (eq? x '()))
-                            |#
 
                             (define (for-each func lst)
-                              (if (eq? lst '())
+                              ;(if (eq? lst '())
+                              (if (null? lst)
                                 #f
                                 (begin
                                   (func (car lst))
                                   (for-each func (cdr lst)))))
 
                             (for-each display '(1 2 3 4))
-                            ;(display display)
 
                             #|
                             (display 'start)
@@ -267,8 +267,10 @@
                             |#
 
                             #|
+                            (define (zero? x)
+                              (= x 0))
                             (define (f-aux n a)
-                              (if (= n 0)
+                              (if (zero? n)
                                 a
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 10 1))

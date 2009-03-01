@@ -31,9 +31,16 @@
       (lambda (port)
         (let loop ((fmt (string->list format-string))
                    (objects objects))
+
           (define (assert-objects)
             (if (null? objects)
               (error 'format "No value for escape sequence")))
+
+          (define (print-numeric radix)
+            (assert-objects)
+            (put-string port (number->string (car objects) radix))
+            (loop (cddr fmt) (cdr objects)))
+
           (unless (null? fmt)
             (if (char=? (car fmt) #\~)
               (begin
@@ -49,9 +56,13 @@
                    (write (car objects) port)
                    (loop (cddr fmt) (cdr objects)))
                   ((#\x)
-                   (assert-objects)
-                   (put-string port (number->string (car objects) 16))
-                   (loop (cddr fmt) (cdr objects)))
+                   (print-numeric 16))
+                  ((#\b)
+                   (print-numeric 2))
+                  ((#\o)
+                   (print-numeric 8))
+                  ((#\d)
+                   (print-numeric 10))
                   ((#\%)
                    (newline port)
                    (loop (cddr fmt) objects))
@@ -63,4 +74,7 @@
               (begin
                 (put-char port (car fmt))
                 (loop (cdr fmt) objects))))))))
+
+;(display (format "~a ~s ~x ~b ~o ~d" "foo" "bar" 60 60 60 60))
+
 )

@@ -57,10 +57,19 @@ typedef struct {
 	int size;
 	obj_t *objects;
 } env_t;
+#define ENV(o) ((env_t*)PTR(o))
+
+typedef struct display_s {
+	hobj_hdr_t hdr;
+	struct display_s *prev;
+	env_t *env;
+	int depth;
+} display_t;
 
 typedef struct {
 	hobj_hdr_t hdr;
-	env_t **bindmap;
+	obj_t *bindmap;
+	display_t *display;
 	func_t *func;
 } closure_t;
 
@@ -75,8 +84,8 @@ typedef struct {
 	int op_stack_idx;	/**< Stack index */
 	obj_t *objects;	
 	env_t *env;
-	env_t **display;
-	env_t **bindmap;
+	display_t *display;
+	obj_t *bindmap;
 	func_t *func;
 } vm_thread_t;
 

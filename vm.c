@@ -46,7 +46,7 @@ env_t* env_new(heap_t *heap, int size)
 	return env;
 }
 
-void mark_env(env_t **env, visitor_t *visitor)
+static void mark_env(env_t **env, visitor_t *visitor)
 {
 	if (!*env)
 		return;
@@ -55,12 +55,54 @@ void mark_env(env_t **env, visitor_t *visitor)
 	*env = PTR(tmp);
 }
 
+static void mark_display(display_t **display, visitor_t *visitor)
+{
+	while (*display) {
+		obj_t tmp = { .ptr = make_ptr(*display, id_ptr) };
+		visitor->visit(visitor, &tmp);
+		*display = PTR(tmp);
+		mark_env(&(*display)->env, visitor);
+		display = &(*display)->prev;
+	}
+}
+
+static void display_visit(visitor_t *vs, void *data)
+{
+	display_t *display = data;
+	mark_display(&display->prev, vs);
+}
+
+const type_t display_type = {
+	.name = "display",
+	.visit = display_visit
+};
+
+display_t* display_new(heap_t *heap, display_t *prev)
+{
+	display_t *display = heap_alloc(heap, sizeof(display_t));
+	display->prev = prev;
+	display->hdr.type = &display_type;
+	display->depth = prev ? prev->depth+1 : 0;
+
+	return display;
+}
+
+static env_t* display_env(display_t *display, int idx)
+{
+	while (idx--) 
+		display = display->prev;
+	return display->env;
+}
+
 static void closure_visit(visitor_t *vs, void *data)
 {
 	closure_t *closure = data;
 	int i;
+
 	for (i = 0; i < closure->func->bmcount; i++)
-		mark_env(&closure->bindmap[i], vs);
+		vs->visit(vs, &closure->bindmap[i]);
+
+	mark_display(&closure->display, vs);
 }
 
 const type_t closure_type = {
@@ -68,18 +110,21 @@ const type_t closure_type = {
 	.visit = closure_visit
 };
 
-void* closure_new(heap_t *heap, func_t *func, env_t **display)
+void* closure_new(heap_t *heap, func_t *func, display_t *display)
 {
-	void *mem = heap_alloc(heap, sizeof(closure_t)+sizeof(env_t*)*func->bcount);
+	int map_size = sizeof(obj_t)*func->bcount;
+	void *mem = heap_alloc(heap,
+			sizeof(closure_t)+map_size);
 	closure_t *closure = mem;
 	closure->hdr.type = &closure_type;
 	closure->func = func;
 	closure->bindmap = mem + sizeof(closure_t);
+	closure->display = display;
 
 	int i;
 	for (i = 0; i < func->bmcount; i++) {
-		env_t *env = display[-(func->depth-func->bindmap[i])-1];
-		closure->bindmap[i] = env;
+		env_t *env = display_env(display, (func->bindmap[i]-1));
+		closure->bindmap[i].ptr = make_ptr(env, id_ptr);
 	}
 
 	return make_ptr(mem, id_ptr);
@@ -99,6 +144,8 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
+		thread->display = display_new(&thread->heap, NULL);
+		thread->display->env = thread->env;
 	} else {
 		thread->env = NULL;
 		thread->objects = thread->opstack;
@@ -108,7 +155,6 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
 #define STACK_HEAD() thread->opstack[thread->op_stack_idx-1]
-#define STORE_ENV() thread->display[-1-func->depth] = thread->env;
 
 	/*
 	 * On dispatching speed-up:
@@ -184,6 +230,7 @@ dispatch_func:
 
 					ptr = closure->func;
 					thread->bindmap = closure->bindmap;
+					thread->display = closure->display;
 					goto call_inter;
 				} else if (fp.tag == id_cont) {
 					op_arg--;
@@ -196,12 +243,15 @@ dispatch_func:
 					case func_inter: 
 						{
 call_inter:
-							STORE_ENV();
-
 							func = ptr;
 							thread->func = func;
 							if (op_arg != func->argc)
 								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
+
+							if (fp.tag != id_ptr) {
+								while (func->depth-1 < thread->display->depth)
+									thread->display = thread->display->prev;
+							}
 
 							opcode = func->opcode;
 							if (func->heap_env) {
@@ -214,12 +264,14 @@ call_inter:
 								thread->env = NULL;
 								thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
 							}
+							thread->display = display_new(&thread->heap, thread->display);
+							thread->display->env = thread->env;
 
 							if (func->bcount && fp.tag != id_ptr) {
 								thread->bindmap = (void*)&thread->opstack[thread->op_stack_idx];
 								for (i = 0; i < func->bmcount; i++) {
-									env_t *env = thread->display[-(func->depth-func->bindmap[i])-1];
-									STACK_PUSH(env);
+									env_t *env = display_env(thread->display, (func->bindmap[i]-1));
+									STACK_PUSH(make_ptr(env, id_ptr));
 								}
 							}
 						}
@@ -277,20 +329,20 @@ call_inter:
 			TARGET(SET_BIND)
 			{
 				bind_t *bind = &func->bindings[op_arg];
-				thread->bindmap[bind->up]->objects[bind->idx] = STACK_POP();
+				env_t *env = ENV(thread->bindmap[bind->up]);
+				env->objects[bind->idx] = STACK_POP();
 			}
 			NEXT();
 
 			TARGET(LOAD_BIND)
 			{
 				bind_t *bind = &func->bindings[op_arg];
-				env_t *env = thread->bindmap[bind->up];
+				env_t *env = ENV(thread->bindmap[bind->up]);
 				STACK_PUSH(env->objects[bind->idx].ptr);
 			}
 			NEXT();
 
 			TARGET(LOAD_CLOSURE) {
-				STORE_ENV();
 				func_t *nf = MODULE_FUNC(func->module, op_arg);
 				STACK_PUSH(closure_new(&thread->heap,
 							nf, thread->display));
@@ -335,14 +387,10 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	if (thread->env)
 		mark_env(&thread->env, visitor);
 
-	for (i = 0; i < thread->func->depth; i++)
-		mark_env(&thread->display[i], visitor);
-
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);
 
-	for (i = 0; i < thread->func->bmcount; i++)
-		mark_env(&thread->bindmap[i], visitor);
+	mark_display(&thread->display, visitor);
 }
 
 void vm_thread_init(vm_thread_t *thread)
@@ -356,8 +404,6 @@ void vm_thread_init(vm_thread_t *thread)
 	void *smem = mmap(NULL, thread->ssize,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
 	thread->opstack = smem;
-	thread->display = smem+thread->ssize;
-
 
 	hash_table_init(&thread->sym_table, string_hash, string_equal);
 	thread->sym_table.destroy_key = free;

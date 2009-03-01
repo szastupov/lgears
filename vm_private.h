@@ -63,7 +63,7 @@ typedef struct display_s {
 	hobj_hdr_t hdr;
 	struct display_s *prev;
 	int depth;
-	int has_env:1;
+	unsigned has_env:1;
 } display_t;
 
 typedef struct {

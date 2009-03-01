@@ -173,7 +173,7 @@
                            '()
                            (compile env (caddr node)))))
         `(,@pred
-           (JUMP_IF_FALSE ,(+ (length then-clause) 1) 0)
+           (JUMP_IF_FALSE ,(+ (length then-clause) 1) 1)
            ,@then-clause
            ,@(if (null? else-clause)
                '()
@@ -196,8 +196,8 @@
           (error 'compile-assigment "undefined variable" name)
           `(,@(compile env (cadr node))
              ,@(if (eq? (car slot) 'LOCAL)
-                 `((SET_LOCAL ,(cdr slot), -1))
-                 `((SET_BIND ,(cdr slot) -1)))))))
+                 `((SET_LOCAL ,(cdr slot), -1 ,name))
+                 `((SET_BIND ,(cdr slot) -1 ,name)))))))
 
     (define (compile env node)
       (cond ((pair? node)
@@ -224,9 +224,9 @@
               (let ((res (env-lookup env node)))
                 (if res
                   (if (eq? (car res) 'LOCAL)
-                    `((LOAD_LOCAL ,(cdr res) 1))
-                    `((LOAD_BIND ,(cdr res) 1)))
-                  `((LOAD_IMPORT ,(sym-table-insert undefs node) 1)))))))
+                    `((LOAD_LOCAL ,(cdr res) 1 ,node))
+                    `((LOAD_BIND ,(cdr res) 1 ,node)))
+                  `((LOAD_IMPORT ,(sym-table-insert undefs node) 1 ,node)))))))
 
     (let ((entry-point (compile-func '() '() root)))
       (make-ilr (symtable->list undefs)
@@ -258,24 +258,24 @@
                             (display 'ok)
                             |#
 
-                            ;#|
+                            #|
                             (display 'start)
                             (display (call/cc
                                        (lambda (c)
                                          (c 'ok)
                                          (display 'failed))))
                             (display 'end)
-                            ;|#
+                            |#
 
-                            #|
+                            ;#|
                             (define (zero? x)
                               (= x 0))
                             (define (f-aux n a)
                               (if (zero? n)
                                 a
                                 (f-aux (- n 1) (* n a))))
-                            (display (f-aux 10 1))
-                            |#
+                            (display (f-aux 25 1))
+                            ;|#
 
                             #|
                             (define (foo n)

@@ -44,7 +44,7 @@ static void env_visit(visitor_t *vs, void *data)
 
 env_t* env_new(heap_t *heap, int size)
 {
-	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size);
+	void *mem = heap_alloc0(heap, sizeof(env_t)+sizeof(obj_t)*size);
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
@@ -57,35 +57,33 @@ static void mark_env(env_t **env, visitor_t *visitor)
 {
 	if (!*env)
 		return;
-	obj_t tmp = { .ptr = make_ptr(*env, id_ptr) };
-	visitor->visit(visitor, &tmp);
-	*env = PTR(tmp);
+	ptr_t ptr;
+	PTR_INIT(ptr, *env);
+	visitor->visit(visitor, &ptr.obj);
+	*env = PTR_GET(ptr);
 }
 
 static void mark_display(display_t **display, visitor_t *visitor)
 {
-	while (*display) {
-		obj_t tmp = { .ptr = make_ptr(*display, id_ptr) };
-		visitor->visit(visitor, &tmp);
-		*display = PTR(tmp);
-
-		if ((*display)->has_env) {
-			void *emem = display;
-			emem += sizeof(display_t);
-			env_t **env = emem;
-			mark_env(env, visitor);
-		}
-		display = &(*display)->prev;
-	}
+	ptr_t ptr;
+	PTR_INIT(ptr, *display);
+	visitor->visit(visitor, &ptr.obj);
+	*display = PTR_GET(ptr);
 }
 
 static void display_visit(visitor_t *vs, void *data)
 {
 	display_t *display = data;
+	if (display->has_env) {
+		void *emem = display;
+		emem += sizeof(display_t);
+		env_t **env = emem;
+		mark_env(env, vs);
+	}
 	mark_display(&display->prev, vs);
 }
 
-static display_t* display_new(heap_t *heap, display_t *prev, env_t *env)
+static display_t* display_new(heap_t *heap, display_t *prev, env_t **env)
 {
 	int dsize = sizeof(display_t);
 	if (env)
@@ -97,9 +95,9 @@ static display_t* display_new(heap_t *heap, display_t *prev, env_t *env)
 	display->hdr.type_id = t_display;
 	display->depth = prev ? prev->depth+1 : 0;
 
-	if (env) {
+	if (*env) {
 		env_t **ep = mem+sizeof(display_t);
-		*ep = env;
+		*ep = *env;
 		display->has_env = 1;
 	} else
 		display->has_env = 0;
@@ -126,12 +124,12 @@ static void closure_visit(visitor_t *vs, void *data)
 	mark_display(&closure->display, vs);
 }
 
-void* closure_new(heap_t *heap, func_t *func, display_t *display)
+void* closure_new(heap_t *heap, func_t *func, display_t **display)
 {
 	closure_t *closure = heap_alloc(heap, sizeof(closure_t));
 	closure->hdr.type_id = t_closure;
 	closure->func = func;
-	closure->display = display;
+	closure->display = *display;
 
 	return make_ptr(closure, id_ptr);
 }
@@ -150,7 +148,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
-		thread->display = display_new(&thread->heap, NULL, thread->env);
+		thread->display = display_new(&thread->heap, NULL, &thread->env);
 	} else {
 		thread->env = NULL;
 		thread->objects = thread->opstack;
@@ -202,12 +200,12 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
-				if (IS_FALSE(STACK_HEAD()))
+				if (IS_FALSE(STACK_POP()))
 					opcode += op_arg*2;
 			NEXT();
 
 			TARGET(JUMP_IF_TRUE)
-				if (!IS_FALSE(STACK_HEAD()))
+				if (!IS_FALSE(STACK_POP()))
 					opcode += op_arg*2;
 			NEXT();
 
@@ -279,7 +277,7 @@ call_inter:
 								}
 							}
 
-							thread->display = display_new(&thread->heap, thread->display, thread->env);
+							thread->display = display_new(&thread->heap, thread->display, &thread->env);
 						}
 						NEXT();
 					case func_native: 
@@ -351,7 +349,7 @@ call_inter:
 			TARGET(LOAD_CLOSURE) {
 				func_t *nf = MODULE_FUNC(func->module, op_arg);
 				STACK_PUSH(closure_new(&thread->heap,
-							nf, thread->display));
+							nf, &thread->display));
 			}
 			NEXT();
 

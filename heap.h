@@ -35,7 +35,6 @@ typedef struct {
 	void *mem;
 	void *pos;
 	int size;
-	int blocks;
 	int free_mem;
 } copy_heap_t;
 

@@ -19,7 +19,7 @@
 #include "memory.h"
 #include "vm_private.h"
 
-static void print_obj(obj_t obj);
+void print_obj(obj_t obj);
 
 typedef struct {
 	hobj_hdr_t hdr;
@@ -238,7 +238,7 @@ static void print_func(obj_t obj)
 	}
 }
 
-static void print_obj(obj_t obj)
+void print_obj(obj_t obj)
 {
 	switch (obj.tag) {
 		case id_ptr:

@@ -30,7 +30,7 @@
 
   (define (assemble-code func)
     (define funhdr-size 16)
-    (display "Assembling " ) (display func) (newline)
+    ;(display "Assembling " ) (display func) (newline)
     (let* ((code (i-func-code func))
            (bcount (length (i-func-bindings func)))
            (bmcount (length (i-func-bindmap func)))

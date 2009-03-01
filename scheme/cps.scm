@@ -7,7 +7,6 @@
 
   ;For testing
   (define orig '(
-                 #|
                  (define (f-aux n a)
                    (if (= n 0)
                      a
@@ -18,6 +17,9 @@
                      1
                      (* n (factorial (- n 1)))))
 
+                 (factorian 6)
+
+                 #|
                  (define (foo n)
                    (bar (lambda (x) (+ x n))))
 
@@ -27,18 +29,12 @@
                  (define (pyth x y)
                    (sqrt (+ (* x x) (* y y))))
 
-                 (define abrabar)
-
-                 (define const 12)
-                 (define lst (cons 'a (cons 'b 'c)))
-
-                 (bla 10)
                  (letrec ((foo (lambda (x) (bar x)))
                           (bar (lambda (y) (foo y))))
                    (foo bar)
                    (display "ok"))
-                 |#
                  (display (lambda (x y) (x y)))
+                 |#
                  ))
 
 
@@ -207,5 +203,5 @@
   ;(define p (read-source "/home/redchrom/psyntax.pp"))
   ;(display (convert-body p (gen-name)))
 
-  ;(pretty-print (convert-body orig (gen-name)))
+  ;(pretty-print (convert-body orig 'exit))
   )

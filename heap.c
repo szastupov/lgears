@@ -29,7 +29,6 @@ static void copy_heap_reset(copy_heap_t *heap)
 	int pad = align_up(BHDR_SIZE)-BHDR_SIZE;
 	heap->pos = heap->mem + pad;
 	heap->free_mem = heap->size - pad;
-	heap->blocks = 0;
 }
 
 static void copy_heap_init(copy_heap_t *heap, void *mem, int size)
@@ -71,9 +70,6 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 	void *res = heap->pos;
 
 	heap->pos += hdr->size;
-	heap->blocks++;
-
-	DBG("allocated %d bytes\n", hdr->size);
 
 	return res;
 }
@@ -86,7 +82,7 @@ static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 	memcpy(res, p, size);
 	heap->pos += size;
 	heap->free_mem -= size;
-	heap->blocks++;
+
 	return res;
 }
 
@@ -109,6 +105,7 @@ void* heap_alloc(heap_t *heap, int size)
 		if (!res)
 			FATAL("Totaly fucking out of memory");
 	}
+	DBG("allocated %d:%p\n", size, res);
 	return res;
 }
 
@@ -147,6 +144,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 */
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+BHDR_SIZE);
 	hdr->forward = new_pos + BHDR_SIZE; // Forward pointer from old memory to new
+	DBG("Forward set to %p\n", hdr->forward);
 	hdr = new_pos;
 	hdr->forward = NULL;
 	new_pos += BHDR_SIZE;

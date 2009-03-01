@@ -27,7 +27,7 @@
 
 
 typedef struct {
-	unsigned short size;;
+	unsigned short size;
 	void *forward;
 } block_hdr_t;
 

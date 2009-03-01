@@ -53,7 +53,6 @@ void pair_repr(void *ptr)
 	printf(")");
 }
 
-
 static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 {
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));

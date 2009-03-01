@@ -22,6 +22,18 @@
 #include "vm_private.h"
 #include "module.h"
 
+static void env_visit(visitor_t *vs, void *data);
+static void display_visit(visitor_t *vs, void *data);
+static void closure_visit(visitor_t *vs, void *data);
+
+type_t type_table[] = {
+	{ .name = "env", .visit = env_visit },
+	{ .name = "closure", .visit = closure_visit },
+	{ .name = "display", .visit = display_visit },
+	{ .name = "pair", .visit = pair_visit, .repr = pair_repr }
+};
+
+
 static void env_visit(visitor_t *vs, void *data)
 {
 	env_t *env = data;
@@ -73,7 +85,7 @@ static void display_visit(visitor_t *vs, void *data)
 	mark_display(&display->prev, vs);
 }
 
-display_t* display_new(heap_t *heap, display_t *prev, env_t *env)
+static display_t* display_new(heap_t *heap, display_t *prev, env_t *env)
 {
 	int dsize = sizeof(display_t);
 	if (env)
@@ -113,13 +125,6 @@ static void closure_visit(visitor_t *vs, void *data)
 	closure_t *closure = data;
 	mark_display(&closure->display, vs);
 }
-
-type_t type_table[] = {
-	{ .name = "env", .visit = env_visit },
-	{ .name = "closure", .visit = closure_visit },
-	{ .name = "display", .visit = display_visit },
-	{ .name = "pair", .visit = pair_visit, .repr = pair_repr }
-};
 
 void* closure_new(heap_t *heap, func_t *func, display_t *display)
 {
@@ -229,7 +234,6 @@ dispatch_func:
 						FATAL("got pointer but it isn't a closure\n");
 
 					ptr = closure->func;
-//					thread->bindmap = closure->bindmap;
 					thread->display = closure->display;
 					goto call_inter;
 				} else if (fp.tag == id_cont) {

@@ -38,7 +38,7 @@
                    (foo bar)
                    (display "ok"))
                  |#
-                 (display '(1 2 3 . 4))
+                 (display (lambda (x y) (x y)))
                  ))
 
 
@@ -53,6 +53,10 @@
     (or (not (pair? node))
         (and (eq? (car node) 'quote)
              (not (pair? (cadr node))))))
+
+  (define (inlinable? node)
+    (and (pair? node)
+         (eq? (car node) 'lambda)))
 
   (define (convert-quote res node func name)
     (if (pair? node)
@@ -70,11 +74,14 @@
              (cadr node))
        ,@(cddr node)))
 
+  (define (convert-lambda node)
+    (convert-func (cadr node) (cddr node)))
+
   (define (convert res node name)
     (if (pair? node)
       (case (car node)
-        ((lambda) ;FIXME inline lambda if possible
-         (let ((func (convert-func (cadr node) (cddr node))))
+        ((lambda)
+         (let ((func (convert-lambda node)))
            (if (null? res)
              (list name func)
              `((lambda (,name) ,res) ,func))))
@@ -113,9 +120,9 @@
         (else
           (let* ((args (reverse (cdr node)))
                  (largs (map (lambda (x)
-                               (if (self-eval? x)
-                                 x
-                                 (gen-name)))
+                               (cond ((self-eval? x) x)
+                                     ((inlinable? x) (convert-lambda x))
+                                     (else (gen-name))))
                              args))
                  (control (cond ((null? res)
                                  name)
@@ -126,7 +133,7 @@
                                   `(lambda (,name) ,res))))
                  (expr `(,(car node) ,control ,@(reverse largs))))
             (fold-left (lambda (prev x n)
-                         (if (self-eval? x)
+                         (if (or (self-eval? x) (inlinable? x))
                            prev
                            (convert prev x n)))
                        expr args largs))))

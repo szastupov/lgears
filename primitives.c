@@ -26,24 +26,17 @@ typedef struct {
 	obj_t car, cdr;
 } pair_t;
 
-static void pair_visit(visitor_t *vs, void *data)
+void pair_visit(visitor_t *vs, void *data)
 {
 	pair_t *pair = data;
 	vs->visit(vs, &pair->car);
 	vs->visit(vs, &pair->cdr);
 }
 
-static void pair_repr(void *ptr);
-const type_t pair_type = {
-	.name = "pair",
-	.visit = pair_visit,
-	.repr = pair_repr
-};
-
 static void disp_pair(pair_t *pair)
 {
 	printf(" ");
-	if (IS_TYPE(pair->cdr, &pair_type)) {
+	if (IS_TYPE(pair->cdr, t_pair)) {
 		pair_t *np = PTR(pair->cdr);
 		print_obj(np->car);
 		disp_pair(np);
@@ -51,7 +44,7 @@ static void disp_pair(pair_t *pair)
 		print_obj(pair->cdr);
 }
 
-static void pair_repr(void *ptr)
+void pair_repr(void *ptr)
 {
 	pair_t *pair = ptr;
 	printf("(");
@@ -66,7 +59,7 @@ static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
 	pair->car = car;
 	pair->cdr = cdr;
-	pair->hdr.type = &pair_type;
+	pair->hdr.type_id = t_pair;
 
 	return make_ptr(pair, id_ptr);
 }
@@ -95,7 +88,7 @@ MAKE_NATIVE(list, 0, 1);
 
 static int car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	pair_t *pair = get_typed(argv[1], &pair_type);
+	pair_t *pair = get_typed(argv[1], t_pair);
 	if (pair)
 		tramp->arg[0] = pair->car;
 	else
@@ -107,7 +100,7 @@ MAKE_NATIVE(car, 1, 0);
 
 static int cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	pair_t *pair = get_typed(argv[1], &pair_type);
+	pair_t *pair = get_typed(argv[1], t_pair);
 	if (pair)
 		tramp->arg[0] = pair->cdr;
 	else
@@ -219,11 +212,12 @@ static void print_ptr(obj_t obj)
 {
 	void *ptr = PTR(obj);
 	hobj_hdr_t *ohdr = ptr;
+	type_t *type = &type_table[ohdr->type_id];
 
-	if (ohdr->type->repr)
-		ohdr->type->repr(ptr);
+	if (type->repr)
+		type->repr(ptr);
 	else
-		printf("<ptr:%s>", ohdr->type->name);
+		printf("<ptr:%s>", type->name);
 }
 
 static void print_func(obj_t obj)

@@ -62,13 +62,12 @@ typedef struct {
 typedef struct display_s {
 	hobj_hdr_t hdr;
 	struct display_s *prev;
-	env_t *env;
 	int depth;
+	int has_env:1;
 } display_t;
 
 typedef struct {
 	hobj_hdr_t hdr;
-	obj_t *bindmap;
 	display_t *display;
 	func_t *func;
 } closure_t;

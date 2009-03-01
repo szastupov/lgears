@@ -18,6 +18,7 @@
 #define TYPES_H
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 
 /*
  * Primitive types that fit in word size
@@ -155,16 +156,19 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
+extern type_t type_table[];
+enum { t_env, t_closure, t_display, t_pair };
+
 /*
  * Heap allocated objects always has a hobj_hdr_t header
  * with pointer on type_t type info
  */
 
 typedef struct {
-	const type_t *type;
+	uint8_t type_id;
 } hobj_hdr_t;
 
-static inline void* get_typed(obj_t obj, const type_t *type)
+static inline void* get_typed(obj_t obj, int type_id)
 {
 	ptr_t ptr = { .ptr = obj.ptr };
 	if (ptr.tag != id_ptr) {
@@ -174,14 +178,14 @@ static inline void* get_typed(obj_t obj, const type_t *type)
 	void *res = PTR_GET(ptr);
 
 	hobj_hdr_t *ohdr = res;
-	if (ohdr->type != type) {
-		printf("expected type %s, but got %s\n", type->name, ohdr->type->name);
+	if (ohdr->type_id != type_id) {
+		printf("expected type %s\n", type_table[type_id].name);
 		return NULL;
 	}
 	return res;
 }
 
 #define TYPE_NAME(ptr) ((hobj_hdr_t*)ptr)->type->name
-#define IS_TYPE(obj, tp) ((obj).tag == id_ptr && ((hobj_hdr_t*)PTR(obj))->type == tp)
+#define IS_TYPE(obj, tid) ((obj).tag == id_ptr && ((hobj_hdr_t*)PTR(obj))->type_id == tid)
 
 #endif /* TYPES_H */

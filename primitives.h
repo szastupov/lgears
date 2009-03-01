@@ -53,5 +53,7 @@ void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt);
 
 void ns_install_primitives(hash_table_t *tbl);
+void pair_repr(void *ptr);
+void pair_visit(visitor_t *vs, void *data);
 
 #endif /* PRIMITIVES_H */

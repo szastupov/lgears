@@ -30,18 +30,13 @@ static void env_visit(visitor_t *vs, void *data)
 		vs->visit(vs, &env->objects[i]);
 }
 
-const type_t env_type = {
-	.name = "env",
-	.visit = env_visit
-};
-
 env_t* env_new(heap_t *heap, int size)
 {
 	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size);
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
-	env->hdr.type = &env_type;
+	env->hdr.type_id = t_env;
 
 	return env;
 }
@@ -61,7 +56,13 @@ static void mark_display(display_t **display, visitor_t *visitor)
 		obj_t tmp = { .ptr = make_ptr(*display, id_ptr) };
 		visitor->visit(visitor, &tmp);
 		*display = PTR(tmp);
-		mark_env(&(*display)->env, visitor);
+
+		if ((*display)->has_env) {
+			void *emem = display;
+			emem += sizeof(display_t);
+			env_t **env = emem;
+			mark_env(env, visitor);
+		}
 		display = &(*display)->prev;
 	}
 }
@@ -72,17 +73,24 @@ static void display_visit(visitor_t *vs, void *data)
 	mark_display(&display->prev, vs);
 }
 
-const type_t display_type = {
-	.name = "display",
-	.visit = display_visit
-};
-
-display_t* display_new(heap_t *heap, display_t *prev)
+display_t* display_new(heap_t *heap, display_t *prev, env_t *env)
 {
-	display_t *display = heap_alloc(heap, sizeof(display_t));
+	int dsize = sizeof(display_t);
+	if (env)
+		dsize += sizeof(env_t*);
+
+	void *mem = heap_alloc(heap, dsize);
+	display_t *display = mem;
 	display->prev = prev;
-	display->hdr.type = &display_type;
+	display->hdr.type_id = t_display;
 	display->depth = prev ? prev->depth+1 : 0;
+
+	if (env) {
+		env_t **ep = mem+sizeof(display_t);
+		*ep = env;
+		display->has_env = 1;
+	} else
+		display->has_env = 0;
 
 	return display;
 }
@@ -91,43 +99,36 @@ static env_t* display_env(display_t *display, int idx)
 {
 	while (idx--) 
 		display = display->prev;
-	return display->env;
+	if (!display->has_env)
+		FATAL("display %p with depth %d doesn't has an env\n", display, display->depth);
+	
+	void *emem = display;
+	emem += sizeof(display_t);
+	env_t **env = emem;
+	return *env;
 }
 
 static void closure_visit(visitor_t *vs, void *data)
 {
 	closure_t *closure = data;
-	int i;
-
-	for (i = 0; i < closure->func->bmcount; i++)
-		vs->visit(vs, &closure->bindmap[i]);
-
 	mark_display(&closure->display, vs);
 }
 
-const type_t closure_type = {
-	.name = "closure",
-	.visit = closure_visit
+type_t type_table[] = {
+	{ .name = "env", .visit = env_visit },
+	{ .name = "closure", .visit = closure_visit },
+	{ .name = "display", .visit = display_visit },
+	{ .name = "pair", .visit = pair_visit, .repr = pair_repr }
 };
 
 void* closure_new(heap_t *heap, func_t *func, display_t *display)
 {
-	int map_size = sizeof(obj_t)*func->bcount;
-	void *mem = heap_alloc(heap,
-			sizeof(closure_t)+map_size);
-	closure_t *closure = mem;
-	closure->hdr.type = &closure_type;
+	closure_t *closure = heap_alloc(heap, sizeof(closure_t));
+	closure->hdr.type_id = t_closure;
 	closure->func = func;
-	closure->bindmap = mem + sizeof(closure_t);
 	closure->display = display;
 
-	int i;
-	for (i = 0; i < func->bmcount; i++) {
-		env_t *env = display_env(display, (func->bindmap[i]-1));
-		closure->bindmap[i].ptr = make_ptr(env, id_ptr);
-	}
-
-	return make_ptr(mem, id_ptr);
+	return make_ptr(closure, id_ptr);
 }
 
 void eval_thread(vm_thread_t *thread, module_t *module)
@@ -144,8 +145,7 @@ void eval_thread(vm_thread_t *thread, module_t *module)
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
-		thread->display = display_new(&thread->heap, NULL);
-		thread->display->env = thread->env;
+		thread->display = display_new(&thread->heap, NULL, thread->env);
 	} else {
 		thread->env = NULL;
 		thread->objects = thread->opstack;
@@ -224,12 +224,12 @@ dispatch_func:
 					FATAL("expected function or closure but got tag %d\n", fp.tag);
 
 				if (fp.tag == id_ptr) {
-					closure_t *closure = get_typed(fp.obj, &closure_type);
+					closure_t *closure = get_typed(fp.obj, t_closure);
 					if (!closure)
 						FATAL("got pointer but it isn't a closure\n");
 
 					ptr = closure->func;
-					thread->bindmap = closure->bindmap;
+//					thread->bindmap = closure->bindmap;
 					thread->display = closure->display;
 					goto call_inter;
 				} else if (fp.tag == id_cont) {
@@ -264,16 +264,18 @@ call_inter:
 								thread->env = NULL;
 								thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
 							}
-							thread->display = display_new(&thread->heap, thread->display);
-							thread->display->env = thread->env;
 
-							if (func->bcount && fp.tag != id_ptr) {
+							if (func->bcount) {
 								thread->bindmap = (void*)&thread->opstack[thread->op_stack_idx];
 								for (i = 0; i < func->bmcount; i++) {
 									env_t *env = display_env(thread->display, (func->bindmap[i]-1));
+									if (!env)
+										FATAL("null env\n");
 									STACK_PUSH(make_ptr(env, id_ptr));
 								}
 							}
+
+							thread->display = display_new(&thread->heap, thread->display, thread->env);
 						}
 						NEXT();
 					case func_native: 

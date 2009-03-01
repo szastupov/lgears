@@ -157,8 +157,9 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * If type provide visit function - call it
 	 */
 	hobj_hdr_t *ohdr = new_pos;
-	if (ohdr->type->visit)
-		ohdr->type->visit(visitor, new_pos);
+	type_t *type = &type_table[ohdr->type_id];
+	if (type->visit)
+		type->visit(visitor, new_pos);
 }
 
 void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)

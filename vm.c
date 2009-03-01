@@ -252,7 +252,7 @@ call_inter:
 							if (op_arg != func->argc)
 								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
 
-							if (fp.tag != id_ptr) {
+							if (fp.tag != id_ptr && thread->display) {
 								while (func->depth-1 < thread->display->depth)
 									thread->display = thread->display->prev;
 							}

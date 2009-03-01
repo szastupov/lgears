@@ -243,7 +243,6 @@
                               (cdr (cdr x)))
                             (define (caddr x)
                               (car (cddr x)))
-                            |#
                             (define (null? x)
                               (eq? x '()))
 
@@ -257,15 +256,16 @@
 
                             (for-each display '(1 2 3 4))
                             (display 'ok)
+                            |#
 
-                            #|
+                            ;#|
                             (display 'start)
                             (display (call/cc
                                        (lambda (c)
                                          (c 'ok)
                                          (display 'failed))))
                             (display 'end)
-                            |#
+                            ;|#
 
                             #|
                             (define (zero? x)

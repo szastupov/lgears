@@ -49,10 +49,11 @@ static void env_visit(visitor_t *vs, void *data)
 
 env_t* env_new(heap_t *heap, int size)
 {
-	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size, t_env);
+	void *mem = heap_alloc0(heap, sizeof(env_t)+sizeof(obj_t)*size, t_env);
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
+	DBG("New env %p\n", env);
 
 	return env;
 }
@@ -341,6 +342,7 @@ call_inter:
 			{
 				bind_t *bind = &func->bindings[op_arg];
 				env_t *env = ENV(thread->bindmap[bind->up]);
+				DBG("BIND_SET %p\n", env);
 				env->objects[bind->idx] = STACK_POP();
 			}
 			NEXT();

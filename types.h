@@ -97,8 +97,8 @@ DEFINE_CONST(cvoid, 3);
  */
 DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 #define PTR(o) PTR_GET(TYPE_CAST(o, ptr_t))
-#define PTR_SET(p,a) (p).addr = (unsigned long)a
-#define PTR_GET(p) (void*)(unsigned long)(p).addr
+#define PTR_SET(p,a) (p).addr = (unsigned long)a >> 3
+#define PTR_GET(p) (void*)(unsigned long)((p).addr << 3)
 #define PTR_INIT(p, a) { (p).tag = id_ptr; PTR_SET(p, a); }
 
 #define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }

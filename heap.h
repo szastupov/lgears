@@ -35,16 +35,15 @@ typedef struct {
 
 static inline void* get_typed(obj_t obj, int type_id)
 {
-	ptr_t ptr = { .ptr = obj.ptr };
-	if (ptr.tag != id_ptr) {
-		printf("expected ptr but got %d\n", ptr.tag);
+	if (obj.tag != id_ptr) {
+		printf("expected ptr but got %d\n", obj.tag);
 		return NULL;
 	}
-	void *res = PTR_GET(ptr);
+	void *res = PTR(obj);
 
 	block_hdr_t *bhdr = res-BHDR_SIZE;
 	if (bhdr->type_id != type_id) {
-		printf("expected type %s\n", type_table[type_id].name);
+		printf("expected type %s but got %s\n", type_table[type_id].name, type_table[bhdr->type_id].name);
 		return NULL;
 	}
 	return res;

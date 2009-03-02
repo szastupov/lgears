@@ -88,6 +88,13 @@ static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 	return res;
 }
 
+static int copy_heap_own(copy_heap_t *heap, void *p)
+{
+	if (p < heap->mem || p > (heap->mem + heap->size))
+		return 0;
+	return 1;
+}
+
 static void heap_swap(heap_t *heap)
 {
 	copy_heap_reset(heap->from);
@@ -141,6 +148,7 @@ void* heap_alloc0(heap_t *heap, int size, int type_id)
 
 static void heap_mark(visitor_t *visitor, obj_t *obj)
 {
+	printf("heap_mark(%p)\n", obj);
 	heap_t *heap = visitor->user_data;
 
 	if (!obj->ptr || obj->tag != id_ptr)
@@ -149,6 +157,14 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	ptr_t ptr = { .ptr = obj->ptr };
 
 	void *p = PTR_GET(ptr);
+	if (!copy_heap_own(heap->from, p)) {
+		if (copy_heap_own(heap->to, p)) {
+			DBG("Strange, %p belong to `to' space, skip...\n", p);
+			return;
+		} else
+			FATAL("Trying to mark %p which doesn't belong to this heap\n", p);
+	}
+
 	void **forward = p;
 	p -= BHDR_SIZE;
 	block_hdr_t *hdr = p;

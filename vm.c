@@ -16,23 +16,28 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+#include <errno.h>
 
 #include "opcodes.h"
 #include "primitives.h"
-#include "vm_private.h"
+#include "vm.h"
 #include "module.h"
 
 static void env_visit(visitor_t *vs, void *data);
 static void display_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
 
-type_t type_table[] = {
+const type_t type_table[] = {
 	{ .name = "env", .visit = env_visit },
 	{ .name = "closure", .visit = closure_visit },
 	{ .name = "display", .visit = display_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr }
 };
 
+hash_table_t ns_global;
+hash_table_t sym_table;
 
 static void env_visit(visitor_t *vs, void *data)
 {
@@ -44,7 +49,7 @@ static void env_visit(visitor_t *vs, void *data)
 
 env_t* env_new(heap_t *heap, int size)
 {
-	void *mem = heap_alloc0(heap, sizeof(env_t)+sizeof(obj_t)*size);
+	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size);
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
@@ -124,7 +129,7 @@ static void closure_visit(visitor_t *vs, void *data)
 	mark_display(&closure->display, vs);
 }
 
-void* closure_new(heap_t *heap, func_t *func, display_t **display)
+static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 {
 	closure_t *closure = heap_alloc(heap, sizeof(closure_t));
 	closure->hdr.type_id = t_closure;
@@ -134,7 +139,7 @@ void* closure_new(heap_t *heap, func_t *func, display_t **display)
 	return make_ptr(closure, id_ptr);
 }
 
-void eval_thread(vm_thread_t *thread, module_t *module)
+static void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
 	func_t *func;
@@ -371,13 +376,17 @@ call_inter:
 	}
 }
 
+static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void* make_symbol(hash_table_t *tbl, const char *str)
 {
+	pthread_mutex_lock(&symbol_mutex);
 	void *res = hash_table_lookup(tbl, str);
 	if (!res) {
 		res = strdup(str);
 		hash_table_insert(tbl, res, res);
 	}
+	pthread_mutex_unlock(&symbol_mutex);
 	return make_ptr(res, id_symbol);
 }
 
@@ -397,43 +406,68 @@ static void vm_inspect(visitor_t *visitor, void *self)
 	mark_display(&thread->display, visitor);
 }
 
-void vm_thread_init(vm_thread_t *thread)
+static void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
 
 	heap_init(&thread->heap, vm_inspect, thread);
 
-	//thread->ssize = sysconf(_SC_PAGE_SIZE);
 	thread->ssize = 1024;
 	void *smem = mmap(NULL, thread->ssize,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
 	thread->opstack = smem;
 
-	hash_table_init(&thread->sym_table, string_hash, string_equal);
-	thread->sym_table.destroy_key = free;
-	hash_table_init(&thread->ns_global, string_hash, string_equal);
-
-	ns_install_primitives(&thread->ns_global);
 }
 
-void vm_thread_destroy(vm_thread_t *thread)
+static void vm_thread_destroy(vm_thread_t *thread)
 {
-	hash_table_destroy(&thread->sym_table);
-	hash_table_destroy(&thread->ns_global);
 	heap_destroy(&thread->heap);
 	munmap(thread->opstack, thread->ssize);
 }
 
-int main()
+static void *thread_start(void *mod_arg)
 {
+	module_t *mod = mod_arg;
 	vm_thread_t thread;
 	vm_thread_init(&thread);
-
-	module_t *mod = module_load(&thread, "/tmp/assembly");
 
 	eval_thread(&thread, mod);
 
 	vm_thread_destroy(&thread);
+
+	return NULL;
+}
+
+void vm_eval_module(module_t *mod)
+{
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, thread_start, mod) != 0)
+		FATAL("pthread_create: %s\n", strerror(errno));
+	pthread_join(thread, NULL);
+}
+
+void vm_init()
+{
+	hash_table_init(&ns_global, string_hash, string_equal);
+	ns_install_primitives(&ns_global);
+	hash_table_init(&sym_table, string_hash, string_equal);
+	sym_table.destroy_key = free;
+}
+
+void vm_cleanup()
+{
+	hash_table_destroy(&ns_global);
+	hash_table_destroy(&sym_table);
+}
+
+int main()
+{
+	vm_init();
+
+	module_t *mod = module_load("/tmp/assembly");
+	vm_eval_module(mod);
 	module_free(mod);
+
+	vm_cleanup();
 	return 0;
 }

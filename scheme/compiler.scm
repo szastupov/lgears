@@ -275,6 +275,7 @@
                                 a
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 25 1))
+                            (display 'ok)
                             ;|#
 
                             #|

@@ -17,8 +17,8 @@
 #ifndef MODULE_H
 #define MODULE_H 
 
-module_t* module_load(vm_thread_t *thread, const char *path);
-module_t* module_load_static(vm_thread_t *thread, const uint8_t *mem, int size);
+module_t* module_load(const char *path);
+module_t* module_load_static(const uint8_t *mem, int size);
 void module_free(module_t *module);
 
 #endif /* MODULE_H */

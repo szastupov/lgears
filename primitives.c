@@ -17,7 +17,7 @@
 #include <string.h>
 #include "primitives.h"
 #include "memory.h"
-#include "vm_private.h"
+#include "vm.h"
 
 void print_obj(obj_t obj);
 
@@ -211,7 +211,7 @@ static void print_ptr(obj_t obj)
 {
 	void *ptr = PTR(obj);
 	hobj_hdr_t *ohdr = ptr;
-	type_t *type = &type_table[ohdr->type_id];
+	const type_t *type = &type_table[ohdr->type_id];
 
 	if (type->repr)
 		type->repr(ptr);

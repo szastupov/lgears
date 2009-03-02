@@ -22,6 +22,9 @@
 #include "heap.h"
 #include "hash.h"
 
+extern hash_table_t ns_global;
+extern hash_table_t sym_table;
+
 typedef struct {
 	short up, idx;
 } bind_t;
@@ -74,8 +77,6 @@ typedef struct {
 
 typedef struct {
 	heap_t heap;
-	hash_table_t sym_table;
-	hash_table_t ns_global;
 
 	/* Variables representing execution state */
 	int ssize;			/**< Size of stack */

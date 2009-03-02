@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include "vm_private.h"
+#include "vm.h"
 
 typedef struct {
 	void *addr;
@@ -50,7 +50,7 @@ int mapfile(const char *path, map_t *map)
 	return ret;
 }
 
-static module_t* module_parse(vm_thread_t *thread, const uint8_t *code, size_t code_size)
+static module_t* module_parse(const uint8_t *code, size_t code_size)
 {
 	module_t *mod = type_alloc(module_t);
 	int codecpy(void *dest, size_t size)
@@ -82,7 +82,7 @@ static module_t* module_parse(vm_thread_t *thread, const uint8_t *code, size_t c
 		mod->symbols = mem_calloc(count, sizeof(obj_t));
 		for (i = 0; i < count; i++) {
 			int len = *(str++);
-			void *sym = make_symbol(&thread->sym_table, str);
+			void *sym = make_symbol(&sym_table, str);
 			mod->symbols[i].ptr = sym;
 			DBG("Created symbol for '%s' = %p\n", str, sym);
 			str += len+1;
@@ -96,7 +96,7 @@ static module_t* module_parse(vm_thread_t *thread, const uint8_t *code, size_t c
 		mod->imports = mem_calloc(count, sizeof(obj_t));
 		for (i = 0; i < count; i++) {
 			int len = *(str++);
-			void *ptr = hash_table_lookup(&thread->ns_global, str);
+			void *ptr = hash_table_lookup(&ns_global, str);
 			if (ptr)
 				mod->imports[i].ptr = ptr;
 			else
@@ -169,20 +169,20 @@ static module_t* module_parse(vm_thread_t *thread, const uint8_t *code, size_t c
 	return mod;
 }
 
-module_t* module_load(vm_thread_t *thread, const char *path)
+module_t* module_load(const char *path)
 {
 	map_t map;
 
 	mapfile(path, &map);
-	module_t *mod = module_parse(thread, map.addr, map.size); //TODO add error check
+	module_t *mod = module_parse(map.addr, map.size); //TODO add error check
 	munmap(map.addr, map.size);
 
 	return mod;
 }
 
-module_t* module_load_static(vm_thread_t *thread, const uint8_t *mem, int size)
+module_t* module_load_static(const uint8_t *mem, int size)
 {
-	return module_parse(thread, mem, size);
+	return module_parse(mem, size);
 }
 
 void module_free(module_t *module)

@@ -156,7 +156,7 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
-extern type_t type_table[];
+extern const type_t type_table[];
 enum { t_env, t_closure, t_display, t_pair };
 
 /*

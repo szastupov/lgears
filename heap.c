@@ -21,14 +21,13 @@
 
 #define balign 7
 #define align_up(s)	(((s)+balign) & ~balign)
-
-#define BHDR_SIZE sizeof(block_hdr_t)
+#define pad align_up(BHDR_SIZE)-BHDR_SIZE
 
 static void copy_heap_reset(copy_heap_t *heap)
 {
-	int pad = align_up(BHDR_SIZE)-BHDR_SIZE;
 	heap->pos = heap->mem + pad;
 	heap->free_mem = heap->size - pad;
+	heap->blocks = 0;
 }
 
 static void copy_heap_init(copy_heap_t *heap, void *mem, int size)
@@ -43,7 +42,7 @@ static void copy_heap_init(copy_heap_t *heap, void *mem, int size)
  * All pointers should be aligned by wordsize
  * Assume that pos is always aligned address - BHDR_SIZE
  */
-static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
+static void* copy_heap_alloc(copy_heap_t *heap, size_t size, int type_id)
 {
 	size_t minimal = size+BHDR_SIZE;
 	if (minimal > heap->free_mem) {
@@ -54,7 +53,8 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 	size_t required = align_up(minimal)-BHDR_SIZE;
 
 	block_hdr_t *hdr = heap->pos;
-	hdr->forward = NULL;
+	hdr->forward = 0;
+	hdr->type_id = type_id;
 	heap->pos += BHDR_SIZE;
 	heap->free_mem -= BHDR_SIZE;
 	/*
@@ -65,11 +65,12 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 		heap->free_mem -= required;
 	} else {
 		hdr->size = size;
-		heap->free_mem = 0;
+		heap->free_mem -= size;
 	}
 	void *res = heap->pos;
 
 	heap->pos += hdr->size;
+	heap->blocks++;
 
 	return res;
 }
@@ -82,6 +83,7 @@ static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 	memcpy(res, p, size);
 	heap->pos += size;
 	heap->free_mem -= size;
+	heap->blocks++;
 
 	return res;
 }
@@ -94,14 +96,35 @@ static void heap_swap(heap_t *heap)
 	heap->to = tmp;
 }
 
-void* heap_alloc(heap_t *heap, int size)
+static void heap_scan_references(heap_t *heap)
 {
-	void *res = copy_heap_alloc(heap->from, size);
+	DBG("Survived root objects %d\n", heap->to->blocks);
+	int i;
+	block_hdr_t *hdr = heap->to->mem + pad;
+	for (i = 0; i < heap->to->blocks; i++) {
+		const type_t *type = &type_table[hdr->type_id];
+		DBG("Survived %d %s\n", i, type_table[hdr->type_id].name);
+
+		/*
+		 * If type provide visit function - call it
+		 */
+		if (type->visit)
+			type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
+
+		hdr = hdr->size + BHDR_SIZE + (void*)hdr;
+	}
+	DBG("Total survived objects %d\n", heap->to->blocks);
+}
+
+void* heap_alloc(heap_t *heap, int size, int type_id)
+{
+	void *res = copy_heap_alloc(heap->from, size, type_id);
 	if (!res) {
 		DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
-		heap->vm_inspect(&heap->visitor, heap->vm);
+		heap->vm_get_roots(&heap->visitor, heap->vm);
+		heap_scan_references(heap);
 		heap_swap(heap);
-		res = copy_heap_alloc(heap->from, size);
+		res = copy_heap_alloc(heap->from, size, type_id);
 		if (!res)
 			FATAL("Totaly fucking out of memory");
 	}
@@ -109,9 +132,9 @@ void* heap_alloc(heap_t *heap, int size)
 	return res;
 }
 
-void* heap_alloc0(heap_t *heap, int size)
+void* heap_alloc0(heap_t *heap, int size, int type_id)
 {
-	void *ptr = heap_alloc(heap, size);
+	void *ptr = heap_alloc(heap, size, type_id);
 	memset(ptr, 0, size);
 	return ptr;
 }
@@ -126,6 +149,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	ptr_t ptr = { .ptr = obj->ptr };
 
 	void *p = PTR_GET(ptr);
+	void **forward = p;
 	p -= BHDR_SIZE;
 	block_hdr_t *hdr = p;
 
@@ -133,8 +157,8 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * Use forward pointer if object already moved
 	 */
 	if (hdr->forward) {
-		DBG("Forwarding to %p\n", hdr->forward);
-		PTR_SET(ptr, hdr->forward);
+		DBG("Forwarding to %p\n", *forward);
+		PTR_SET(ptr, *forward);
 		obj->ptr = ptr.ptr;
 		return;
 	}
@@ -143,24 +167,19 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * Copy object to the second heap and update pointer
 	 */
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+BHDR_SIZE);
-	hdr->forward = new_pos + BHDR_SIZE; // Forward pointer from old memory to new
-	DBG("Forward set to %p\n", hdr->forward);
+
+	hdr->forward = 1;
+	*forward = new_pos + BHDR_SIZE;
+	DBG("Forward set to %p\n", *forward);
+
 	hdr = new_pos;
-	hdr->forward = NULL;
+	hdr->forward = 0;
 	new_pos += BHDR_SIZE;
 	PTR_SET(ptr, new_pos);
 	obj->ptr = ptr.ptr;
-
-	/*
-	 * If type provide visit function - call it
-	 */
-	hobj_hdr_t *ohdr = new_pos;
-	const type_t *type = &type_table[ohdr->type_id];
-	if (type->visit)
-		type->visit(visitor, new_pos);
 }
 
-void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
+void heap_init(heap_t *heap, visitor_fun vm_get_roots, void *vm)
 {
 	heap->from = &heap->heaps[0];
 	heap->to = &heap->heaps[1];
@@ -177,7 +196,7 @@ void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
 
 	heap->visitor.visit = heap_mark;
 	heap->visitor.user_data = heap;
-	heap->vm_inspect = vm_inspect;
+	heap->vm_get_roots = vm_get_roots;
 	heap->vm = vm;
 }
 

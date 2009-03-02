@@ -114,17 +114,11 @@ typedef enum {
 
 #define FUNC_TYPE(ptr) *((func_type_t*)ptr)
 
-#if __WORDSIZE == 64
-#define FIXNUM_TYPE int
-#else
-#define FIXNUM_TYPE short
-#endif
-
-DEFINE_TYPE(fixnum_t, FIXNUM_TYPE val);
+DEFINE_TYPE(fixnum_t, long val:__WORDSIZE-3);
 #define FIXNUM_INIT(n,v) { (n).tag = id_fixnum; (n).val = v; }
-#define FIXNUM(o) TYPE_CAST(o, fixnum_t).val
+#define FIXNUM(o) (long)TYPE_CAST(o, fixnum_t).val
 
-DEFINE_TYPE(char_t, char val);
+DEFINE_TYPE(char_t, short val);
 #define CHAR_INIT(c,v) { (c).tag = id_char; (c).val = v; }
 #define CHAR(o) TYPE_CAST(o, char_t).val
 
@@ -158,16 +152,5 @@ typedef struct {
 
 extern const type_t type_table[];
 enum { t_env, t_closure, t_display, t_pair };
-
-/*
- * Heap allocated objects always has a hobj_hdr_t header
- * with pointer on type_t type info
- */
-
-typedef struct {
-	uint8_t type_id;
-} hobj_hdr_t;
-
-#define IS_TYPE(obj, tid) ((obj).tag == id_ptr && ((hobj_hdr_t*)PTR(obj))->type_id == tid)
 
 #endif /* TYPES_H */

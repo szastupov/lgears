@@ -56,21 +56,18 @@ struct module_s {
 };
 
 typedef struct {
-	hobj_hdr_t hdr;
 	int size;
 	obj_t *objects;
 } env_t;
 #define ENV(o) ((env_t*)PTR(o))
 
 typedef struct display_s {
-	hobj_hdr_t hdr;
 	struct display_s *prev;
 	int depth;
 	unsigned has_env:1;
 } display_t;
 
 typedef struct {
-	hobj_hdr_t hdr;
 	display_t *display;
 	func_t *func;
 } closure_t;

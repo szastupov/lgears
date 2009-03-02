@@ -49,11 +49,10 @@ static void env_visit(visitor_t *vs, void *data)
 
 env_t* env_new(heap_t *heap, int size)
 {
-	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size);
+	void *mem = heap_alloc(heap, sizeof(env_t)+sizeof(obj_t)*size, t_env);
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
-	env->hdr.type_id = t_env;
 
 	return env;
 }
@@ -88,17 +87,21 @@ static void display_visit(visitor_t *vs, void *data)
 	mark_display(&display->prev, vs);
 }
 
-static display_t* display_new(heap_t *heap, display_t *prev, env_t **env)
+static display_t* display_new(heap_t *heap, display_t **prev, env_t **env)
 {
 	int dsize = sizeof(display_t);
 	if (env)
 		dsize += sizeof(env_t*);
 
-	void *mem = heap_alloc(heap, dsize);
+	void *mem = heap_alloc(heap, dsize, t_display);
 	display_t *display = mem;
-	display->prev = prev;
-	display->hdr.type_id = t_display;
-	display->depth = prev ? prev->depth+1 : 0;
+	if (prev) {
+		display->prev = *prev;
+		display->depth = *prev ? (*prev)->depth+1 : 0;
+	} else {
+		display->prev = NULL;
+		display->depth = 0;
+	}
 
 	if (*env) {
 		env_t **ep = mem+sizeof(display_t);
@@ -131,8 +134,7 @@ static void closure_visit(visitor_t *vs, void *data)
 
 static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 {
-	closure_t *closure = heap_alloc(heap, sizeof(closure_t));
-	closure->hdr.type_id = t_closure;
+	closure_t *closure = heap_alloc(heap, sizeof(closure_t), t_closure);
 	closure->func = func;
 	closure->display = *display;
 
@@ -282,7 +284,7 @@ call_inter:
 								}
 							}
 
-							thread->display = display_new(&thread->heap, thread->display, &thread->env);
+							thread->display = display_new(&thread->heap, &thread->display, &thread->env);
 						}
 						NEXT();
 					case func_native: 
@@ -391,10 +393,9 @@ void* make_symbol(hash_table_t *tbl, const char *str)
 }
 
 
-static void vm_inspect(visitor_t *visitor, void *self)
+static void vm_get_roots(visitor_t *visitor, void *self)
 {
 	vm_thread_t *thread = self;
-
 	int i;
 
 	if (thread->env)
@@ -410,7 +411,7 @@ static void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
 
-	heap_init(&thread->heap, vm_inspect, thread);
+	heap_init(&thread->heap, vm_get_roots, thread);
 
 	thread->ssize = 1024;
 	thread->opstack = mem_alloc(thread->ssize);
@@ -458,10 +459,24 @@ void vm_cleanup()
 	hash_table_destroy(&sym_table);
 }
 
+#define SIZE_INFO(t) printf("sizeof(%s) = %ld\n", #t, sizeof(t))
+
+static void info()
+{
+	SIZE_INFO(fixnum_t);
+	SIZE_INFO(ptr_t);
+	SIZE_INFO(char_t);
+	SIZE_INFO(type_t);
+	SIZE_INFO(block_hdr_t);
+	SIZE_INFO(display_t);
+	SIZE_INFO(closure_t);
+}
+
 int main()
 {
-	printf("%ld\n", sizeof(block_hdr_t));
-	exit(0);
+	info();
+//	exit(0);
+
 	vm_init();
 
 	module_t *mod = module_load("/tmp/assembly");

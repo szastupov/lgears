@@ -27,10 +27,11 @@
 
 
 typedef struct {
-	unsigned short size;
-	unsigned short tag:4;
-	void *forward;
+	unsigned size;
+	unsigned type_id:4;
+	unsigned forward:1;
 } block_hdr_t;
+#define BHDR_SIZE sizeof(block_hdr_t)
 
 static inline void* get_typed(obj_t obj, int type_id)
 {
@@ -41,20 +42,20 @@ static inline void* get_typed(obj_t obj, int type_id)
 	}
 	void *res = PTR_GET(ptr);
 
-	hobj_hdr_t *ohdr = res;
-	if (ohdr->type_id != type_id) {
+	block_hdr_t *bhdr = res-BHDR_SIZE;
+	if (bhdr->type_id != type_id) {
 		printf("expected type %s\n", type_table[type_id].name);
 		return NULL;
 	}
 	return res;
 }
 
-
 typedef struct {
 	void *mem;
 	void *pos;
 	int size;
 	int free_mem;
+	int blocks;
 } copy_heap_t;
 
 typedef struct {
@@ -63,7 +64,7 @@ typedef struct {
 	int page_size;
 	copy_heap_t heaps[2];
 	copy_heap_t *from, *to;
-	visitor_fun vm_inspect;
+	visitor_fun vm_get_roots;
 	void *vm;
 } heap_t;
 
@@ -71,10 +72,10 @@ typedef struct {
  * @brief Init heap manager
  * 
  * @param heap heap structure
- * @param vm_inspect inspect function
+ * @param vm_get_roots inspect function
  * @param vm vm pointer
  */
-void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm);
+void heap_init(heap_t *heap, visitor_fun vm_get_roots, void *vm);
 
 /** 
  * @brief Destroy heap
@@ -91,8 +92,8 @@ void heap_destroy(heap_t *heap);
  * 
  * @return ponter to allocated memory
  */
-void* heap_alloc(heap_t *heap, int size);
-void* heap_alloc0(heap_t *heap, int size);
+void* heap_alloc(heap_t *heap, int size, int type_id);
+void* heap_alloc0(heap_t *heap, int size, int type_id);
 
 void heap_stat(heap_t *heap);
 

@@ -22,7 +22,6 @@
 void print_obj(obj_t obj);
 
 typedef struct {
-	hobj_hdr_t hdr;
 	obj_t car, cdr;
 } pair_t;
 
@@ -35,6 +34,7 @@ void pair_visit(visitor_t *vs, void *data)
 
 static void disp_pair(pair_t *pair)
 {
+#if 0
 	printf(" ");
 	if (IS_TYPE(pair->cdr, t_pair)) {
 		pair_t *np = PTR(pair->cdr);
@@ -42,6 +42,7 @@ static void disp_pair(pair_t *pair)
 		disp_pair(np);
 	} else
 		print_obj(pair->cdr);
+#endif
 }
 
 void pair_repr(void *ptr)
@@ -55,10 +56,9 @@ void pair_repr(void *ptr)
 
 static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 {
-	pair_t *pair = heap_alloc(heap, sizeof(pair_t));
+	pair_t *pair = heap_alloc(heap, sizeof(pair_t), t_pair);
 	pair->car = car;
 	pair->cdr = cdr;
-	pair->hdr.type_id = t_pair;
 
 	return make_ptr(pair, id_ptr);
 }
@@ -209,6 +209,7 @@ static void print_const(obj_t obj)
 
 static void print_ptr(obj_t obj)
 {
+#if 0
 	void *ptr = PTR(obj);
 	hobj_hdr_t *ohdr = ptr;
 	const type_t *type = &type_table[ohdr->type_id];
@@ -217,6 +218,7 @@ static void print_ptr(obj_t obj)
 		type->repr(ptr);
 	else
 		printf("<ptr:%s>", type->name);
+#endif
 }
 
 static void print_func(obj_t obj)
@@ -245,7 +247,7 @@ void print_obj(obj_t obj)
 			print_ptr(obj);
 			break;
 		case id_fixnum:
-			printf("%d", FIXNUM(obj));
+			printf("%ld", FIXNUM(obj));
 			break;
 		case id_char:
 			printf("%c", CHAR(obj));

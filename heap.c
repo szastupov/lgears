@@ -170,10 +170,7 @@ void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
 		sc_page_size = sysconf(_SC_PAGE_SIZE);
 
 	heap->page_size = sc_page_size*2;
-	heap->page = mmap(NULL, heap->page_size,
-			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	if (heap->page == MAP_FAILED)
-		FATAL("failed to mmap page: %s\n", strerror(errno));
+	heap->page = mem_alloc(heap->page_size);
 
 	copy_heap_init(heap->from, heap->page, sc_page_size);
 	copy_heap_init(heap->to, heap->page+sc_page_size, sc_page_size);
@@ -186,7 +183,7 @@ void heap_init(heap_t *heap, visitor_fun vm_inspect, void *vm)
 
 void heap_destroy(heap_t *heap)
 {
-	munmap(heap->page, heap->page_size);
+	mem_free(heap->page);
 }
 
 void heap_stat(heap_t *heap)

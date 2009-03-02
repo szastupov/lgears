@@ -16,6 +16,7 @@
  */
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -52,7 +53,7 @@ int mapfile(const char *path, map_t *map)
 
 static module_t* module_parse(const uint8_t *code, size_t code_size)
 {
-	module_t *mod = type_alloc(module_t);
+	module_t *mod = new0(module_t);
 	int codecpy(void *dest, size_t size)
 	{
 		if (size > code_size)

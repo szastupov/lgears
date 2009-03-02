@@ -413,16 +413,14 @@ static void vm_thread_init(vm_thread_t *thread)
 	heap_init(&thread->heap, vm_inspect, thread);
 
 	thread->ssize = 1024;
-	void *smem = mmap(NULL, thread->ssize,
-			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-	thread->opstack = smem;
+	thread->opstack = mem_alloc(thread->ssize);
 
 }
 
 static void vm_thread_destroy(vm_thread_t *thread)
 {
 	heap_destroy(&thread->heap);
-	munmap(thread->opstack, thread->ssize);
+	mem_free(thread->opstack);
 }
 
 static void *thread_start(void *mod_arg)
@@ -462,6 +460,8 @@ void vm_cleanup()
 
 int main()
 {
+	printf("%ld\n", sizeof(block_hdr_t));
+	exit(0);
 	vm_init();
 
 	module_t *mod = module_load("/tmp/assembly");

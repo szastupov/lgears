@@ -28,8 +28,27 @@
 
 typedef struct {
 	unsigned short size;
+	unsigned short tag:4;
 	void *forward;
 } block_hdr_t;
+
+static inline void* get_typed(obj_t obj, int type_id)
+{
+	ptr_t ptr = { .ptr = obj.ptr };
+	if (ptr.tag != id_ptr) {
+		printf("expected ptr but got %d\n", ptr.tag);
+		return NULL;
+	}
+	void *res = PTR_GET(ptr);
+
+	hobj_hdr_t *ohdr = res;
+	if (ohdr->type_id != type_id) {
+		printf("expected type %s\n", type_table[type_id].name);
+		return NULL;
+	}
+	return res;
+}
+
 
 typedef struct {
 	void *mem;

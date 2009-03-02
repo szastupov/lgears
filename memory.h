@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
 
 #define container_of(ptr, type, member) ({ \
 	const typeof( ((type *)0)->member ) *__mptr = (ptr); \
@@ -91,6 +90,6 @@ static inline void* _mem_calloc(const char *file, int line,
 
 #define mem_calloc(nmemb, size) _mem_calloc(__FILE__, __LINE__, __FUNCTION__, nmemb, size)
 
-#define type_alloc(type) mem_calloc(1, sizeof(type))
+#define new0(type) mem_calloc(1, sizeof(type))
 
 #endif

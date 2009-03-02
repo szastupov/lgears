@@ -48,7 +48,7 @@ static inline void* _mem_alloc(const char *file, int line,
 {
 	void *res = malloc(size);
 	if (!res)
-		FATAL("Failed to allocate %ld bytes memory at %s:%d, func %s\n",
+		FATAL("Failed to allocate %zd bytes memory at %s:%d, func %s\n",
 				size, file, line, func);
 	return res;
 }
@@ -60,7 +60,7 @@ static inline void* _mem_realloc(const char *file, int line,
 {
 	void *res = realloc(p, size);
 	if (!res)
-		FATAL("Failed to reallocate %ld bytes memory at %s:%d, func %s\n",
+		FATAL("Failed to reallocate %zd bytes memory at %s:%d, func %s\n",
 				size, file, line, func);
 	return res;
 }
@@ -83,7 +83,7 @@ static inline void* _mem_calloc(const char *file, int line,
 {
 	void *res = calloc(nmemb, size);
 	if (!res)
-		FATAL("Failed to callocate %ld objects by %ld bytes at %s:%d, func %s\n",
+		FATAL("Failed to callocate %zd objects by %zd bytes at %s:%d, func %s\n",
 				nmemb, size, file, line, func);
 
 	return res;

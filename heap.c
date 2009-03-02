@@ -47,7 +47,7 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size)
 {
 	size_t minimal = size+BHDR_SIZE;
 	if (minimal > heap->free_mem) {
-		DBG("out of free mem on heap (need %ld)\n", minimal);
+		DBG("out of free mem on heap (need %zd)\n", minimal);
 		return NULL;
 	}
 

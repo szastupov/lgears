@@ -14,6 +14,7 @@
                    (PUSH_BOOL . "Push boolean value")
                    (PUSH_FIXNUM . "Push fixed number")
                    (LOAD_CONST . "Load built-in constant")
+                   (LOAD_STRING . "Load string")
                    (LOAD_IMPORT . "Load object from module import table")
                    (JUMP_IF_FALSE . "Jump if false")
                    (JUMP_IF_TRUE . "Jump if true")

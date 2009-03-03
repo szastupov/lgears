@@ -40,6 +40,8 @@
 	abort();							\
 }
 
+#define ASSERT(e) if (!e) FATAL("Assertion failed %s\n", #e);
+
 #define DBG(msg...) fprintf(stderr, msg);
 
 static inline void* _mem_alloc(const char *file, int line,

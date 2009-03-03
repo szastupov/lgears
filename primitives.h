@@ -56,4 +56,12 @@ void ns_install_primitives(hash_table_t *tbl);
 void pair_repr(void *ptr);
 void pair_visit(visitor_t *vs, void *data);
 
+typedef struct {
+	char *str;
+	int size;
+	unsigned copy:1;
+} string_t;
+
+void* _string(heap_t *heap, char *str, int copy);
+
 #endif /* PRIMITIVES_H */

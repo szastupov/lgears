@@ -103,6 +103,7 @@ DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 
 #define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }
 #define SYMBOL_INIT(i, v) { (i).tag = id_symbol; PTR_SET(i, v); }
+#define SYMBOL_TO_CHAR(o) (const char*)PTR(o)
 
 /** 
  * @brief function types
@@ -151,6 +152,6 @@ typedef struct {
 } type_t;
 
 extern const type_t type_table[];
-enum { t_env, t_closure, t_display, t_pair };
+enum { t_env, t_closure, t_display, t_pair, t_string };
 
 #endif /* TYPES_H */

@@ -53,6 +53,7 @@ struct module_s {
 	int fun_count;
 	obj_t *symbols;
 	obj_t *imports;
+	char **strings;
 };
 
 typedef struct {
@@ -100,6 +101,7 @@ struct func_hdr_s {
 struct module_hdr_s {
 	uint32_t import_size;
 	uint32_t symbols_size;
+	uint32_t strings_size;
 	uint16_t fun_count;
 	uint16_t entry_point;
 } __attribute__((__packed__));

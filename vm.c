@@ -33,7 +33,8 @@ const type_t type_table[] = {
 	{ .name = "env", .visit = env_visit },
 	{ .name = "closure", .visit = closure_visit },
 	{ .name = "display", .visit = display_visit },
-	{ .name = "pair", .visit = pair_visit, .repr = pair_repr }
+	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
+	{ .name = "string" }
 };
 
 hash_table_t ns_global;
@@ -201,6 +202,13 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 			TARGET(LOAD_SYM) 
 				STACK_PUSH(func->module->symbols[op_arg].ptr);
+			NEXT();
+
+			TARGET(LOAD_STRING) {
+				string_t *str = _string(&thread->heap,
+						func->module->strings[op_arg], 0);
+				STACK_PUSH(str);
+			}
 			NEXT();
 
 			TARGET(LOAD_IMPORT)
@@ -394,7 +402,6 @@ void* make_symbol(hash_table_t *tbl, const char *str)
 	return make_ptr(res, id_symbol);
 }
 
-
 static void vm_get_roots(visitor_t *visitor, void *self)
 {
 	vm_thread_t *thread = self;
@@ -472,6 +479,7 @@ static void info()
 	SIZE_INFO(block_hdr_t);
 	SIZE_INFO(display_t);
 	SIZE_INFO(closure_t);
+	SIZE_INFO(string_t);
 }
 
 int main()

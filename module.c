@@ -106,6 +106,19 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 		}
 	}
 
+	void load_strings(const char *str)
+	{
+		int i;
+		int count = *(str++);
+		mod->strings = mem_calloc(count, sizeof(char*));
+		for (i = 0; i < count; i++) {
+			int len = *(str++);
+			DBG("loaded string '%s'\n", str);
+			mod->strings[i] = strdup(str);
+			str += len+1;
+		}
+	}
+
 	/* Read module header */
 	const struct module_hdr_s *mhdr = code_assign(MODULE_HDR_OFFSET);
 
@@ -115,11 +128,14 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 	mod->entry_point = mhdr->entry_point;
 
 
-	const void *import = code_assign(mhdr->import_size);
+	const char *import = code_assign(mhdr->import_size);
 	load_imports(import);
 
-	const void *symbols = code_assign(mhdr->symbols_size);
+	const char *symbols = code_assign(mhdr->symbols_size);
 	populate_sym_table(symbols);
+
+	const char *strings = code_assign(mhdr->strings_size);
+	load_strings(strings);
 
 	int count;
 	const struct func_hdr_s *hdr;

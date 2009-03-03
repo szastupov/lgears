@@ -82,12 +82,6 @@
               `(BINDING . ,(env-bind env step res))))
           (loop (+ step 1) (env-parent cur-env)))))))
 
-(define (env-idx env name)
-  (let ((res (hashtable-ref (env-tbl env) name #f)))
-    (if res
-      res
-      (error 'env-idx "not found" name))))
-
 (define-record-type sym-table
   (fields table (mutable count))
   (protocol
@@ -140,7 +134,8 @@
 (define (start-compile root)
   (let ((undefs (make-sym-table))
         (symbols (make-sym-table))
-        (code-store (make-store)))
+        (code-store (make-store))
+        (string-store (make-store)))
 
     (define (compile-body env body)
       (define (code? x)
@@ -217,7 +212,7 @@
             ((number? node)
              `((PUSH_FIXNUM ,node 1)))
             ((string? node)
-             (cons 'STRING node))
+             `((LOAD_STRING ,(store-push! string-store node) 1 ,node)))
             ((boolean? node)
              `((PUSH_BOOL ,(if node 1 0) 1)))
             (else
@@ -232,6 +227,7 @@
       (make-ilr (symtable->list undefs)
                 (symtable->list symbols)
                 (reverse (store-head code-store))
+                (reverse (store-head string-store))
                 (cadar entry-point)))))
 
 (let ((res (start-compile
@@ -267,7 +263,7 @@
                             (display 'end)
                             |#
 
-                            ;#|
+                            #|
                             (define (zero? x)
                               (= x 0))
                             (define (f-aux n a)
@@ -276,7 +272,22 @@
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 25 1))
                             (display 'ok)
-                            ;|#
+                            |#
+
+                            (define O_RDONLY 0)
+                            (define O_WRONLY 1)
+                            (define O_RDWR 2)
+                            (define SEEK_SET 0)
+                            (define SEEK_CUR 1)
+                            (define SEEK_END 2)
+
+                            (define fd (fd-open "/tmp/test" O_WRONLY))
+                            (if (= fd -1)
+                              (display 'failed)
+                              (begin
+                                (fd-seek fd 12 SEEK_SET)
+                                (fd-write fd "!test!\n")
+                                (fd-close fd)))
 
                             #|
                             (define (foo n)

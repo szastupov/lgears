@@ -15,6 +15,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "primitives.h"
 #include "memory.h"
 #include "vm.h"
@@ -52,6 +54,28 @@ void pair_repr(void *ptr)
 	print_obj(pair->car);
 	disp_pair(pair);
 	printf(")");
+}
+
+void* _string(heap_t *heap, char *str, int copy)
+{
+	int hsize = sizeof(string_t);
+	int ssize = strlen(str)+1;
+	if (copy)
+		hsize += ssize;
+
+	void *mem = heap_alloc(heap, hsize, t_string);
+	string_t *string = mem;
+	string->size = ssize;
+	if (copy) {
+		string->str = mem + sizeof(string_t);
+		memcpy(string->str, str, ssize);
+		string->copy = 1;
+	} else {
+		string->copy = 0;
+		string->str = str;
+	}
+
+	return make_ptr(string, id_ptr);
 }
 
 static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
@@ -307,6 +331,98 @@ static int call_cc(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 }
 MAKE_NATIVE(call_cc, 1, 0);
 
+/* 
+ * File descriptors
+ * Export only low level descriptros,
+ * r6rs port system will be build on it
+ */
+
+static int fd_open(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	int mode = 0;
+	switch (FIXNUM(argv[2])) {
+		case 0:
+			mode = O_RDONLY;
+			break;
+		case 1:
+			mode = O_WRONLY;
+			break;
+		case 2:
+			mode = O_RDWR;
+			break;
+		default:
+			mode = O_RDONLY;
+	}
+
+	string_t *str = get_typed(argv[1], t_string);
+	if (!str)
+		FATAL("argument is not a string\n");
+
+	int fd = open(str->str, mode);
+	fixnum_t res;
+	FIXNUM_INIT(res, fd);
+	tramp->arg[0] = res.obj;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fd_open, 2, 0);
+
+static int fd_close(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	fixnum_t res;
+	FIXNUM_INIT(res, close(FIXNUM(argv[1])));
+	tramp->arg[0] = res.obj;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fd_close, 1, 0);
+
+static int fd_seek(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	ASSERT(argv[3].tag == id_fixnum);
+
+	int mode = 0;
+	switch (FIXNUM(argv[3])) {
+		case 0:
+			mode = SEEK_SET;
+			break;
+		case 1:
+			mode = SEEK_CUR;
+			break;
+		case 2:
+			mode = SEEK_END;
+			break;
+		default:
+			mode = SEEK_SET;
+	}
+
+	off_t offset = lseek(FIXNUM(argv[1]), FIXNUM(argv[2]), mode);
+	fixnum_t res;
+	FIXNUM_INIT(res, offset);
+	tramp->arg[0] = res.obj;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fd_seek, 3, 0);
+
+static int fd_write(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+{
+	ASSERT(argv[1].tag == id_fixnum);
+	ASSERT(argv[2].tag == id_ptr);
+
+	string_t *str = get_typed(argv[2], t_string);
+	if (!str)
+		FATAL("argument is not a string\n");
+
+	int wrote = write(FIXNUM(argv[1]), str->str, str->size-1);
+	fixnum_t res;
+	FIXNUM_INIT(res, wrote);
+	tramp->arg[0] = res.obj;
+
+	return RC_OK;
+}
+MAKE_NATIVE(fd_write, 2, 0);
+
 void ns_install_primitives(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "display", &display_nt);
@@ -323,4 +439,9 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "*", &fxmul_nt);
 	ns_install_native(tbl, "/", &fxdiv_nt);
 	ns_install_native(tbl, "=", &fxeq_nt);
+
+	ns_install_native(tbl, "fd-open", &fd_open_nt);
+	ns_install_native(tbl, "fd-close", &fd_close_nt);
+	ns_install_native(tbl, "fd-seek", &fd_seek_nt);
+	ns_install_native(tbl, "fd-write", &fd_write_nt);
 }

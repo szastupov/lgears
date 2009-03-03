@@ -6,7 +6,7 @@
           (format))
 
   (define-record-type ilr
-    (fields imports symbols code entry-point))
+    (fields imports symbols code strings entry-point))
 
   (define-record-type i-func
     (fields code size argc heap?
@@ -16,6 +16,7 @@
     (display "ILR: \n")
     (display (format "Imports: ~a\n" (ilr-imports res)))
     (display (format "Symbols: ~a\n" (ilr-symbols res)))
+    (display (format "Strings: ~a\n" (ilr-strings res)))
     (display (format "Entry point: ~a\n" (ilr-entry-point res)))
     (display "Code: \n")
     (for-each (lambda (x)
@@ -89,13 +90,14 @@
                   strings)
         (- (port-position port) oldpos)))
 
-    (let ((hdr-size 12))
+    (let ((hdr-size 16))
       (set-port-position! port hdr-size)
       (let ((header (make-bytevector hdr-size)))
         (bytevector-u32-native-set! header 0 (write-strings (ilr-imports root)))
         (bytevector-u32-native-set! header 4 (write-strings (ilr-symbols root)))
-        (bytevector-u16-native-set! header 8 (length (ilr-code root)))
-        (bytevector-u16-native-set! header 10 (ilr-entry-point root))
+        (bytevector-u32-native-set! header 8 (write-strings (ilr-strings root)))
+        (bytevector-u16-native-set! header 12 (length (ilr-code root)))
+        (bytevector-u16-native-set! header 14 (ilr-entry-point root))
         (for-each (lambda (func)
                     (put-bytevector port (assemble-code func)))
                   (ilr-code root))

@@ -16,7 +16,7 @@
     (display "ILR: \n")
     (display (format "Imports: ~a\n" (ilr-imports res)))
     (display (format "Symbols: ~a\n" (ilr-symbols res)))
-    (display (format "Strings: ~a\n" (ilr-strings res)))
+    (display (format "Strings: ~s\n" (ilr-strings res)))
     (display (format "Entry point: ~a\n" (ilr-entry-point res)))
     (display "Code: \n")
     (for-each (lambda (x)

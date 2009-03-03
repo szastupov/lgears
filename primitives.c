@@ -20,6 +20,7 @@
 #include "primitives.h"
 #include "memory.h"
 #include "vm.h"
+#include "fixnum.h"
 
 void print_obj(obj_t obj);
 
@@ -141,79 +142,6 @@ static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	return RC_OK;
 }
 MAKE_NATIVE(eq, 2, 0);
-
-static int fxsum(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
-{
-	fixnum_t res;
-	FIXNUM_INIT(res, 0);
-	int i;
-	for (i = 1; i < argc; i++)
-		res.val += FIXNUM(argv[i]);
-
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE(fxsum, 0, 1);
-
-static int fxsub(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
-{
-	fixnum_t res;
-	FIXNUM_INIT(res, FIXNUM(argv[1]));
-	int i;
-	for (i = 2; i < argc; i++)
-		res.val -= FIXNUM(argv[i]);
-
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE(fxsub, 2, 1);
-
-static int fxmul(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
-{
-	fixnum_t res;
-	FIXNUM_INIT(res, 1);
-	int i;
-	for (i = 1; i < argc; i++)
-		res.val *= FIXNUM(argv[i]);
-
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE(fxmul, 0, 1);
-
-static int fxdiv(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
-{
-	fixnum_t res;
-	FIXNUM_INIT(res, FIXNUM(argv[1]));
-	int i;
-	for (i = 2; i < argc; i++)
-		res.val /= FIXNUM(argv[i]);
-
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE(fxdiv, 2, 1);
-
-static int fxeq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
-{
-	const_t res = ctrue;
-
-	int i;
-	for (i = 2; i < argc; i++)
-		if (FIXNUM(argv[i-1]) != FIXNUM(argv[i])) {
-			res = cfalse;
-			break;
-		}
-
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE(fxeq, 2, 1);
 
 static void print_const(obj_t obj)
 {
@@ -337,28 +265,39 @@ MAKE_NATIVE(call_cc, 1, 0);
  * r6rs port system will be build on it
  */
 
+typedef struct {
+	char str[3];
+	int mode;
+} fd_mode_t;
+
+static const fd_mode_t fd_modes[] = {
+	{ "r", O_RDONLY },
+	{ "r+", O_RDWR },
+	{ "w", O_WRONLY|O_TRUNC|O_CREAT },
+	{ "w+", O_RDWR|O_TRUNC|O_CREAT },
+	{ "a", O_WRONLY|O_APPEND|O_CREAT },
+	{ "a+", O_RDWR|O_APPEND|O_CREAT },
+};
+
+int fd_parse_mode(const char *str)
+{
+	int i;
+	for (i = 0; i < sizeof(fd_modes)/sizeof(fd_mode_t); i++)
+		if (strncmp(str, fd_modes[i].str, 2) == 0)
+			return fd_modes[i].mode;
+	return fd_modes[0].mode;
+}
+
 static int fd_open(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 {
-	int mode = 0;
-	switch (FIXNUM(argv[2])) {
-		case 0:
-			mode = O_RDONLY;
-			break;
-		case 1:
-			mode = O_WRONLY;
-			break;
-		case 2:
-			mode = O_RDWR;
-			break;
-		default:
-			mode = O_RDONLY;
-	}
+	string_t *path_str = get_typed(argv[1], t_string);
+	ASSERT(path_str != NULL);
+	string_t *mode_str = get_typed(argv[2], t_string);
+	ASSERT(mode_str != NULL);
 
-	string_t *str = get_typed(argv[1], t_string);
-	if (!str)
-		FATAL("argument is not a string\n");
+	int mode = fd_parse_mode(mode_str->str);
+	int fd = open(path_str->str, mode);
 
-	int fd = open(str->str, mode);
 	fixnum_t res;
 	FIXNUM_INIT(res, fd);
 	tramp->arg[0] = res.obj;
@@ -434,14 +373,10 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "eq?", &eq_nt);
 
-	ns_install_native(tbl, "+", &fxsum_nt);
-	ns_install_native(tbl, "-", &fxsub_nt);
-	ns_install_native(tbl, "*", &fxmul_nt);
-	ns_install_native(tbl, "/", &fxdiv_nt);
-	ns_install_native(tbl, "=", &fxeq_nt);
-
 	ns_install_native(tbl, "fd-open", &fd_open_nt);
 	ns_install_native(tbl, "fd-close", &fd_close_nt);
 	ns_install_native(tbl, "fd-seek", &fd_seek_nt);
 	ns_install_native(tbl, "fd-write", &fd_write_nt);
+
+	ns_install_fixnum(tbl);
 }

@@ -40,7 +40,7 @@
 	abort();							\
 }
 
-#define ASSERT(e) if (!e) FATAL("Assertion failed %s\n", #e);
+#define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 
 #define DBG(msg...) fprintf(stderr, msg);
 

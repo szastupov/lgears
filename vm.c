@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <errno.h>
 

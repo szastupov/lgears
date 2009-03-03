@@ -263,7 +263,7 @@
                             (display 'end)
                             |#
 
-                            #|
+                            ;#|
                             (define (zero? x)
                               (= x 0))
                             (define (f-aux n a)
@@ -272,22 +272,7 @@
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 25 1))
                             (display 'ok)
-                            |#
-
-                            (define O_RDONLY 0)
-                            (define O_WRONLY 1)
-                            (define O_RDWR 2)
-                            (define SEEK_SET 0)
-                            (define SEEK_CUR 1)
-                            (define SEEK_END 2)
-
-                            (define fd (fd-open "/tmp/test" O_WRONLY))
-                            (if (= fd -1)
-                              (display 'failed)
-                              (begin
-                                (fd-seek fd 12 SEEK_SET)
-                                (fd-write fd "!test!\n")
-                                (fd-close fd)))
+                            ;|#
 
                             #|
                             (define (foo n)

@@ -174,7 +174,9 @@ module_t* module_load(const char *path)
 {
 	map_t map;
 
-	mapfile(path, &map);
+	if (mapfile(path, &map) == -1)
+		FATAL("Failed to read %s\n", path);
+
 	module_t *mod = module_parse(map.addr, map.size); //TODO add error check
 	munmap(map.addr, map.size);
 

@@ -209,7 +209,7 @@
                ((quote)
                 (if (null? (cadr node))
                   `((LOAD_CONST 0 1))
-                  `((LOAD_SYM ,(sym-table-insert symbols (cadr node)) 1))))
+                  `((LOAD_SYM ,(sym-table-insert symbols (cadr node)) 1 ,(cadr node)))))
                ((set!)
                 (compile-assigment env (cdr node)))
                (else
@@ -290,5 +290,4 @@
   (display "\nAssembly output:\n")
   (let ((port (open-file-output-port "/tmp/assembly" (file-options no-fail))))
     (assemble res port)
-    (close-output-port port))
-  )
+    (close-output-port port)))

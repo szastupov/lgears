@@ -22,20 +22,27 @@
  * @file heap.h
  * @brief Heap manager defination
  * @author Stepan Zastupov
- * @date 2009-01-06
  */
 
-
+/** 
+ * @brief Header attached to each object on heap
+ */
 typedef struct {
-	unsigned size;
-	unsigned type_id:4;
-	unsigned forward:1;
+	unsigned size;		/**< Size of block (with padding if need) */
+	unsigned type_id:4;	/**< Type id @see type_table */
+	unsigned forward:1;	/**< Indicate that pointer should be forwarded */
 } block_hdr_t;
 #define BHDR_SIZE sizeof(block_hdr_t)
 
 #define IS_TYPE(obj, tid) \
 	(obj.tag == id_ptr && ((block_hdr_t*)PTR(obj)-BHDR_SIZE)->type_id == tid)
 
+/** 
+ * @brief Check object type and return pointer
+ * 
+ * @param obj Object
+ * @param type_id Valid type id
+ */
 static inline void* get_typed(obj_t obj, int type_id)
 {
 	if (obj.tag != id_ptr) {
@@ -52,22 +59,28 @@ static inline void* get_typed(obj_t obj, int type_id)
 	return res;
 }
 
+/** 
+ * @brief Copying heap
+ */
 typedef struct {
-	void *mem;
-	void *pos;
-	int size;
-	int free_mem;
-	int blocks;
+	void *mem;		/**< Memory */
+	void *pos;		/**< Current position */
+	int size;		/**< Total size of space */
+	int free_mem;	/**< Free memory */
+	int blocks;		/**< Used blocks */
 } copy_heap_t;
 
+/** 
+ * @brief Heap interface
+ */
 typedef struct {
-	visitor_t visitor;
-	void *page;
-	int page_size;
-	copy_heap_t heaps[2];
-	copy_heap_t *from, *to;
-	visitor_fun vm_get_roots;
-	void *vm;
+	visitor_t visitor;			/**< VM visitor */
+	void *page;					/**< Managed page (actualy memory received from malloc() */
+	int page_size;				/**< Size of page */
+	copy_heap_t heaps[2];		/**< Two copying heaps */
+	copy_heap_t *from, *to;	
+	visitor_fun vm_get_roots;	/**< Callback to procedure which mark root objects */
+	void *vm;					/**< VM pointer */
 } heap_t;
 
 /** 
@@ -97,6 +110,11 @@ void heap_destroy(heap_t *heap);
 void* heap_alloc(heap_t *heap, int size, int type_id);
 void* heap_alloc0(heap_t *heap, int size, int type_id);
 
+/** 
+ * @brief Print heap statistics
+ * 
+ * @param heap 
+ */
 void heap_stat(heap_t *heap);
 
 #endif /* HEAP_H */

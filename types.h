@@ -63,6 +63,9 @@ enum {
 		obj_t obj; \
 	} name;
 
+/** 
+ * @brief constant
+ */
 typedef union {
 	struct {
 		TYPE_TAG;
@@ -113,6 +116,9 @@ typedef enum {
 	func_native	/**< Native C-function */
 } func_type_t;
 
+/** 
+ * @brief Common header for functions
+ */
 typedef struct {
 	func_type_t type;
 	uint16_t argc;
@@ -155,6 +161,9 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
+/** 
+ * @brief Type table
+ */
 extern const type_t type_table[];
 enum { t_env, t_closure, t_display, t_pair, t_string };
 

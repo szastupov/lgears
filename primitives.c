@@ -34,7 +34,7 @@ int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc)
 		case 3:
 			return ((native_ternary)native->fp)(thread, argv[1], argv[2], argv[3]);
 		default:
-			FATAL("wront arity %d\n", native->arity);
+			FATAL("wrong arity %d of %s\n", native->arity, native->name);
 	}
 }
 

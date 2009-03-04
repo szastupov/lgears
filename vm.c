@@ -468,7 +468,7 @@ void vm_cleanup()
 	hash_table_destroy(&sym_table);
 }
 
-#define SIZE_INFO(t) printf("sizeof(%s) = %ld\n", #t, sizeof(t))
+#define SIZE_INFO(t) printf("sizeof(%s) = %zd\n", #t, sizeof(t))
 
 static void info()
 {

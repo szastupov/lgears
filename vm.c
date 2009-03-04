@@ -315,7 +315,7 @@ call_inter:
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 							thread->tramp.argc = 1;
 							thread->tramp.func.obj = argv[0];
-							switch (func->call(thread, argv, op_arg)) {
+							switch (native_call(thread, func, argv, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
 									heap_stat(&thread->heap);

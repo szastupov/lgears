@@ -20,6 +20,24 @@
 #include "primitives.h"
 #include "fixnum.h"
 
+int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc)
+{
+	switch (native->arity) {
+		case -1:
+			return ((native_variadic)native->fp)(thread, argv, argc);
+		case 0:
+			return ((native_nullary)native->fp)(thread);
+		case 1:
+			return ((native_unary)native->fp)(thread, argv[1]);
+		case 2:
+			return ((native_binary)native->fp)(thread, argv[1], argv[2]);
+		case 3:
+			return ((native_ternary)native->fp)(thread, argv[1], argv[2], argv[3]);
+		default:
+			FATAL("wrong arity %d of %s\n", native->arity, native->name);
+	}
+}
+
 void print_obj(obj_t obj);
 
 typedef struct {
@@ -84,13 +102,13 @@ static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 	return make_ptr(pair, id_ptr);
 }
 
-static int cons(vm_thread_t *thread, obj_t *argv, int argc)
+static int cons(vm_thread_t *thread, obj_t car, obj_t cdr)
 {
-	thread->tramp.arg[0].ptr = _cons(&thread->heap, argv[1], argv[2]);
+	thread->tramp.arg[0].ptr = _cons(&thread->heap, car, cdr);
 
 	return RC_OK;
 }
-MAKE_NATIVE(cons, 2, 0);
+MAKE_NATIVE_BINARY(cons);
 
 static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -104,11 +122,11 @@ static int list(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(list, 0, 1);
+MAKE_NATIVE_VARIADIC(list, 0, 1);
 
-static int car(vm_thread_t *thread, obj_t *argv, int argc)
+static int car(vm_thread_t *thread, obj_t obj)
 {
-	pair_t *pair = get_typed(argv[1], t_pair);
+	pair_t *pair = get_typed(obj, t_pair);
 	if (pair)
 		thread->tramp.arg[0] = pair->car;
 	else
@@ -116,11 +134,11 @@ static int car(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(car, 1, 0);
+MAKE_NATIVE_UNARY(car);
 
-static int cdr(vm_thread_t *thread, obj_t *argv, int argc)
+static int cdr(vm_thread_t *thread, obj_t obj)
 {
-	pair_t *pair = get_typed(argv[1], t_pair);
+	pair_t *pair = get_typed(obj, t_pair);
 	if (pair)
 		thread->tramp.arg[0] = pair->cdr;
 	else
@@ -128,16 +146,16 @@ static int cdr(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(cdr, 1, 0);
+MAKE_NATIVE_UNARY(cdr);
 
-static int eq(vm_thread_t *thread, obj_t *argv, int argc)
+static int eq(vm_thread_t *thread, obj_t a, obj_t b)
 {
-	const_t res = CIF(argv[1].ptr == argv[2].ptr);
+	const_t res = CIF(a.ptr == b.ptr);
 	thread->tramp.arg[0] = res.obj;
 
 	return RC_OK;
 }
-MAKE_NATIVE(eq, 2, 0);
+MAKE_NATIVE_BINARY(eq);
 
 static void print_const(obj_t obj)
 {
@@ -215,22 +233,21 @@ void print_obj(obj_t obj)
 	}
 }
 
-static int display(vm_thread_t *thread,
-		obj_t *argv, int argc)
+static int display(vm_thread_t *thread, obj_t obj)
 {
-	print_obj(argv[1]);
+	print_obj(obj);
 	printf("\n");
 	thread->tramp.arg[0] = cvoid.obj;
 
 	return RC_OK;
 }
-MAKE_NATIVE(display, 1, 0);
+MAKE_NATIVE_UNARY(display);
 
-static int vm_exit(vm_thread_t *thread, obj_t *argv, int argc)
+static int vm_exit(vm_thread_t *thread)
 {
 	return RC_EXIT;
 }
-MAKE_NATIVE(vm_exit, 0, 0);
+MAKE_NATIVE_NULLARY(vm_exit);
 
 static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -246,7 +263,7 @@ static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(call_cc, 1, 0);
+MAKE_NATIVE_VARIADIC(call_cc, 1, 0);
 
 /* 
  * File descriptors
@@ -277,11 +294,11 @@ int fd_parse_mode(const char *str)
 	return fd_modes[0].mode;
 }
 
-static int fd_open(vm_thread_t *thread, obj_t *argv, int argc)
+static int fd_open(vm_thread_t *thread, obj_t ostring, obj_t omode)
 {
-	string_t *path_str = get_typed(argv[1], t_string);
+	string_t *path_str = get_typed(ostring, t_string);
 	ASSERT(path_str != NULL);
-	string_t *mode_str = get_typed(argv[2], t_string);
+	string_t *mode_str = get_typed(omode, t_string);
 	ASSERT(mode_str != NULL);
 
 	int mode = fd_parse_mode(mode_str->str);
@@ -289,20 +306,21 @@ static int fd_open(vm_thread_t *thread, obj_t *argv, int argc)
 
 	RESULT_FIXNUM(fd);
 }
-MAKE_NATIVE(fd_open, 2, 0);
+MAKE_NATIVE_BINARY(fd_open);
 
-static int fd_close(vm_thread_t *thread, obj_t *argv, int argc)
+static int fd_close(vm_thread_t *thread, obj_t fd)
 {
-	RESULT_FIXNUM(close(FIXNUM(argv[1])));
+	RESULT_FIXNUM(close(FIXNUM(fd)));
 }
-MAKE_NATIVE(fd_close, 1, 0);
+MAKE_NATIVE_UNARY(fd_close);
 
-static int fd_seek(vm_thread_t *thread, obj_t *argv, int argc)
+static int fd_seek(vm_thread_t *thread, obj_t fd, obj_t offt, obj_t omode)
 {
-	ASSERT(argv[3].tag == id_fixnum);
+	ASSERT(omode.tag == id_fixnum);
+	ASSERT(offt.tag == id_fixnum);
 
 	int mode = 0;
-	switch (FIXNUM(argv[3])) {
+	switch (FIXNUM(omode)) {
 		case 0:
 			mode = SEEK_SET;
 			break;
@@ -316,25 +334,25 @@ static int fd_seek(vm_thread_t *thread, obj_t *argv, int argc)
 			mode = SEEK_SET;
 	}
 
-	off_t offset = lseek(FIXNUM(argv[1]), FIXNUM(argv[2]), mode);
+	off_t offset = lseek(FIXNUM(fd), FIXNUM(offt), mode);
 	RESULT_FIXNUM(offset);
 }
-MAKE_NATIVE(fd_seek, 3, 0);
+MAKE_NATIVE_TERNARY(fd_seek);
 
-static int fd_write(vm_thread_t *thread, obj_t *argv, int argc)
+static int fd_write(vm_thread_t *thread, obj_t fd, obj_t data)
 {
-	ASSERT(argv[1].tag == id_fixnum);
-	ASSERT(argv[2].tag == id_ptr);
+	ASSERT(fd.tag == id_fixnum);
+	ASSERT(data.tag == id_ptr);
 
-	string_t *str = get_typed(argv[2], t_string);
+	string_t *str = get_typed(data, t_string);
 	if (!str)
 		FATAL("argument is not a string\n");
 
-	int wrote = write(FIXNUM(argv[1]), str->str, str->size-1);
+	int wrote = write(FIXNUM(fd), str->str, str->size-1);
 
 	RESULT_FIXNUM(wrote);
 }
-MAKE_NATIVE(fd_write, 2, 0);
+MAKE_NATIVE_BINARY(fd_write);
 
 
 void ns_install_native(hash_table_t *tbl,

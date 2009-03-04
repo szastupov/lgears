@@ -19,26 +19,46 @@
 
 #include "vm.h"
 
-typedef struct native_s native_t;
-typedef int (*native_func)(vm_thread_t *thread,
-		obj_t *argv, int argc);
-
 enum { RC_OK, RC_ERROR, RC_EXIT };
 
-struct native_s {
+typedef struct {
 	func_hdr_t hdr;
-	native_func call;
+	void *fp;
+	int arity;
 	const char *name;
-};
+} native_t;
 
-#define MAKE_NATIVE(func, fargc, fswallow) \
+int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc);
+typedef int (*native_nullary)(vm_thread_t*);
+typedef int (*native_unary)(vm_thread_t*, obj_t);
+typedef int (*native_binary)(vm_thread_t*, obj_t, obj_t);
+typedef int (*native_ternary)(vm_thread_t*, obj_t, obj_t, obj_t);
+typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
+
+#define MAKE_NATIVE(func, farity, fargc, fswallow) \
 	const native_t func##_nt = { \
 		.hdr.type = func_native, \
 		.hdr.argc = fargc+1, \
+		.arity = farity, \
 		.hdr.swallow = fswallow, \
-		.call = func, \
+		.fp = func, \
 		.name = #func \
 	}
+
+#define MAKE_NATIVE_VARIADIC(func, fargc, fswallow) \
+	MAKE_NATIVE(func, -1, fargc, fswallow)
+
+#define MAKE_NATIVE_NULLARY(func) \
+	MAKE_NATIVE(func, 0, 0, 0)
+
+#define MAKE_NATIVE_UNARY(func) \
+	MAKE_NATIVE(func, 1, 1, 0)
+
+#define MAKE_NATIVE_BINARY(func) \
+	MAKE_NATIVE(func, 2, 2, 0)
+
+#define MAKE_NATIVE_TERNARY(func) \
+	MAKE_NATIVE(func, 3, 3, 0)
 
 #define RESULT_FIXNUM(num) \
 	FIXNUM_INIT(*(fixnum_t*)&thread->tramp.arg[0], num); \

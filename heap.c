@@ -19,6 +19,17 @@
 #include "memory.h"
 #include "heap.h"
 
+/** 
+ * @file heap.c
+ * @brief Heap managment inplementation
+ * @author Stepan Zastupov
+ *
+ * This is the implementation of Cheney's Algorithm
+ * Not, that memory forwarding via old memory overwrite,
+ * it may be changed inf future
+ */
+
+
 #define balign 7
 #define align_up(s)	(((s)+balign) & ~balign)
 #define pad align_up(BHDR_SIZE)-BHDR_SIZE
@@ -103,6 +114,11 @@ static void heap_swap(heap_t *heap)
 	heap->to = tmp;
 }
 
+/** 
+ * @brief Incremental scan of object referencies
+ * 
+ * @param heap 
+ */
 static void heap_scan_references(heap_t *heap)
 {
 	DBG("Survived root objects %d\n", heap->to->blocks);

@@ -159,7 +159,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	void *p = PTR_GET(ptr);
 	if (!copy_heap_own(heap->from, p)) {
 		if (copy_heap_own(heap->to, p)) {
-			DBG("Strange, %p belong to `to' space, skip...\n", p);
+			DBG("%p belong to `to' space, skip...\n", p);
 			return;
 		} else
 			FATAL("Trying to mark %p which doesn't belong to this heap\n", p);

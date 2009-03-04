@@ -33,6 +33,9 @@ typedef struct {
 } block_hdr_t;
 #define BHDR_SIZE sizeof(block_hdr_t)
 
+#define IS_TYPE(obj, tid) \
+	(obj.tag == id_ptr && ((block_hdr_t*)PTR(obj)-BHDR_SIZE)->type_id == tid)
+
 static inline void* get_typed(obj_t obj, int type_id)
 {
 	if (obj.tag != id_ptr) {

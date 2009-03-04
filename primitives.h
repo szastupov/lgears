@@ -17,37 +17,32 @@
 #ifndef PRIMITIVES_H
 #define PRIMITIVES_H 
 
-#include "heap.h"
-#include "hash.h"
-
-typedef struct {
-	ptr_t func;
-	obj_t arg[2];
-	int argc;
-} trampoline_t;
+#include "vm.h"
 
 typedef struct native_s native_t;
-typedef int (*native_func)(heap_t *heap, trampoline_t *tramp,
+typedef int (*native_func)(vm_thread_t *thread,
 		obj_t *argv, int argc);
 
 enum { RC_OK, RC_ERROR, RC_EXIT };
 
 struct native_s {
-	func_type_t type;
-	short argc;
-	unsigned swallow:1;
+	func_hdr_t hdr;
 	native_func call;
 	const char *name;
 };
 
 #define MAKE_NATIVE(func, fargc, fswallow) \
 	const native_t func##_nt = { \
-		.type = func_native, \
-		.argc = fargc+1, \
+		.hdr.type = func_native, \
+		.hdr.argc = fargc+1, \
+		.hdr.swallow = fswallow, \
 		.call = func, \
-		.swallow = fswallow, \
 		.name = #func \
 	}
+
+#define RESULT_FIXNUM(num) \
+	FIXNUM_INIT(*(fixnum_t*)&thread->tramp.arg[0], num); \
+	return RC_OK;
 
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt);

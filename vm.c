@@ -144,6 +144,45 @@ static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 	return make_ptr(closure, id_ptr);
 }
 
+#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
+#define STACK_POP() thread->opstack[--thread->op_stack_idx]
+
+static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
+{
+	thread->func = func;
+	int i;
+
+	if (tag != id_ptr && thread->display) {
+		while (func->depth-1 < thread->display->depth)
+			thread->display = thread->display->prev;
+	}
+
+	if (func->heap_env) {
+		thread->env = env_new(&thread->heap, func->env_size);
+		thread->objects = thread->env->objects;
+		if (op_arg) {
+			void *args = &thread->opstack[thread->op_stack_idx - op_arg];
+			thread->op_stack_idx = 0;
+			memcpy(thread->objects, args, op_arg*sizeof(obj_t));
+		}
+	} else {
+		thread->env = NULL;
+		thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
+	}
+
+	if (func->bcount) {
+		thread->bindmap = (void*)&thread->opstack[thread->op_stack_idx];
+		for (i = 0; i < func->bmcount; i++) {
+			env_t *env = display_env(thread->display, (func->bindmap[i]-1));
+			if (!env)
+				FATAL("null env\n");
+			STACK_PUSH(make_ptr(env, id_ptr));
+		}
+	}
+
+	thread->display = display_new(&thread->heap, &thread->display, &thread->env);
+}
+
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
@@ -155,18 +194,10 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
-	if (func->heap_env) {
-		thread->env = env_new(&thread->heap, func->env_size);
-		thread->objects = thread->env->objects;
-		thread->display = display_new(&thread->heap, NULL, &thread->env);
-	} else {
-		thread->env = NULL;
-		thread->objects = thread->opstack;
-		thread->op_stack_idx = func->env_size;
-	}
+	thread->env = env_new(&thread->heap, func->env_size);
+	thread->objects = thread->env->objects;
+	thread->display = display_new(&thread->heap, NULL, &thread->env);
 
-#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
-#define STACK_POP() thread->opstack[--thread->op_stack_idx]
 #define STACK_HEAD() thread->opstack[thread->op_stack_idx-1]
 
 	/*
@@ -237,7 +268,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 			TARGET(FUNC_CALL) {
 				ptr_t fp;
 				void *ptr;
-				void *args;
 				fp.obj = STACK_POP();
 dispatch_func:
 				if (fp.tag != id_func && fp.tag != id_ptr && fp.tag != id_cont)
@@ -258,65 +288,34 @@ dispatch_func:
 					ptr = PTR_GET(fp);
 				}
 
-				switch (FUNC_TYPE(ptr)) {
+				func_hdr_t *fhdr = (func_hdr_t*)ptr;
+				if (fhdr->swallow) {
+					if (op_arg < fhdr->argc)
+						FATAL("try to pass %d args when at least %d requred\n", op_arg, fhdr->argc);
+				} else {
+					if (op_arg != fhdr->argc)
+						FATAL("try to pass %d args when %d requred\n", op_arg, fhdr->argc);
+				}
+
+				switch (fhdr->type) {
 					case func_inter: 
 						{
 call_inter:
 							func = ptr;
-							thread->func = func;
-							if (op_arg != func->argc)
-								FATAL("try to pass %d args when %d requred\n", op_arg, func->argc);
-
-							if (fp.tag != id_ptr && thread->display) {
-								while (func->depth-1 < thread->display->depth)
-									thread->display = thread->display->prev;
-							}
-
 							opcode = func->opcode;
-							if (func->heap_env) {
-								thread->env = env_new(&thread->heap, func->env_size);
-								thread->objects = thread->env->objects;
-								args = &thread->opstack[thread->op_stack_idx - op_arg];
-								thread->op_stack_idx = 0;
-								memcpy(thread->objects, args, op_arg*sizeof(obj_t));
-							} else {
-								thread->env = NULL;
-								thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
-							}
-
-							if (func->bcount) {
-								thread->bindmap = (void*)&thread->opstack[thread->op_stack_idx];
-								for (i = 0; i < func->bmcount; i++) {
-									env_t *env = display_env(thread->display, (func->bindmap[i]-1));
-									if (!env)
-										FATAL("null env\n");
-									STACK_PUSH(make_ptr(env, id_ptr));
-								}
-							}
-
-							thread->display = display_new(&thread->heap, &thread->display, &thread->env);
+							enter_interp(thread, func, op_arg, fp.tag);
 						}
 						NEXT();
 					case func_native: 
 						{
-							trampoline_t tramp;
 							native_t *func;
 							func = ptr;
 
-							if (func->swallow) {
-								if (op_arg < func->argc)
-									FATAL("%s need minimum %d arguments, but got %d",
-											func->name, func->argc, op_arg);
-							} else {
-								if (op_arg != func->argc)
-									FATAL("try to pass %d args when %d requred by %s\n", op_arg, func->argc, func->name);
-							}
-
 							DBG("calling native %s\n", func->name);
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
-							tramp.argc = 1;
-							tramp.func.obj = argv[0];
-							switch (func->call(&thread->heap, &tramp, argv, op_arg)) {
+							thread->tramp.argc = 1;
+							thread->tramp.func.obj = argv[0];
+							switch (func->call(thread, argv, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
 									heap_stat(&thread->heap);
@@ -329,11 +328,11 @@ call_inter:
 
 							thread->op_stack_idx = 0;
 							op_arg = 0;
-							for (i = 0; i < tramp.argc; i++) {
-								STACK_PUSH(tramp.arg[i].ptr);
+							for (i = 0; i < thread->tramp.argc; i++) {
+								STACK_PUSH(thread->tramp.arg[i].ptr);
 								op_arg++;
 							}
-							fp = tramp.func;
+							fp = thread->tramp.func;
 							goto dispatch_func;
 						}
 						break;
@@ -473,6 +472,7 @@ void vm_cleanup()
 
 static void info()
 {
+	SIZE_INFO(vm_thread_t);
 	SIZE_INFO(fixnum_t);
 	SIZE_INFO(ptr_t);
 	SIZE_INFO(char_t);

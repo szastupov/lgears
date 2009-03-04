@@ -14,8 +14,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#ifndef VM_PRIVATE_H
-#define VM_PRIVATE_H 
+#ifndef VM_H
+#define VM_H 
 #include <stdint.h>
 #include "memory.h"
 #include "types.h"
@@ -31,10 +31,9 @@ typedef struct {
 
 typedef struct module_s module_t;
 typedef struct {
-	func_type_t type;
+	func_hdr_t hdr;
 	int stack_size;
 	short env_size;
-	short argc;
 	int op_count;
 	short heap_env;
 	int depth;
@@ -74,6 +73,12 @@ typedef struct {
 } closure_t;
 
 typedef struct {
+	ptr_t func;
+	obj_t arg[2];
+	int argc;
+} trampoline_t;
+
+typedef struct {
 	heap_t heap;
 
 	/* Variables representing execution state */
@@ -85,30 +90,10 @@ typedef struct {
 	display_t *display;
 	obj_t *bindmap;
 	func_t *func;
+
+	trampoline_t tramp;
 } vm_thread_t;
-
-struct func_hdr_s {
-	uint16_t env_size;
-	uint16_t argc;
-	uint16_t stack_size;
-	uint16_t op_count;
-	uint16_t heap_env;
-	uint16_t depth;
-	uint16_t bcount;
-	uint16_t bmcount;
-} __attribute__((__packed__));
-
-struct module_hdr_s {
-	uint32_t import_size;
-	uint32_t symbols_size;
-	uint32_t strings_size;
-	uint16_t fun_count;
-	uint16_t entry_point;
-} __attribute__((__packed__));
-
-#define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)
-#define FUN_HDR_SIZE sizeof(struct func_hdr_s)
 
 void* make_symbol(hash_table_t *tbl, const char *str);
 
-#endif /* VM_PRIVATE_H */
+#endif /* VM_H */

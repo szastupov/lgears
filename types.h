@@ -103,7 +103,7 @@ DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 
 #define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }
 #define SYMBOL_INIT(i, v) { (i).tag = id_symbol; PTR_SET(i, v); }
-#define SYMBOL_TO_CHAR(o) (const char*)PTR(o)
+#define SYMBOL_TO_CHARP(o) (const char*)PTR(o)
 
 /** 
  * @brief function types
@@ -113,7 +113,11 @@ typedef enum {
 	func_native	/**< Native C-function */
 } func_type_t;
 
-#define FUNC_TYPE(ptr) *((func_type_t*)ptr)
+typedef struct {
+	func_type_t type;
+	uint16_t argc;
+	uint16_t swallow:1;
+} func_hdr_t;
 
 DEFINE_TYPE(fixnum_t, long val:__WORDSIZE-3);
 #define FIXNUM_INIT(n,v) { (n).tag = id_fixnum; (n).val = v; }

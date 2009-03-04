@@ -18,8 +18,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "primitives.h"
-#include "memory.h"
-#include "vm.h"
 #include "fixnum.h"
 
 void print_obj(obj_t obj);
@@ -37,7 +35,6 @@ void pair_visit(visitor_t *vs, void *data)
 
 static void disp_pair(pair_t *pair)
 {
-#if 0
 	printf(" ");
 	if (IS_TYPE(pair->cdr, t_pair)) {
 		pair_t *np = PTR(pair->cdr);
@@ -45,7 +42,6 @@ static void disp_pair(pair_t *pair)
 		disp_pair(np);
 	} else
 		print_obj(pair->cdr);
-#endif
 }
 
 void pair_repr(void *ptr)
@@ -88,56 +84,56 @@ static void* _cons(heap_t *heap, obj_t car, obj_t cdr)
 	return make_ptr(pair, id_ptr);
 }
 
-static int cons(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int cons(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	tramp->arg[0].ptr = _cons(heap, argv[1], argv[2]);
+	thread->tramp.arg[0].ptr = _cons(&thread->heap, argv[1], argv[2]);
 
 	return RC_OK;
 }
 MAKE_NATIVE(cons, 2, 0);
 
-static int list(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
 
 	int i;
 	for (i = argc-1; i > 0; i--)
-		res.ptr = _cons(heap, argv[i], res);
+		res.ptr = _cons(&thread->heap, argv[i], res);
 
-	tramp->arg[0] = res;
+	thread->tramp.arg[0] = res;
 
 	return RC_OK;
 }
 MAKE_NATIVE(list, 0, 1);
 
-static int car(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int car(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[1], t_pair);
 	if (pair)
-		tramp->arg[0] = pair->car;
+		thread->tramp.arg[0] = pair->car;
 	else
-		tramp->arg[0].ptr = NULL;
+		thread->tramp.arg[0].ptr = NULL;
 
 	return RC_OK;
 }
 MAKE_NATIVE(car, 1, 0);
 
-static int cdr(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int cdr(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	pair_t *pair = get_typed(argv[1], t_pair);
 	if (pair)
-		tramp->arg[0] = pair->cdr;
+		thread->tramp.arg[0] = pair->cdr;
 	else
-		tramp->arg[0].ptr = NULL;
+		thread->tramp.arg[0].ptr = NULL;
 
 	return RC_OK;
 }
 MAKE_NATIVE(cdr, 1, 0);
 
-static int eq(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int eq(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	const_t res = CIF(argv[1].ptr == argv[2].ptr);
-	tramp->arg[0] = res.obj;
+	thread->tramp.arg[0] = res.obj;
 
 	return RC_OK;
 }
@@ -178,14 +174,15 @@ static void print_func(obj_t obj)
 	void *ptr = PTR(obj);
 	native_t *native;
 	func_t *interp;
-	switch (FUNC_TYPE(ptr)) {
+	func_hdr_t *fhdr = ptr;
+	switch (fhdr->type) {
 		case func_inter:
 			interp = ptr;
-			printf("<lambda/%d>", interp->argc);
+			printf("<lambda/%d>", interp->hdr.argc);
 			break;
 		case func_native:
 			native = ptr;
-			printf("<native %s/%d>", native->name, native->argc);
+			printf("<native %s/%d>", native->name, native->hdr.argc);
 			break;
 		default:
 			printf("<unknown func>");
@@ -218,41 +215,33 @@ void print_obj(obj_t obj)
 	}
 }
 
-static int display(heap_t *heap, trampoline_t *tramp,
+static int display(vm_thread_t *thread,
 		obj_t *argv, int argc)
 {
 	print_obj(argv[1]);
 	printf("\n");
-	tramp->arg[0] = cvoid.obj;
+	thread->tramp.arg[0] = cvoid.obj;
 
 	return RC_OK;
 }
 MAKE_NATIVE(display, 1, 0);
 
-void ns_install_native(hash_table_t *tbl,
-		char *name, const native_t *nt)
-{
-	ptr_t ptr;
-	FUNC_INIT(ptr, nt);
-	hash_table_insert(tbl, name, ptr.ptr); 
-}
-
-static int vm_exit(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int vm_exit(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	return RC_EXIT;
 }
 MAKE_NATIVE(vm_exit, 0, 0);
 
-static int call_cc(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	tramp->func.ptr = argv[1].ptr;
+	thread->tramp.func.ptr = argv[1].ptr;
 	// Pass current continuation to both arguments
-	tramp->arg[0] = argv[0];
-	tramp->arg[1] = argv[0];
-	tramp->argc = 2;
+	thread->tramp.arg[0] = argv[0];
+	thread->tramp.arg[1] = argv[0];
+	thread->tramp.argc = 2;
 
 	// But for second, change tag
-	tramp->arg[1].tag = id_cont;
+	thread->tramp.arg[1].tag = id_cont;
 	//TODO check for valid function
 
 	return RC_OK;
@@ -288,7 +277,7 @@ int fd_parse_mode(const char *str)
 	return fd_modes[0].mode;
 }
 
-static int fd_open(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int fd_open(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	string_t *path_str = get_typed(argv[1], t_string);
 	ASSERT(path_str != NULL);
@@ -298,25 +287,17 @@ static int fd_open(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	int mode = fd_parse_mode(mode_str->str);
 	int fd = open(path_str->str, mode);
 
-	fixnum_t res;
-	FIXNUM_INIT(res, fd);
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_FIXNUM(fd);
 }
 MAKE_NATIVE(fd_open, 2, 0);
 
-static int fd_close(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int fd_close(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	fixnum_t res;
-	FIXNUM_INIT(res, close(FIXNUM(argv[1])));
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_FIXNUM(close(FIXNUM(argv[1])));
 }
 MAKE_NATIVE(fd_close, 1, 0);
 
-static int fd_seek(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int fd_seek(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	ASSERT(argv[3].tag == id_fixnum);
 
@@ -336,15 +317,11 @@ static int fd_seek(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 	}
 
 	off_t offset = lseek(FIXNUM(argv[1]), FIXNUM(argv[2]), mode);
-	fixnum_t res;
-	FIXNUM_INIT(res, offset);
-	tramp->arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_FIXNUM(offset);
 }
 MAKE_NATIVE(fd_seek, 3, 0);
 
-static int fd_write(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
+static int fd_write(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	ASSERT(argv[1].tag == id_fixnum);
 	ASSERT(argv[2].tag == id_ptr);
@@ -354,13 +331,19 @@ static int fd_write(heap_t *heap, trampoline_t *tramp, obj_t *argv, int argc)
 		FATAL("argument is not a string\n");
 
 	int wrote = write(FIXNUM(argv[1]), str->str, str->size-1);
-	fixnum_t res;
-	FIXNUM_INIT(res, wrote);
-	tramp->arg[0] = res.obj;
 
-	return RC_OK;
+	RESULT_FIXNUM(wrote);
 }
 MAKE_NATIVE(fd_write, 2, 0);
+
+
+void ns_install_native(hash_table_t *tbl,
+		char *name, const native_t *nt)
+{
+	ptr_t ptr;
+	FUNC_INIT(ptr, nt);
+	hash_table_insert(tbl, name, ptr.ptr); 
+}
 
 void ns_install_primitives(hash_table_t *tbl)
 {

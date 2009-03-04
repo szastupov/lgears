@@ -6,7 +6,8 @@
           (format))
 
   (define-record-type ilr
-    (fields imports symbols code strings entry-point))
+    (fields imports symbols code 
+      strings entry-point))
 
   (define-record-type i-func
     (fields code size argc heap?

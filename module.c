@@ -22,6 +22,28 @@
 #include <errno.h>
 #include "vm.h"
 
+struct func_hdr_s {
+	uint16_t env_size;
+	uint16_t argc;
+	uint16_t stack_size;
+	uint16_t op_count;
+	uint16_t heap_env;
+	uint16_t depth;
+	uint16_t bcount;
+	uint16_t bmcount;
+} __attribute__((__packed__));
+
+struct module_hdr_s {
+	uint32_t import_size;
+	uint32_t symbols_size;
+	uint32_t strings_size;
+	uint16_t fun_count;
+	uint16_t entry_point;
+} __attribute__((__packed__));
+
+#define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)
+#define FUN_HDR_SIZE sizeof(struct func_hdr_s)
+
 typedef struct {
 	void *addr;
 	size_t size;
@@ -142,9 +164,10 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 	for (count = 0; count < mhdr->fun_count; count++) {
 		hdr = code_assign(FUN_HDR_SIZE);
 		func_t *func = &mod->functions[count];
-		func->type = func_inter;
+		func->hdr.swallow = 0;
+		func->hdr.type = func_inter;
+		func->hdr.argc = hdr->argc;
 		func->env_size = hdr->env_size;
-		func->argc = hdr->argc;
 		func->stack_size = hdr->stack_size;
 		func->op_count = hdr->op_count;
 		func->heap_env = hdr->heap_env;

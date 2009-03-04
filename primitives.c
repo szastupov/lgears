@@ -297,9 +297,9 @@ int fd_parse_mode(const char *str)
 static int fd_open(vm_thread_t *thread, obj_t ostring, obj_t omode)
 {
 	string_t *path_str = get_typed(ostring, t_string);
-	ASSERT(path_str != NULL);
+	SAFE_ASSERT(path_str != NULL);
 	string_t *mode_str = get_typed(omode, t_string);
-	ASSERT(mode_str != NULL);
+	SAFE_ASSERT(mode_str != NULL);
 
 	int mode = fd_parse_mode(mode_str->str);
 	int fd = open(path_str->str, mode);
@@ -316,8 +316,8 @@ MAKE_NATIVE_UNARY(fd_close);
 
 static int fd_seek(vm_thread_t *thread, obj_t fd, obj_t offt, obj_t omode)
 {
-	ASSERT(omode.tag == id_fixnum);
-	ASSERT(offt.tag == id_fixnum);
+	SAFE_ASSERT(omode.tag == id_fixnum);
+	SAFE_ASSERT(offt.tag == id_fixnum);
 
 	int mode = 0;
 	switch (FIXNUM(omode)) {
@@ -341,12 +341,12 @@ MAKE_NATIVE_TERNARY(fd_seek);
 
 static int fd_write(vm_thread_t *thread, obj_t fd, obj_t data)
 {
-	ASSERT(fd.tag == id_fixnum);
-	ASSERT(data.tag == id_ptr);
+	SAFE_ASSERT(fd.tag == id_fixnum);
+	SAFE_ASSERT(data.tag == id_ptr);
 
 	string_t *str = get_typed(data, t_string);
 	if (!str)
-		FATAL("argument is not a string\n");
+		RESULT_ERROR("argument is not a string\n");
 
 	int wrote = write(FIXNUM(fd), str->str, str->size-1);
 

@@ -77,6 +77,8 @@
     (if (pair? node)
       (case (car node)
         ((lambda)
+         (if (< (length node) 3)
+           (syntax-violation 'convert "wrong lambda syntax" node))
          (let ((func (convert-lambda node)))
            (if (null? res)
              (list name func)
@@ -89,6 +91,9 @@
              `(,func (lambda (,name) ,res)))))
 
         ((if)
+         (if (or (> (length node) 4)
+                 (< (length node) 3))
+           (syntax-violation 'convert "if expected two or three arguments" node))
          (let* ((args (cdr node))
                 (pred (car args))
                 (predname (if (self-eval? pred)
@@ -106,7 +111,7 @@
          (convert-seq res (cdr node) name))
 
         ((define)
-         (error 'convert "misplaced defination"))
+         (syntax-violation 'convert "misplaced defination" node))
 
         ((quote)
          (convert-quote res (cadr node) trquote name))
@@ -169,7 +174,7 @@
     (let-values (((defines expressions)
                   (partition defination? body)))
       (if (null? expressions)
-        (error 'convert-body "empty body"))
+        (syntax-violation 'convert-body "empty body" #f))
       (let* ((rest (convert-seq '() expressions name))
              (extend (if (null? defines)
                        '()
@@ -203,5 +208,5 @@
   ;(define p (read-source "/home/redchrom/psyntax.pp"))
   ;(display (convert-body p (gen-name)))
 
-  ;(pretty-print (convert-body orig 'exit))
+;  (pretty-print (convert-body orig 'exit))
   )

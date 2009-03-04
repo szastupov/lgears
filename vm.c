@@ -146,7 +146,6 @@ static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
-
 static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
 	thread->func = func;
@@ -190,6 +189,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	int i;
 
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
+#define THREAD_ERROR(msg...) { \
+	fprintf(stderr, msg); \
+	fprintf(stderr, "\tshutting down the thread...\n"); \
+	return; \
+}
 
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
@@ -197,8 +201,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	thread->env = env_new(&thread->heap, func->env_size);
 	thread->objects = thread->env->objects;
 	thread->display = display_new(&thread->heap, NULL, &thread->env);
-
-#define STACK_HEAD() thread->opstack[thread->op_stack_idx-1]
 
 	/*
 	 * On dispatching speed-up:
@@ -271,16 +273,15 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				fp.obj = STACK_POP();
 dispatch_func:
 				if (fp.tag != id_func && fp.tag != id_ptr && fp.tag != id_cont)
-					FATAL("expected function or closure but got tag %d\n", fp.tag);
+					THREAD_ERROR("expected function or closure but got tag %d\n", fp.tag);
 
 				if (fp.tag == id_ptr) {
 					closure_t *closure = get_typed(fp.obj, t_closure);
 					if (!closure)
-						FATAL("got pointer but it isn't a closure\n");
+						THREAD_ERROR("got pointer but it isn't a closure\n");
 
 					ptr = closure->func;
 					thread->display = closure->display;
-					goto call_inter;
 				} else if (fp.tag == id_cont) {
 					op_arg--;
 					ptr = PTR_GET(fp);
@@ -291,16 +292,15 @@ dispatch_func:
 				func_hdr_t *fhdr = (func_hdr_t*)ptr;
 				if (fhdr->swallow) {
 					if (op_arg < fhdr->argc)
-						FATAL("try to pass %d args when at least %d requred\n", op_arg, fhdr->argc);
+						THREAD_ERROR("try to pass %d args when at least %d requred\n", op_arg, fhdr->argc);
 				} else {
 					if (op_arg != fhdr->argc)
-						FATAL("try to pass %d args when %d requred\n", op_arg, fhdr->argc);
+						THREAD_ERROR("try to pass %d args when %d requred\n", op_arg, fhdr->argc);
 				}
 
 				switch (fhdr->type) {
 					case func_inter: 
 						{
-call_inter:
 							func = ptr;
 							opcode = func->opcode;
 							enter_interp(thread, func, op_arg, fp.tag);
@@ -308,8 +308,7 @@ call_inter:
 						NEXT();
 					case func_native: 
 						{
-							native_t *func;
-							func = ptr;
+							native_t *func = ptr;
 
 							DBG("calling native %s\n", func->name);
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
@@ -321,6 +320,14 @@ call_inter:
 									heap_stat(&thread->heap);
 									return;
 								case RC_ERROR:
+									/* C-api is only for low-level things,
+									 * so no exceptions mechanism inside VM,
+									 * check whatever you wand and throw
+									 * exceptions from scheme, otherwise -
+									 * thread will be terminated.
+									 */
+									fprintf(stderr, "%s failed, shutting down the thread...\n", func->name);
+									return;
 								case RC_OK:
 								default:
 									break;

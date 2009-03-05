@@ -26,6 +26,9 @@
 #include "vm.h"
 #include "module.h"
 
+#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
+#define STACK_POP() thread->opstack[--thread->op_stack_idx]
+
 static void env_visit(visitor_t *vs, void *data);
 static void display_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
@@ -147,8 +150,6 @@ static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 	return make_ptr(closure, id_ptr);
 }
 
-#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
-#define STACK_POP() thread->opstack[--thread->op_stack_idx]
 static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
 	thread->func = func;

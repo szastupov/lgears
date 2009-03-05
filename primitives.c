@@ -53,14 +53,14 @@ void pair_visit(visitor_t *vs, void *data)
 
 static void disp_pair(pair_t *pair)
 {
-	printf(" ");
 	if (IS_TYPE(pair->cdr, t_pair)) {
+		printf(" ");
 		pair_t *np = PTR(pair->cdr);
 		print_obj(np->car);
 		disp_pair(np);
 	} else {
 		if (!IS_NULL(pair->cdr)) {
-			printf(". ");
+			printf(" . ");
 			print_obj(pair->cdr);
 		}
 	}

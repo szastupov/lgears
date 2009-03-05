@@ -270,7 +270,7 @@
                               (if (zero? n)
                                 a
                                 (f-aux (- n 1) (* n a))))
-                            (display (f-aux 25 1))
+                            (display (f-aux 10 1))
                             (display 'ok)
                             ;|#
 

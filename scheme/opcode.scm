@@ -7,7 +7,7 @@
    |#
 
   (define oplist '((LOAD_FUNC . "Load function local to module")
-                   (LOAD_CLOSURE . "Make closure object")
+                   (LOAD_CLOSURE . "Make closure on heap")
                    (LOAD_LOCAL . "Load object from frame-local area")
                    (LOAD_BIND . "Load object form binding")
                    (LOAD_SYM . "Load predefined symbol local to module")

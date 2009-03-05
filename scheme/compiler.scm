@@ -153,13 +153,11 @@
     (define (compile-func parent args body)
       (let* ((env (make-env parent args))
              (compiled (compile-body env body))
-             (cmd (if (null? (env-bindings env))
-                    'LOAD_FUNC
-                    'LOAD_CLOSURE)))
-        `((,cmd
-            ,(store-push! code-store
-                          (make-func compiled env))
-            1))))
+             (idx (store-push! code-store
+                               (make-func compiled env))))
+        (if (null? (env-bindings env))
+          `((LOAD_FUNC ,idx 1))
+          `((LOAD_CLOSURE ,idx 1)))))
 
     (define (compile-if env node)
       (let ((pred (compile env (car node)))
@@ -232,28 +230,6 @@
 
 (let ((res (start-compile
              (cps-convert '( 
-                             #|
-                            (define (cadr x)
-                              (car (cdr x)))
-                            (define (cddr x)
-                              (cdr (cdr x)))
-                            (define (caddr x)
-                              (car (cddr x)))
-                            (define (null? x)
-                              (eq? x '()))
-
-                            (define (for-each func lst)
-                              ;(if (eq? lst '())
-                              (if (null? lst)
-                                #f
-                                (begin
-                                  (func (car lst))
-                                  (for-each func (cdr lst)))))
-
-                            (for-each display '(1 2 3 4))
-                            (display 'ok)
-                            |#
-
                             #|
                             (display 'start)
                             (display (call/cc
@@ -264,14 +240,11 @@
                             |#
 
                             ;#|
-                            (define (zero? x)
-                              (= x 0))
                             (define (f-aux n a)
-                              (if (zero? n)
+                              (if (= 0 n)
                                 a
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 4 1))
-                            (display 'ok)
                             ;|#
 
                             #|

@@ -38,7 +38,7 @@ const type_t type_table[] = {
 	{ .name = "closure", .visit = closure_visit },
 	{ .name = "display", .visit = display_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
-	{ .name = "string" }
+	{ .name = "string", .repr = string_repr }
 };
 
 hash_table_t ns_global;
@@ -276,21 +276,26 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				void *ptr;
 				fp.obj = STACK_POP();
 dispatch_func:
-				if (fp.tag != id_func && fp.tag != id_ptr && fp.tag != id_cont)
-					THREAD_ERROR("expected function or closure but got tag %d\n", fp.tag);
+				switch (fp.tag) {
+					case id_ptr:
+						{
+							closure_t *closure = get_typed(fp.obj, t_closure);
+							if (!closure)
+								THREAD_ERROR("got pointer but it isn't a closure\n");
 
-				if (fp.tag == id_ptr) {
-					closure_t *closure = get_typed(fp.obj, t_closure);
-					if (!closure)
-						THREAD_ERROR("got pointer but it isn't a closure\n");
-
-					ptr = closure->func;
-					thread->display = closure->display;
-				} else if (fp.tag == id_cont) {
-					op_arg--;
-					ptr = PTR_GET(fp);
-				} else {
-					ptr = PTR_GET(fp);
+							ptr = closure->func;
+							thread->display = closure->display;
+						}
+						break;
+					case id_cont:
+						op_arg--;
+						ptr = PTR_GET(fp);
+						break;
+					case id_func:
+						ptr = PTR_GET(fp);
+						break;
+					default:
+						THREAD_ERROR("expected function or closure but got tag %d\n", fp.tag);
 				}
 
 				func_hdr_t *fhdr = (func_hdr_t*)ptr;

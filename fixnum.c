@@ -73,6 +73,22 @@ static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE_VARIADIC(fxeq, 2, 1);
 
+static int fxless(vm_thread_t *thread, obj_t *argv, int argc)
+{
+	const_t res = ctrue;
+
+	int i;
+	for (i = 2; i < argc; i++)
+		if (!(FIXNUM(argv[i-1]) < FIXNUM(argv[i]))) {
+			res = cfalse;
+			break;
+		}
+
+	thread->tramp.arg[0] = res.obj;
+
+	return RC_OK;
+}
+MAKE_NATIVE_VARIADIC(fxless, 2, 1);
 
 static int fxior(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -95,5 +111,6 @@ void ns_install_fixnum(hash_table_t *tbl)
 	ns_install_native(tbl, "*", &fxmul_nt);
 	ns_install_native(tbl, "/", &fxdiv_nt);
 	ns_install_native(tbl, "=", &fxeq_nt);
+	ns_install_native(tbl, "<", &fxless_nt);
 	ns_install_native(tbl, "fxior", &fxior_nt);
 }

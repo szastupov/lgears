@@ -93,5 +93,6 @@ typedef struct {
 } string_t;
 
 void* _string(heap_t *heap, char *str, int copy);
+void string_repr(void *ptr);
 
 #endif /* PRIMITIVES_H */

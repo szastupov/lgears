@@ -75,6 +75,12 @@ void pair_repr(void *ptr)
 	printf(")");
 }
 
+void string_repr(void *ptr)
+{
+	string_t *string = ptr;
+	printf("\"%s\"", string->str);
+}
+
 void* _string(heap_t *heap, char *str, int copy)
 {
 	int hsize = sizeof(string_t);

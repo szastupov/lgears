@@ -46,6 +46,7 @@ typedef struct {
  */
 static inline void* get_typed(obj_t obj, int type_id)
 {
+	ASSERT(obj.ptr != NULL);
 	if (obj.tag != id_ptr) {
 		printf("expected ptr but got %d\n", obj.tag);
 		return NULL;

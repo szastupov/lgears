@@ -7,6 +7,7 @@
 
   ;For testing
   (define orig '(
+                 #|
                  (define (f-aux n a)
                    (if (= n 0)
                      a
@@ -16,24 +17,17 @@
                    (if (= n 0)
                      1
                      (* n (factorial (- n 1)))))
-
                  (factorian 6)
 
-                 #|
                  (define (foo n)
                    (bar (lambda (x) (+ x n))))
 
                  (define (bla)
                    (display '(a b c d)))
 
-                 (define (pyth x y)
-                   (sqrt (+ (* x x) (* y y))))
-
-                 (letrec ((foo (lambda (x) (bar x)))
-                          (bar (lambda (y) (foo y))))
-                   (foo bar)
-                   (display "ok"))
                  (display (lambda (x y) (x y)))
+                 ((lambda (x y) (x y)) a b)
+                 ((c d) x y)
                  |#
                  ))
 
@@ -118,13 +112,19 @@
         ((quasiquote)
          (convert-quote res (cadr node) trquasiquote name))
 
+        #|
+         | Conversion of call
+         | We covnert arguments and pairs
+         |#
         (else
-          (let* ((args (reverse (cdr node)))
+          (let* ((args (reverse node))
+                 ;;; List of arguments ready for applicaton
                  (largs (map (lambda (x)
                                (cond ((self-eval? x) x)
                                      ((inlinable? x) (convert-lambda x))
                                      (else (gen-name))))
                              args))
+                 (rlargs (reverse largs))
                  (control (cond ((null? res)
                                  name)
                                 ((and (pair? (car res))
@@ -132,7 +132,8 @@
                                  `(lambda (,name) ,@res))
                                 (else
                                   `(lambda (,name) ,res))))
-                 (expr `(,(car node) ,control ,@(reverse largs))))
+                 (expr `(,(car rlargs) ,control ,@(cdr rlargs))))
+            ;;; Clue everything
             (fold-left (lambda (prev x n)
                          (if (or (self-eval? x) (inlinable? x))
                            prev
@@ -208,5 +209,5 @@
   ;(define p (read-source "/home/redchrom/psyntax.pp"))
   ;(display (convert-body p (gen-name)))
 
-;  (pretty-print (convert-body orig 'exit))
+  ;(pretty-print (convert-body orig 'exit))
   )

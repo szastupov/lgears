@@ -270,7 +270,7 @@
                               (if (zero? n)
                                 a
                                 (f-aux (- n 1) (* n a))))
-                            (display (f-aux 10 1))
+                            (display (f-aux 4 1))
                             (display 'ok)
                             ;|#
 
@@ -278,8 +278,7 @@
                             (define (foo n)
                               (lambda (x)
                                 (cons x n)))
-                            (define fun (foo 'bar))
-                            (display (cdr (fun 'zoo)))
+                            (display (car ((foo 'bar) 'zoo)))
                             |#
                             )))))
   (print-ilr res)

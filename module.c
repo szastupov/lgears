@@ -107,7 +107,7 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 			int len = *(str++);
 			void *sym = make_symbol(&sym_table, str);
 			mod->symbols[i].ptr = sym;
-			DBG("Created symbol for '%s' = %p\n", str, sym);
+			LOG_DBG("Created symbol for '%s' = %p\n", str, sym);
 			str += len+1;
 		}
 	}
@@ -135,7 +135,7 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 		mod->strings = mem_calloc(count, sizeof(char*));
 		for (i = 0; i < count; i++) {
 			int len = *(str++);
-			DBG("loaded string '%s'\n", str);
+			LOG_DBG("loaded string '%s'\n", str);
 			mod->strings[i] = strdup(str);
 			str += len+1;
 		}

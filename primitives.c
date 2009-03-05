@@ -58,8 +58,12 @@ static void disp_pair(pair_t *pair)
 		pair_t *np = PTR(pair->cdr);
 		print_obj(np->car);
 		disp_pair(np);
-	} else
-		print_obj(pair->cdr);
+	} else {
+		if (!IS_NULL(pair->cdr)) {
+			printf(". ");
+			print_obj(pair->cdr);
+		}
+	}
 }
 
 void pair_repr(void *ptr)
@@ -175,16 +179,13 @@ static void print_const(obj_t obj)
 
 static void print_ptr(obj_t obj)
 {
-#if 0
 	void *ptr = PTR(obj);
-	hobj_hdr_t *ohdr = ptr;
-	const type_t *type = &type_table[ohdr->type_id];
+	const type_t *type = &type_table[HTYPE_TAG(ptr)];
 
 	if (type->repr)
 		type->repr(ptr);
 	else
 		printf("<ptr:%s>", type->name);
-#endif
 }
 
 static void print_func(obj_t obj)
@@ -196,11 +197,11 @@ static void print_func(obj_t obj)
 	switch (fhdr->type) {
 		case func_inter:
 			interp = ptr;
-			printf("<lambda/%d>", interp->hdr.argc);
+			printf("<lambda/%d>", interp->hdr.argc-1);
 			break;
 		case func_native:
 			native = ptr;
-			printf("<native %s/%d>", native->name, native->hdr.argc);
+			printf("<native %s/%d>", native->name, native->hdr.argc-1);
 			break;
 		default:
 			printf("<unknown func>");

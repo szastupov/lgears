@@ -33,9 +33,10 @@ typedef struct {
 	unsigned forward:1;	/**< Indicate that pointer should be forwarded */
 } block_hdr_t;
 #define BHDR_SIZE sizeof(block_hdr_t)
+#define HTYPE_TAG(ptr) ((block_hdr_t*)(ptr-BHDR_SIZE))->type_id
 
 #define IS_TYPE(obj, tid) \
-	(obj.tag == id_ptr && ((block_hdr_t*)PTR(obj)-BHDR_SIZE)->type_id == tid)
+	(obj.tag == id_ptr && HTYPE_TAG(PTR(obj)) == tid)
 
 /** 
  * @brief Check object type and return pointer

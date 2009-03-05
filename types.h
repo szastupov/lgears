@@ -88,6 +88,7 @@ DEFINE_CONST(cvoid, 3);
 
 #define CIF(a) ((a) ? ctrue : cfalse)
 #define IS_FALSE(obj) ((obj).ptr == cfalse.ptr)
+#define IS_NULL(obj) ((obj).ptr == cnull.ptr)
 
 /**
  * @brief Tagged poiner repesintation

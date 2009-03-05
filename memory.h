@@ -32,17 +32,19 @@
 #endif
 
 
-#define FATAL(...)	\
-{										\
-	fprintf(stderr, "%s:%d `%s': ",		\
-			__FILE__, __LINE__, __FUNCTION__);	\
-	fprintf(stderr, __VA_ARGS__);		\
-	abort();							\
-}
-
 #define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 
-#define DBG(msg...) fprintf(stderr, msg);
+#define LOG_DBG(msg...) fprintf(stderr, msg);
+#define LOG_ERR(msg...) { \
+	fprintf(stderr, "%s:%d `%s': ", \
+			__FILE__, __LINE__, __FUNCTION__); \
+	fprintf(stderr, msg); \
+}
+
+#define FATAL(msg...) { \
+	LOG_ERR(msg); \
+	abort(); \
+}
 
 static inline void* _mem_alloc(const char *file, int line,
 		const char *func, size_t size)

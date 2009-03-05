@@ -57,7 +57,7 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size, int type_id)
 {
 	size_t minimal = size+BHDR_SIZE;
 	if (minimal > heap->free_mem) {
-		DBG("out of free mem on heap (need %zd)\n", minimal);
+		LOG_DBG("out of free mem on heap (need %zd)\n", minimal);
 		return NULL;
 	}
 
@@ -121,12 +121,12 @@ static void heap_swap(heap_t *heap)
  */
 static void heap_scan_references(heap_t *heap)
 {
-	DBG("Survived root objects %d\n", heap->to->blocks);
+	LOG_DBG("Survived root objects %d\n", heap->to->blocks);
 	int i;
 	block_hdr_t *hdr = heap->to->mem + pad;
 	for (i = 0; i < heap->to->blocks; i++) {
 		const type_t *type = &type_table[hdr->type_id];
-		DBG("Survived %d %s\n", i, type_table[hdr->type_id].name);
+		LOG_DBG("Survived %d %s\n", i, type_table[hdr->type_id].name);
 
 		/*
 		 * If type provide visit function - call it
@@ -136,14 +136,14 @@ static void heap_scan_references(heap_t *heap)
 
 		hdr = hdr->size + BHDR_SIZE + (void*)hdr;
 	}
-	DBG("Total survived objects %d\n", heap->to->blocks);
+	LOG_DBG("Total survived objects %d\n", heap->to->blocks);
 }
 
 void* heap_alloc(heap_t *heap, int size, int type_id)
 {
 	void *res = copy_heap_alloc(heap->from, size, type_id);
 	if (!res) {
-		DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
+		LOG_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
 		heap->vm_get_roots(&heap->visitor, heap->vm);
 		heap_scan_references(heap);
 		heap_swap(heap);
@@ -151,7 +151,7 @@ void* heap_alloc(heap_t *heap, int size, int type_id)
 		if (!res)
 			FATAL("Totaly fucking out of memory");
 	}
-	DBG("allocated %d:%p\n", size, res);
+	LOG_DBG("allocated %d:%p\n", size, res);
 	return res;
 }
 
@@ -175,7 +175,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	void *p = PTR_GET(ptr);
 	if (!copy_heap_own(heap->from, p)) {
 		if (copy_heap_own(heap->to, p)) {
-			DBG("%p belong to `to' space, skip...\n", p);
+			LOG_DBG("%p belong to `to' space, skip...\n", p);
 			return;
 		} else
 			FATAL("Trying to mark %p which doesn't belong to this heap\n", p);
@@ -189,7 +189,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 * Use forward pointer if object already moved
 	 */
 	if (hdr->forward) {
-		DBG("Forwarding to %p\n", *forward);
+		LOG_DBG("Forwarding to %p\n", *forward);
 		PTR_SET(ptr, *forward);
 		obj->ptr = ptr.ptr;
 		return;
@@ -202,7 +202,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	hdr->forward = 1;
 	*forward = new_pos + BHDR_SIZE;
-	DBG("Forward set to %p\n", *forward);
+	LOG_DBG("Forward set to %p\n", *forward);
 
 	hdr = new_pos;
 	hdr->forward = 0;
@@ -239,5 +239,5 @@ void heap_destroy(heap_t *heap)
 
 void heap_stat(heap_t *heap)
 {
-	DBG("mem used %d\n", heap->from->size - heap->from->free_mem);
+	LOG_DBG("mem used %d\n", heap->from->size - heap->from->free_mem);
 }

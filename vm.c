@@ -55,7 +55,7 @@ env_t* env_new(heap_t *heap, int size)
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
-	DBG("New env %p\n", env);
+	LOG_DBG("New env %p\n", env);
 
 	return env;
 }
@@ -120,8 +120,11 @@ static env_t* display_env(display_t *display, int idx)
 {
 	while (idx--) 
 		display = display->prev;
-	if (!display->has_env)
-		FATAL("display %p with depth %d doesn't has an env\n", display, display->depth);
+	if (!display->has_env) {
+		LOG_ERR("display %p with depth %d doesn't has an env\n",
+				display, display->depth);
+		return NULL;
+	}
 	
 	void *emem = display;
 	emem += sizeof(display_t);
@@ -190,7 +193,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
 #define THREAD_ERROR(msg...) { \
-	fprintf(stderr, msg); \
+	LOG_ERR(msg); \
 	fprintf(stderr, "\tshutting down the thread...\n"); \
 	return; \
 }
@@ -214,12 +217,12 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	TARGET_##op: \
 	op_code = *(opcode++); \
 	op_arg = *(opcode++); \
-	DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op:\
-	DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
 #define NEXT() continue
 #define DISPATCH() \
 	op_code = *(opcode++); \
@@ -310,7 +313,7 @@ dispatch_func:
 						{
 							native_t *func = ptr;
 
-							DBG("calling native %s\n", func->name);
+							LOG_DBG("calling native %s\n", func->name);
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 							thread->tramp.argc = 1;
 							thread->tramp.func.obj = argv[0];
@@ -357,7 +360,7 @@ dispatch_func:
 			{
 				bind_t *bind = &func->bindings[op_arg];
 				env_t *env = ENV(thread->bindmap[bind->up]);
-				DBG("BIND_SET %p\n", env);
+				LOG_DBG("BIND_SET %p\n", env);
 				env->objects[bind->idx] = STACK_POP();
 			}
 			NEXT();

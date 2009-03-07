@@ -245,6 +245,7 @@
                                 a
                                 (f-aux (- n 1) (* n a))))
                             (display (f-aux 4 1))
+                            (display "ok")
                             ;|#
 
                             #|
@@ -256,6 +257,4 @@
                             )))))
   (print-ilr res)
   (display "\nAssembly output:\n")
-  (let ((port (open-file-output-port "/tmp/assembly" (file-options no-fail))))
-    (assemble res port)
-    (close-output-port port)))
+  (assemble res "/tmp/assembly"))

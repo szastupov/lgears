@@ -45,8 +45,8 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 		.name = #func \
 	}
 
-#define MAKE_NATIVE_VARIADIC(func, fargc, fswallow) \
-	MAKE_NATIVE(func, -1, fargc, fswallow)
+#define MAKE_NATIVE_VARIADIC(func, fargc) \
+	MAKE_NATIVE(func, -1, fargc, 1)
 
 #define MAKE_NATIVE_NULLARY(func) \
 	MAKE_NATIVE(func, 0, 0, 0)

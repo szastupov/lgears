@@ -43,6 +43,9 @@ typedef struct {
 	int *bindmap;
 	int bmcount;
 	module_t *module;
+
+	char *dbg_symbols;
+	const char **dbg_table;
 } func_t;
 
 struct module_s {

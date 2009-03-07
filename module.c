@@ -73,6 +73,33 @@ int mapfile(const char *path, map_t *map)
 	return ret;
 }
 
+typedef struct {
+	const char *buf;
+	const char *cur;
+	const char *end;
+} string_iter_t;
+
+void string_iter_init(string_iter_t *itr, const char *buf, int size)
+{
+	itr->end = buf+size;
+	itr->cur = buf;
+	itr->buf = buf;
+}
+
+const char* string_iter_next(string_iter_t *itr)
+{
+	const char *res = itr->cur;
+	while (1) {
+		if (itr->cur == itr->end)
+			return NULL;
+		if (*(itr->cur++))
+			continue;
+		else
+			return res;
+	}
+}
+
+
 static module_t* module_parse(const uint8_t *code, size_t code_size)
 {
 	module_t *mod = new0(module_t);
@@ -98,46 +125,52 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 		return res;
 	}
 
-	void populate_sym_table(const char *str)
+	void populate_sym_table(const char *str, int size)
 	{
 		int i;
 		int count = *(str++);
 		mod->symbols = mem_calloc(count, sizeof(obj_t));
+
+		string_iter_t itr;
+		string_iter_init(&itr, str, size);
 		for (i = 0; i < count; i++) {
-			int len = *(str++);
-			void *sym = make_symbol(&sym_table, str);
+			const char *s = string_iter_next(&itr);
+			void *sym = make_symbol(&sym_table, s);
 			mod->symbols[i].ptr = sym;
-			LOG_DBG("Created symbol for '%s' = %p\n", str, sym);
-			str += len+1;
+			LOG_DBG("Created symbol for '%s' = %p\n", s, sym);
 		}
 	}
 
-	void load_imports(const char *str)
+	void load_imports(const char *str, int size)
 	{
 		int i;
 		int count = *(str++);
 		mod->imports = mem_calloc(count, sizeof(obj_t));
+
+		string_iter_t itr;
+		string_iter_init(&itr, str, size);
 		for (i = 0; i < count; i++) {
-			int len = *(str++);
-			void *ptr = hash_table_lookup(&ns_global, str);
+			const char *import = string_iter_next(&itr);
+			void *ptr = hash_table_lookup(&ns_global, import);
 			if (ptr)
 				mod->imports[i].ptr = ptr;
 			else
-				FATAL("variable %s not found\n", str);
-			str += len+1;
+				FATAL("variable %s not found\n", import);
 		}
 	}
 
-	void load_strings(const char *str)
+	void load_strings(const char *str, int size)
 	{
 		int i;
 		int count = *(str++);
 		mod->strings = mem_calloc(count, sizeof(char*));
+
+		string_iter_t itr;
+		string_iter_init(&itr, str, size);
 		for (i = 0; i < count; i++) {
-			int len = *(str++);
-			LOG_DBG("loaded string '%s'\n", str);
-			mod->strings[i] = strdup(str);
-			str += len+1;
+			const char *string = string_iter_next(&itr);
+			LOG_DBG("loaded string '%s'\n", string);
+			mod->strings[i] = strdup(string);
 		}
 	}
 
@@ -151,13 +184,13 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 
 
 	const char *import = code_assign(mhdr->import_size);
-	load_imports(import);
+	load_imports(import, mhdr->import_size);
 
 	const char *symbols = code_assign(mhdr->symbols_size);
-	populate_sym_table(symbols);
+	populate_sym_table(symbols, mhdr->symbols_size);
 
 	const char *strings = code_assign(mhdr->strings_size);
-	load_strings(strings);
+	load_strings(strings, mhdr->strings_size);
 
 	int count;
 	const struct func_hdr_s *hdr;
@@ -174,6 +207,7 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 		func->depth = hdr->depth;
 		func->bcount = hdr->bcount;
 		func->bmcount = hdr->bmcount;
+		func->dbg_symbols = NULL;
 
 		if (hdr->bcount) {
 			int i;
@@ -219,6 +253,31 @@ module_t* module_load(const char *path)
 	module_t *mod = module_parse(map.addr, map.size); //TODO add error check
 	munmap(map.addr, map.size);
 
+	char *dbg_path = mem_alloc(strlen(path)+5);
+	sprintf(dbg_path, "%s.dbg", path);
+	struct stat st;
+	if (stat(dbg_path, &st) == 0) {
+		int fd = open(dbg_path, O_RDONLY);
+		int i;
+		uint16_t dsize = 0;
+		for (i = 0; i < mod->fun_count; i++) {
+			func_t *func = &mod->functions[i];
+			read(fd, &dsize, sizeof(dsize));
+			char *buf = mem_alloc(dsize);
+			func->dbg_symbols = buf;
+			func->dbg_table = mem_alloc(func->op_count*sizeof(char*));
+			read(fd, buf, dsize);
+			string_iter_t itr;
+			string_iter_init(&itr, buf, dsize);
+			int j;
+			for (j = 0; j < func->op_count; j++) {
+				func->dbg_table[j] = string_iter_next(&itr);
+			}
+		}
+		close(fd);
+	}
+	mem_free(dbg_path);
+
 	return mod;
 }
 
@@ -231,14 +290,20 @@ void module_free(module_t *module)
 {
 	int i;
 	for (i = 0; i < module->fun_count; i++) {
-		mem_free(module->functions[i].opcode);
-		if (module->functions[i].bindings)
-			mem_free(module->functions[i].bindings);
-		if (module->functions[i].bindmap)
-			mem_free(module->functions[i].bindmap);
+		func_t *func = &module->functions[i];
+		mem_free(func->opcode);
+		if (func->bindings)
+			mem_free(func->bindings);
+		if (func->bindmap)
+			mem_free(func->bindmap);
+		if (func->dbg_symbols) {
+			mem_free(func->dbg_symbols);
+			mem_free(func->dbg_table);
+		}
 	}
 	mem_free(module->functions);
 	mem_free(module->symbols);
 	mem_free(module->imports);
+	mem_free(module->strings);
 	mem_free(module);
 }

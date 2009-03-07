@@ -189,8 +189,29 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
+	int op_code, op_arg;
 	func_t *func;
 	int i;
+	void (*trace_func)();
+
+	void trace_opcode()
+	{
+		LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	}
+
+	void trace_opcode_sym()
+	{
+		LOG_DBG("\t%s : %d (%s)\n", opcode_name(op_code), op_arg,
+				func->dbg_table[(opcode-func->opcode-2)/2]);
+	}
+
+	void set_trace_func()
+	{
+		if (func->dbg_symbols)
+			trace_func = trace_opcode_sym;
+		else
+			trace_func = trace_opcode;
+	}
 
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
 #define THREAD_ERROR(msg...) { \
@@ -199,12 +220,15 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	return; \
 }
 
+	LOG_DBG("entering func %d\n", module->entry_point);
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
 	thread->env = env_new(&thread->heap, func->env_size);
 	thread->objects = thread->env->objects;
 	thread->display = display_new(&thread->heap, NULL, &thread->env);
+
+	set_trace_func();
 
 	/*
 	 * On dispatching speed-up:
@@ -218,12 +242,12 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	TARGET_##op: \
 	op_code = *(opcode++); \
 	op_arg = *(opcode++); \
-	LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	trace_func();
 #define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op:\
-	LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	trace_func();
 #define NEXT() continue
 #define DISPATCH() \
 	op_code = *(opcode++); \
@@ -231,7 +255,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	switch (op_code)
 #endif
 
-	int op_code, op_arg;
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
@@ -313,13 +336,13 @@ dispatch_func:
 							func = ptr;
 							opcode = func->opcode;
 							enter_interp(thread, func, op_arg, fp.tag);
+							set_trace_func();
 						}
 						NEXT();
 					case func_native: 
 						{
 							native_t *func = ptr;
 
-							LOG_DBG("calling native %s\n", func->name);
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 							thread->tramp.argc = 1;
 							thread->tramp.func.obj = argv[0];

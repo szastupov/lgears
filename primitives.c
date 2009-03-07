@@ -132,7 +132,7 @@ static int list(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(list, 0, 1);
+MAKE_NATIVE_VARIADIC(list, 0);
 
 static int car(vm_thread_t *thread, obj_t obj)
 {
@@ -270,7 +270,7 @@ static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(call_cc, 1, 0);
+MAKE_NATIVE(call_cc, -1, 1, 0);
 
 /* 
  * File descriptors

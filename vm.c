@@ -47,6 +47,7 @@ hash_table_t sym_table;
 static void env_visit(visitor_t *vs, void *data)
 {
 	env_t *env = data;
+	env->objects = data+sizeof(env_t);
 	int i;
 	for (i = 0; i < env->size; i++)
 		vs->visit(vs, &env->objects[i]);
@@ -446,11 +447,17 @@ static void vm_get_roots(visitor_t *visitor, void *self)
 	vm_thread_t *thread = self;
 	int i;
 
-	if (thread->env)
+	if (thread->env) {
 		mark_env(&thread->env, visitor);
+		thread->objects = thread->env->objects;
+	}
 
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);
+
+	if (!thread->env)
+		for (i = 0; i < thread->func->env_size; i++)
+			visitor->visit(visitor, &thread->objects[i]);
 
 	mark_display(&thread->display, visitor);
 }

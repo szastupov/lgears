@@ -39,6 +39,8 @@ static void copy_heap_reset(copy_heap_t *heap)
 	heap->pos = heap->mem + pad;
 	heap->free_mem = heap->size - pad;
 	heap->blocks = 0;
+
+	memset(heap->mem, 0, heap->size); // Fore debug purposes
 }
 
 static void copy_heap_init(copy_heap_t *heap, void *mem, int size)

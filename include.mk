@@ -32,5 +32,8 @@ clean:
 ctags:
 	@ctags *.c *.h
 
+etags:
+	@etags *.c *.h
+
 check-syntax:
 	$(CC) $(CFLAGS) -fsyntax-only $(CHK_SOURCES)

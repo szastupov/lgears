@@ -88,6 +88,11 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size, int type_id)
 	return res;
 }
 
+static int copy_heap_enough(copy_heap_t *heap, size_t size)
+{
+	return heap->free_mem > size+BHDR_SIZE;
+}
+
 static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
 {
 	if (size > heap->free_mem)
@@ -141,20 +146,31 @@ static void heap_scan_references(heap_t *heap)
 	LOG_DBG("Total survived objects %d\n", heap->to->blocks);
 }
 
+static void heap_gc(heap_t *heap)
+{
+	LOG_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
+	heap->vm_get_roots(&heap->visitor, heap->vm);
+	heap_scan_references(heap);
+	heap_swap(heap);
+}
+
 void* heap_alloc(heap_t *heap, int size, int type_id)
 {
 	void *res = copy_heap_alloc(heap->from, size, type_id);
 	if (!res) {
-		LOG_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
-		heap->vm_get_roots(&heap->visitor, heap->vm);
-		heap_scan_references(heap);
-		heap_swap(heap);
+		heap_gc(heap);
 		res = copy_heap_alloc(heap->from, size, type_id);
 		if (!res)
 			FATAL("Totaly fucking out of memory");
 	}
 	LOG_DBG("allocated %d:%p\n", size, res);
 	return res;
+}
+
+void heap_require(heap_t *heap, int size)
+{
+	if (!copy_heap_enough(heap->from, size))
+		heap_gc(heap);
 }
 
 void* heap_alloc0(heap_t *heap, int size, int type_id)
@@ -204,7 +220,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	hdr->forward = 1;
 	*forward = new_pos + BHDR_SIZE;
-	LOG_DBG("Forward set to %p\n", *forward);
+//	LOG_DBG("Forward set to %p\n", *forward);
 
 	hdr = new_pos;
 	hdr->forward = 0;

@@ -26,9 +26,6 @@
 #include "vm.h"
 #include "module.h"
 
-#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
-#define STACK_POP() thread->opstack[--thread->op_stack_idx]
-
 static void env_visit(visitor_t *vs, void *data);
 static void display_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
@@ -346,7 +343,7 @@ dispatch_func:
 
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 							thread->tramp.argc = 1;
-							thread->tramp.func.obj = argv[0];
+							thread->tramp.func.ptr = NULL;
 							switch (native_call(thread, func, argv, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
@@ -366,13 +363,16 @@ dispatch_func:
 									break;
 							}
 
+							if (thread->tramp.func.ptr)
+								fp.obj = thread->tramp.func;
+							else
+								fp.obj = argv[0];
+
 							thread->op_stack_idx = 0;
-							op_arg = 0;
-							for (i = 0; i < thread->tramp.argc; i++) {
+							for (i = 0; i < thread->tramp.argc; i++)
 								STACK_PUSH(thread->tramp.arg[i].ptr);
-								op_arg++;
-							}
-							fp = thread->tramp.func;
+							op_arg = thread->tramp.argc;
+
 							goto dispatch_func;
 						}
 						break;
@@ -525,8 +525,10 @@ static void info()
 	SIZE_INFO(type_t);
 	SIZE_INFO(block_hdr_t);
 	SIZE_INFO(display_t);
+	SIZE_INFO(env_t);
 	SIZE_INFO(closure_t);
 	SIZE_INFO(string_t);
+	SIZE_INFO(pair_t);
 }
 
 int main()

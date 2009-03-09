@@ -12,13 +12,23 @@
                 (display 'end)
                 |#
 
-                ;#|
+                #|
                 (define (f-aux n a)
                   (if (= 0 n)
                     a
                     (f-aux (- n 1) (* n a))))
                 (display (f-aux 100 1))
                 (display "ok")
+                |#
+
+                ;#|
+                (define (range from to)
+                  (define (loop step res)
+                    (if (< step from)
+                      res
+                      (loop (- step 1) (cons step res))))
+                  (loop to '()))
+                (display (range 1 40))
                 ;|#
 
                 #|

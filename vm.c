@@ -447,10 +447,8 @@ static void vm_get_roots(visitor_t *visitor, void *self)
 	vm_thread_t *thread = self;
 	int i;
 
-	if (thread->env) {
+	if (thread->env)
 		mark_env(&thread->env, visitor);
-		thread->objects = thread->env->objects;
-	}
 
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);
@@ -462,11 +460,18 @@ static void vm_get_roots(visitor_t *visitor, void *self)
 	mark_display(&thread->display, visitor);
 }
 
+static void vm_after_gc(visitor_t *visitor, void *self)
+{
+	vm_thread_t *thread = self;
+	if (thread->env)
+		thread->objects = thread->env->objects;
+}
+
 static void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
 
-	heap_init(&thread->heap, vm_get_roots, thread);
+	heap_init(&thread->heap, vm_get_roots, vm_after_gc, thread);
 
 	thread->ssize = 1024;
 	thread->opstack = mem_alloc(thread->ssize);

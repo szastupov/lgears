@@ -78,11 +78,12 @@ static int fxless(vm_thread_t *thread, obj_t *argv, int argc)
 	const_t res = ctrue;
 
 	int i;
-	for (i = 2; i < argc; i++)
+	for (i = 2; i < argc; i++) {
 		if (!(FIXNUM(argv[i-1]) < FIXNUM(argv[i]))) {
 			res = cfalse;
 			break;
 		}
+	}
 
 	thread->tramp.arg[0] = res.obj;
 

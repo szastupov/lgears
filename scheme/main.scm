@@ -28,7 +28,7 @@
                       res
                       (loop (- step 1) (cons step res))))
                   (loop to '()))
-                (display (range 1 40))
+                (display (range 1 100))
                 ;|#
 
                 #|

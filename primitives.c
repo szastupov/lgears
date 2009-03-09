@@ -120,7 +120,7 @@ static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
 
-	//TODO prerequire memory hear
+	heap_require(&thread->heap, sizeof(pair_t)*(argc-1));
 	int i;
 	for (i = argc-1; i > 0; i--)
 		res.ptr = _cons(&thread->heap, &argv[i], &res);
@@ -235,7 +235,6 @@ void print_obj(obj_t obj)
 		default:
 			printf("unknown obj");
 	}
-	fflush(stdout);
 }
 
 static int display(vm_thread_t *thread, obj_t *obj)

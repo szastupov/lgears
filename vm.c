@@ -26,9 +26,6 @@
 #include "vm.h"
 #include "module.h"
 
-#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
-#define STACK_POP() thread->opstack[--thread->op_stack_idx]
-
 static void env_visit(visitor_t *vs, void *data);
 static void display_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
@@ -47,6 +44,7 @@ hash_table_t sym_table;
 static void env_visit(visitor_t *vs, void *data)
 {
 	env_t *env = data;
+	env->objects = data+sizeof(env_t);
 	int i;
 	for (i = 0; i < env->size; i++)
 		vs->visit(vs, &env->objects[i]);
@@ -189,8 +187,29 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	char *opcode;
+	int op_code, op_arg;
 	func_t *func;
 	int i;
+	void (*trace_func)();
+
+	void trace_opcode()
+	{
+		LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	}
+
+	void trace_opcode_sym()
+	{
+		LOG_DBG("\t%s : %d (%s)\n", opcode_name(op_code), op_arg,
+				func->dbg_table[(opcode-func->opcode-2)/2]);
+	}
+
+	void set_trace_func()
+	{
+		if (func->dbg_symbols)
+			trace_func = trace_opcode_sym;
+		else
+			trace_func = trace_opcode;
+	}
 
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
 #define THREAD_ERROR(msg...) { \
@@ -199,12 +218,15 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	return; \
 }
 
+	LOG_DBG("entering func %d\n", module->entry_point);
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
 	thread->env = env_new(&thread->heap, func->env_size);
 	thread->objects = thread->env->objects;
 	thread->display = display_new(&thread->heap, NULL, &thread->env);
+
+	set_trace_func();
 
 	/*
 	 * On dispatching speed-up:
@@ -218,12 +240,12 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	TARGET_##op: \
 	op_code = *(opcode++); \
 	op_arg = *(opcode++); \
-	LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	trace_func();
 #define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op:\
-	LOG_DBG("\t%s : %d\n", opcode_name(op_code), op_arg);
+	trace_func();
 #define NEXT() continue
 #define DISPATCH() \
 	op_code = *(opcode++); \
@@ -231,7 +253,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	switch (op_code)
 #endif
 
-	int op_code, op_arg;
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
@@ -313,16 +334,16 @@ dispatch_func:
 							func = ptr;
 							opcode = func->opcode;
 							enter_interp(thread, func, op_arg, fp.tag);
+							set_trace_func();
 						}
 						NEXT();
 					case func_native: 
 						{
 							native_t *func = ptr;
 
-							LOG_DBG("calling native %s\n", func->name);
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 							thread->tramp.argc = 1;
-							thread->tramp.func.obj = argv[0];
+							thread->tramp.func.ptr = NULL;
 							switch (native_call(thread, func, argv, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
@@ -342,13 +363,16 @@ dispatch_func:
 									break;
 							}
 
+							if (thread->tramp.func.ptr)
+								fp.obj = thread->tramp.func;
+							else
+								fp.obj = argv[0];
+
 							thread->op_stack_idx = 0;
-							op_arg = 0;
-							for (i = 0; i < thread->tramp.argc; i++) {
+							for (i = 0; i < thread->tramp.argc; i++)
 								STACK_PUSH(thread->tramp.arg[i].ptr);
-								op_arg++;
-							}
-							fp = thread->tramp.func;
+							op_arg = thread->tramp.argc;
+
 							goto dispatch_func;
 						}
 						break;
@@ -429,14 +453,25 @@ static void vm_get_roots(visitor_t *visitor, void *self)
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);
 
+	if (!thread->env)
+		for (i = 0; i < thread->func->env_size; i++)
+			visitor->visit(visitor, &thread->objects[i]);
+
 	mark_display(&thread->display, visitor);
+}
+
+static void vm_after_gc(visitor_t *visitor, void *self)
+{
+	vm_thread_t *thread = self;
+	if (thread->env)
+		thread->objects = thread->env->objects;
 }
 
 static void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
 
-	heap_init(&thread->heap, vm_get_roots, thread);
+	heap_init(&thread->heap, vm_get_roots, vm_after_gc, thread);
 
 	thread->ssize = 1024;
 	thread->opstack = mem_alloc(thread->ssize);
@@ -495,8 +530,10 @@ static void info()
 	SIZE_INFO(type_t);
 	SIZE_INFO(block_hdr_t);
 	SIZE_INFO(display_t);
+	SIZE_INFO(env_t);
 	SIZE_INFO(closure_t);
 	SIZE_INFO(string_t);
+	SIZE_INFO(pair_t);
 }
 
 int main()

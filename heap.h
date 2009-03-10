@@ -82,17 +82,15 @@ typedef struct {
 	copy_heap_t heaps[2];		/**< Two copying heaps */
 	copy_heap_t *from, *to;	
 	visitor_fun vm_get_roots;	/**< Callback to procedure which mark root objects */
+	visitor_fun vm_after_gc;
 	void *vm;					/**< VM pointer */
 } heap_t;
 
 /** 
  * @brief Init heap manager
- * 
- * @param heap heap structure
- * @param vm_get_roots inspect function
- * @param vm vm pointer
  */
-void heap_init(heap_t *heap, visitor_fun vm_get_roots, void *vm);
+void heap_init(heap_t *heap, visitor_fun vm_get_roots,
+		visitor_fun vm_after_gc, void *vm);
 
 /** 
  * @brief Destroy heap
@@ -111,6 +109,7 @@ void heap_destroy(heap_t *heap);
  */
 void* heap_alloc(heap_t *heap, int size, int type_id);
 void* heap_alloc0(heap_t *heap, int size, int type_id);
+void heap_require(heap_t *heap, int size);
 
 /** 
  * @brief Print heap statistics

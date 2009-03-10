@@ -43,6 +43,9 @@ typedef struct {
 	int *bindmap;
 	int bmcount;
 	module_t *module;
+
+	char *dbg_symbols;
+	const char **dbg_table;
 } func_t;
 
 struct module_s {
@@ -63,7 +66,7 @@ typedef struct {
 
 typedef struct display_s {
 	struct display_s *prev;
-	int depth;
+	unsigned depth;
 	unsigned has_env:1;
 } display_t;
 
@@ -73,7 +76,7 @@ typedef struct {
 } closure_t;
 
 typedef struct {
-	ptr_t func;
+	obj_t func;
 	obj_t arg[2];
 	int argc;
 } trampoline_t;
@@ -93,6 +96,9 @@ typedef struct {
 
 	trampoline_t tramp;
 } vm_thread_t;
+
+#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
+#define STACK_POP() thread->opstack[--thread->op_stack_idx]
 
 void* make_symbol(hash_table_t *tbl, const char *str);
 

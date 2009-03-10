@@ -114,7 +114,7 @@
 
         #|
          | Conversion of call
-         | We covnert arguments and pairs
+         | We covnert both arguments and functions
          |#
         (else
           (let* ((args (reverse node))
@@ -199,15 +199,6 @@
       (if (pair? (car res))
         res
         (list res))))
-
-  (define (read-source file)
-    (let* ((port (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder)))
-           (res (get-datum port)))
-      (close-port port)
-      res))
-
-  ;(define p (read-source "/home/redchrom/psyntax.pp"))
-  ;(display (convert-body p (gen-name)))
 
   ;(pretty-print (convert-body orig 'exit))
   )

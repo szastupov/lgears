@@ -12,7 +12,7 @@ static int fxsum(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxsum, 0, 1);
+MAKE_NATIVE_VARIADIC(fxsum, 0);
 
 static int fxsub(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -26,7 +26,7 @@ static int fxsub(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxsub, 2, 1);
+MAKE_NATIVE_VARIADIC(fxsub, 2);
 
 static int fxmul(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -40,7 +40,7 @@ static int fxmul(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxmul, 0, 1);
+MAKE_NATIVE_VARIADIC(fxmul, 0);
 
 static int fxdiv(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -54,7 +54,7 @@ static int fxdiv(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxdiv, 2, 1);
+MAKE_NATIVE_VARIADIC(fxdiv, 2);
 
 static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -71,24 +71,25 @@ static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxeq, 2, 1);
+MAKE_NATIVE_VARIADIC(fxeq, 2);
 
 static int fxless(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	const_t res = ctrue;
 
 	int i;
-	for (i = 2; i < argc; i++)
+	for (i = 2; i < argc; i++) {
 		if (!(FIXNUM(argv[i-1]) < FIXNUM(argv[i]))) {
 			res = cfalse;
 			break;
 		}
+	}
 
 	thread->tramp.arg[0] = res.obj;
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxless, 2, 1);
+MAKE_NATIVE_VARIADIC(fxless, 2);
 
 static int fxior(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -102,7 +103,7 @@ static int fxior(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE_VARIADIC(fxior, 0, 1);
+MAKE_NATIVE_VARIADIC(fxior, 0);
 
 void ns_install_fixnum(hash_table_t *tbl)
 {

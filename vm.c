@@ -335,7 +335,7 @@ dispatch_func:
 									 * exceptions from scheme, otherwise -
 									 * thread will be terminated.
 									 */
-									fprintf(stderr, "%s failed, shutting down the thread...\n", func->name);
+									THREAD_ERROR("%s failed\n", func->name);
 									return;
 								case RC_OK:
 								default:

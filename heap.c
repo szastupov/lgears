@@ -25,8 +25,8 @@
  * @author Stepan Zastupov
  *
  * This is the implementation of Cheney's Algorithm
- * Not, that memory forwarding via old memory overwrite,
- * it may be changed inf future
+ * Note, that old memory overwrited on forwarding,
+ * it may be changed in future
  */
 
 
@@ -115,7 +115,7 @@ static void heap_swap(heap_t *heap)
 }
 
 /** 
- * @brief Incremental scan of object referencies
+ * @brief Incremental scan of object references
  * 
  * @param heap 
  */

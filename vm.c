@@ -382,21 +382,22 @@ dispatch_func:
 			}
 			NEXT();
 
-			TARGET(SET_LOCAL)
+			TARGET(SET_LOCAL) {
 				thread->objects[op_arg] = STACK_POP();
-			NEXT();
-
-			TARGET(SET_BIND)
-			{
-				bind_t *bind = &func->bindings[op_arg];
-				env_t *env = ENV(thread->bindmap[bind->up]);
-				LOG_DBG("BIND_SET %p\n", env);
-				env->objects[bind->idx] = STACK_POP();
+				if (thread->env)
+					MARK_MODIFIED(thread->env);
 			}
 			NEXT();
 
-			TARGET(LOAD_BIND)
-			{
+			TARGET(SET_BIND) {
+				bind_t *bind = &func->bindings[op_arg];
+				env_t *env = ENV(thread->bindmap[bind->up]);
+				env->objects[bind->idx] = STACK_POP();
+				MARK_MODIFIED(env);
+			}
+			NEXT();
+
+			TARGET(LOAD_BIND) {
 				bind_t *bind = &func->bindings[op_arg];
 				env_t *env = ENV(thread->bindmap[bind->up]);
 				STACK_PUSH(env->objects[bind->idx].ptr);

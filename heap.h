@@ -31,12 +31,16 @@ typedef struct {
 	unsigned size;		/**< Size of block (with padding if need) */
 	unsigned type_id:4;	/**< Type id @see type_table */
 	unsigned forward:1;	/**< Indicate that pointer should be forwarded */
+	unsigned stimes:3;	/**< How much times the object survived */
+	unsigned modified:1;	/**< Modification flag */
 } block_hdr_t;
-#define BHDR_SIZE sizeof(block_hdr_t)
-#define HTYPE_TAG(ptr) ((block_hdr_t*)(ptr-BHDR_SIZE))->type_id
 
+#define BHDR_SIZE sizeof(block_hdr_t)
+#define HTYPE(ptr) ((block_hdr_t*)(ptr-BHDR_SIZE))
+#define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
 #define IS_TYPE(obj, tid) \
 	(obj.tag == id_ptr && HTYPE_TAG(PTR(obj)) == tid)
+#define MARK_MODIFIED(ptr) HTYPE(ptr)->modified = 1
 
 /** 
  * @brief Check object type and return pointer

@@ -67,6 +67,8 @@ static void* copy_heap_alloc(copy_heap_t *heap, size_t size, int type_id)
 
 	block_hdr_t *hdr = heap->pos;
 	hdr->forward = 0;
+	hdr->stimes = 0;
+	hdr->modified = 0;
 	hdr->type_id = type_id;
 	heap->pos += BHDR_SIZE;
 	heap->free_mem -= BHDR_SIZE;
@@ -133,7 +135,8 @@ static void heap_scan_references(heap_t *heap)
 	block_hdr_t *hdr = heap->to->mem + pad;
 	for (i = 0; i < heap->to->blocks; i++) {
 		const type_t *type = &type_table[hdr->type_id];
-		LOG_DBG("Survived %d %s\n", i, type_table[hdr->type_id].name);
+		LOG_DBG("Survived %d %s/%d\n",
+				i, type_table[hdr->type_id].name, hdr->stimes);
 
 		/*
 		 * If type provide visit function - call it
@@ -193,6 +196,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	void *p = PTR_GET(ptr);
 	if (!copy_heap_own(heap->from, p)) {
+		//TODO skip mature objects
 		if (copy_heap_own(heap->to, p)) {
 			LOG_DBG("%p belong to `to' space, skip...\n", p);
 			return;
@@ -216,6 +220,9 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	/*
 	 * Copy object to the second heap and update pointer
+	 *
+	 * TODO check stimes and move old objects to the mature heap,
+	 * also setting modified flag in order to scan referencies first time
 	 */
 	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+BHDR_SIZE);
 
@@ -225,6 +232,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	hdr = new_pos;
 	hdr->forward = 0;
+	hdr->stimes++;
 	new_pos += BHDR_SIZE;
 	PTR_SET(ptr, new_pos);
 	obj->ptr = ptr.ptr;

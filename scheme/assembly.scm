@@ -15,13 +15,13 @@
 
   (define (print-ilr res)
     (display "ILR: \n")
-    (display (format "Imports: ~a\n" (ilr-imports res)))
-    (display (format "Symbols: ~a\n" (ilr-symbols res)))
-    (display (format "Strings: ~s\n" (ilr-strings res)))
-    (display (format "Entry point: ~a\n" (ilr-entry-point res)))
+    (format #t "Imports: ~a\n" (ilr-imports res))
+    (format #t "Symbols: ~a\n" (ilr-symbols res))
+    (format #t "Strings: ~s\n" (ilr-strings res))
+    (format #t "Entry point: ~a\n" (ilr-entry-point res))
     (display "Code: \n")
     (for-each (lambda (x)
-                (display (format "~a\n" (i-func-code x))))
+                (format "~a\n" (i-func-code x)))
               (ilr-code res)))
 
   (define (write-func-hdr mem . args)

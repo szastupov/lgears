@@ -39,8 +39,8 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 	const native_t func##_nt = { \
 		.hdr.type = func_native, \
 		.hdr.argc = fargc+1, \
-		.arity = farity, \
 		.hdr.swallow = fswallow, \
+		.arity = farity, \
 		.fp = func, \
 		.name = #func \
 	}

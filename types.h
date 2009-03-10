@@ -78,7 +78,7 @@ typedef union {
 #define DEFINE_CONST(name, nid) \
 	static const const_t name = { \
 		.st.tag = id_const, \
-		.st.id = nid \
+		.st.id = nid, \
 	};
 
 DEFINE_CONST(cnull, 0);

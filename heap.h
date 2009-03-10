@@ -71,8 +71,8 @@ static inline void* get_typed(obj_t obj, int type_id)
 typedef struct {
 	void *mem;		/**< Memory */
 	void *pos;		/**< Current position */
-	int size;		/**< Total size of space */
-	int free_mem;	/**< Free memory */
+	size_t size;		/**< Total size of space */
+	size_t free_mem;	/**< Free memory */
 	int blocks;		/**< Used blocks */
 } copy_heap_t;
 

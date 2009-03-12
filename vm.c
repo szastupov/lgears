@@ -50,7 +50,7 @@ static void env_visit(visitor_t *vs, void *data)
 		vs->visit(vs, &env->objects[i]);
 }
 
-env_t* env_new(heap_t *heap, int size)
+static env_t* env_new(heap_t *heap, int size)
 {
 	void *mem = heap_alloc0(heap, sizeof(env_t)+sizeof(obj_t)*size, t_env);
 	env_t *env = mem;
@@ -385,7 +385,7 @@ dispatch_func:
 			TARGET(SET_LOCAL) {
 				thread->objects[op_arg] = STACK_POP();
 				if (thread->env)
-					MARK_MODIFIED(thread->env);
+					MARK_MODIFIED(&thread->heap, thread->env);
 			}
 			NEXT();
 
@@ -393,7 +393,7 @@ dispatch_func:
 				bind_t *bind = &func->bindings[op_arg];
 				env_t *env = ENV(thread->bindmap[bind->up]);
 				env->objects[bind->idx] = STACK_POP();
-				MARK_MODIFIED(env);
+				MARK_MODIFIED(&thread->heap, env);
 			}
 			NEXT();
 
@@ -535,6 +535,7 @@ static void info()
 	SIZE_INFO(closure_t);
 	SIZE_INFO(string_t);
 	SIZE_INFO(pair_t);
+	SIZE_INFO(card_t);
 }
 
 int main()

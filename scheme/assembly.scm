@@ -21,7 +21,7 @@
     (format #t "Entry point: ~a\n" (ilr-entry-point res))
     (display "Code: \n")
     (for-each (lambda (x)
-                (format "~a\n" (i-func-code x)))
+                (format #t "~a\n" (i-func-code x)))
               (ilr-code res)))
 
   (define (write-func-hdr mem . args)

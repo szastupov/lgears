@@ -31,16 +31,16 @@ typedef struct {
 	unsigned size;		/**< Size of block (with padding if need) */
 	unsigned type_id:4;	/**< Type id @see type_table */
 	unsigned forward:1;	/**< Indicate that pointer should be forwarded */
-	unsigned stimes:3;	/**< How much times the object survived */
 	unsigned modified:1;	/**< Modification flag */
 } block_hdr_t;
 
 #define BHDR_SIZE sizeof(block_hdr_t)
-#define HTYPE(ptr) ((block_hdr_t*)(ptr-BHDR_SIZE))
+#define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
 #define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
 #define IS_TYPE(obj, tid) \
 	(obj.tag == id_ptr && HTYPE_TAG(PTR(obj)) == tid)
-#define MARK_MODIFIED(ptr) HTYPE(ptr)->modified = 1
+#define MARK_MODIFIED(heap, ptr) if (!HTYPE(ptr)->modified)	\
+		heap_mark_modified(heap, ptr);
 
 /** 
  * @brief Check object type and return pointer
@@ -65,6 +65,11 @@ static inline void* get_typed(obj_t obj, int type_id)
 	return res;
 }
 
+typedef struct {
+	uint8_t blocks:7;
+	uint8_t dirty:1;
+} card_t;
+
 /** 
  * @brief Copying heap
  */
@@ -73,7 +78,8 @@ typedef struct {
 	void *pos;		/**< Current position */
 	size_t size;		/**< Total size of space */
 	size_t free_mem;	/**< Free memory */
-	int blocks;		/**< Used blocks */
+	int cur_card;
+	card_t cards[8];
 } copy_heap_t;
 
 /** 
@@ -81,9 +87,9 @@ typedef struct {
  */
 typedef struct {
 	visitor_t visitor;			/**< VM visitor */
-	void *page;					/**< Managed page (actualy memory received from malloc() */
 	int page_size;				/**< Size of page */
-	copy_heap_t heaps[2];		/**< Two copying heaps */
+	int count;					/**< Count of heaps */
+	copy_heap_t heaps[5];		/**< Copying heaps */
 	copy_heap_t *from, *to;	
 	visitor_fun vm_get_roots;	/**< Callback to procedure which mark root objects */
 	visitor_fun vm_after_gc;
@@ -114,6 +120,7 @@ void heap_destroy(heap_t *heap);
 void* heap_alloc(heap_t *heap, int size, int type_id);
 void* heap_alloc0(heap_t *heap, int size, int type_id);
 void heap_require(heap_t *heap, int size);
+void heap_mark_modified(heap_t *heap, void *ptr);
 
 /** 
  * @brief Print heap statistics

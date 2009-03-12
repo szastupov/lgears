@@ -104,6 +104,11 @@
         ((begin)
          (convert-seq res (cdr node) name))
 
+        ((set!)
+         (if (> (length node) 3)
+           (syntax-violation 'convert "set! expected two arguments" node))
+         (convert `((set! ,(cadr node) ,name) ,res) (caddr node) name))
+
         ((define)
          (syntax-violation 'convert "misplaced defination" node))
 

@@ -1,5 +1,5 @@
-CFLAGS += -Wall -ggdb -DCOMPUTED_GOTO -pg
-LDFLAGS += -pg -pthread
+CFLAGS += -Wall -g3 -DCOMPUTED_GOTO -pg
+LDFLAGS += -pg -pthread -rdynamic
 
 vm_obj = vm.o heap.o primitives.o hash.o module.o fixnum.o
 targets = vm

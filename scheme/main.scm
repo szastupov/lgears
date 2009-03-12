@@ -22,13 +22,18 @@
                 |#
 
                 ;#|
+                (define count 0)
                 (define (range from to)
                   (define (loop step res)
                     (if (< step from)
                       res
-                      (loop (- step 1) (cons step res))))
+                      (begin 
+                        (set! count (+ 1 count))
+                        (loop (- step 1) (cons step res)))))
                   (loop to '()))
+                ;(display (range 1 (* 100 2)))
                 (display (range 1 100))
+                (display count)
                 ;|#
 
                 #|

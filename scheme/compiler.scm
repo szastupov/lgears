@@ -2,6 +2,7 @@
   (export compile-expr compile-file)
   (import (rnrs)
           (cps)
+          (format)
           (assembly))
 
   (define (set-func-args! ntbl args)
@@ -236,13 +237,16 @@
       (assemble ilr path)))
 
   (define (read-source file)
-    (let* ((port (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder)))
-           (res (get-datum port)))
-      (close-port port)
-      res))
+    (call-with-port
+      (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder))
+      (lambda (port)
+        (let loop ((res '())
+                   (datum (get-datum port)))
+          (if (eof-object? datum)
+            (reverse res)
+            (loop (cons datum res) (get-datum port)))))))
 
   (define (compile-file in out)
-    (let ((datum (read-source in)))
-      (compile-expr datum out)))
+    (compile-expr (read-source in) out))
 
   )

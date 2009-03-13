@@ -200,6 +200,7 @@
     (let ((res (convert-body source '__exit)))
       (display "CPS: \n")
       (pretty-print res)
+      (write res)
       (newline)
       (if (pair? (car res))
         res

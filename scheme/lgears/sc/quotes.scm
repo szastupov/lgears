@@ -1,4 +1,4 @@
-(library (quotes)
+(library (lgears sc quotes)
   (export trquote trquasiquote)
   (import (rnrs))
 

@@ -1,7 +1,7 @@
 #!r6rs
 (import (rnrs)
-        (format)
-        (opcode))
+        (lgears format)
+        (lgears sc opcode))
 
 ;;;
 ;;; It's ugly, I know :\

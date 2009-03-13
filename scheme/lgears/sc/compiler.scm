@@ -1,9 +1,9 @@
-(library (compiler)
+(library (lgears sc compiler)
   (export compile-expr compile-file)
   (import (rnrs)
-          (cps)
-          (format)
-          (assembly))
+          (lgears sc cps)
+          (lgears format)
+          (lgears sc assembly))
 
   (define (set-func-args! ntbl args)
     (let loop ((idx 0) (lst args))

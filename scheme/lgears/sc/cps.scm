@@ -1,9 +1,9 @@
-(library (cps)
+(library (lgears sc cps)
   (export cps-convert)
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
           (trace)
-          (quotes))
+          (lgears sc quotes))
 
   ;For testing
   (define orig '(
@@ -200,7 +200,6 @@
     (let ((res (convert-body source '__exit)))
       (display "CPS: \n")
       (pretty-print res)
-      (write res)
       (newline)
       (if (pair? (car res))
         res

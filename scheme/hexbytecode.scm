@@ -1,5 +1,5 @@
 (import (rnrs)
-        (format))
+        (lgears format))
 
 (if (< (length (command-line)) 3)
   (begin

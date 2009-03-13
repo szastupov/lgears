@@ -1,10 +1,10 @@
-(library (lgears sc cps)
+(library (sc cps)
   (export cps-convert)
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
           (trace)
-          (lgears format)
-          (lgears sc quotes))
+          (format)
+          (sc quotes))
 
   ;For testing
   (define orig '(

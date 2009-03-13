@@ -2,8 +2,8 @@
 (add-library-path ".")
 
 (import (rnrs)
-        (lgears compiler)
-        (lgears format))
+        (compiler)
+        (format))
 
 (when (< (length (command-line)) 2)
   (format #t "Usage: ~a file.scm\n" (car (command-line)))

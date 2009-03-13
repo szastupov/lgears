@@ -19,7 +19,7 @@
  | additional features will be added on demand
  |#
 
-(library (lgears format)
+(library (format)
   (export format)
   (import (rnrs base)
           (rnrs io simple)

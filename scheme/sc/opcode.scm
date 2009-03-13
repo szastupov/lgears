@@ -1,4 +1,4 @@
-(library (lgears sc opcode)
+(library (sc opcode)
   (export oplist oplist-for-each opcode)
   (import (rnrs))
 

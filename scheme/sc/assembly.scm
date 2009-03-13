@@ -1,9 +1,9 @@
-(library (lgears sc assembly)
+(library (sc assembly)
   (export assemble
           make-ilr make-i-func print-ilr)
   (import (rnrs)
-          (lgears sc opcode)
-          (lgears format))
+          (sc opcode)
+          (format))
 
   (define-record-type ilr
     (fields imports symbols code 

@@ -8,10 +8,10 @@ include include.mk
 
 # FIXME
 # Add mzscheme variant
-r6rs = ypsilon --sitelib=./scheme
+r6rs = ypsilon --sitelib=../scheme
 
 regen-opcode:
-	@$(r6rs) ./scheme/gen-headers.scm
+	@$(r6rs) ../scheme/gen-headers.scm
 
 snapshot:
 	git archive --format=tar --prefix=lgears/ HEAD|gzip > lgears_git-$(shell date +'%F').tar.gz

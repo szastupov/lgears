@@ -347,7 +347,6 @@ dispatch_func:
 							switch (native_call(thread, func, argv, op_arg)) {
 								case RC_EXIT:
 									/* Terminate thread */
-									heap_stat(&thread->heap);
 									return;
 								case RC_ERROR:
 									/* C-api is only for low-level things,

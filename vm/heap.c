@@ -331,8 +331,3 @@ void heap_destroy(heap_t *heap)
 	for (i = 0; i < heap->count; i++)
 		mem_free(heap->heaps[i].mem);
 }
-
-void heap_stat(heap_t *heap)
-{
-	LOG_DBG("mem used on heap 1 %zd\n", heap->to->size - heap->to->free_mem);
-}

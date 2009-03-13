@@ -3,6 +3,7 @@
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
           (trace)
+          (lgears format)
           (lgears sc quotes))
 
   ;For testing
@@ -93,10 +94,10 @@
                 (predname (if (self-eval? pred)
                             pred (gen-name)))
                 (expr `(if ,predname
-                         ,(convert '() (cadr args) name)
+                         ,(convert res (cadr args) name)
                          ,@(if (null? (cddr args))
                              '()
-                             (list (convert '() (caddr args) name))))))
+                             (list (convert res (caddr args) name))))))
            (if (self-eval? pred)
              expr
              (convert expr pred predname))))

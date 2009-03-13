@@ -122,11 +122,4 @@ void* heap_alloc0(heap_t *heap, int size, int type_id);
 void heap_require(heap_t *heap, int size);
 void heap_mark_modified(heap_t *heap, void *ptr);
 
-/** 
- * @brief Print heap statistics
- * 
- * @param heap 
- */
-void heap_stat(heap_t *heap);
-
 #endif /* HEAP_H */

@@ -93,11 +93,17 @@
                 (pred (car args))
                 (predname (if (self-eval? pred)
                             pred (gen-name)))
-                (expr `(if ,predname
-                         ,(convert res (cadr args) name)
-                         ,@(if (null? (cddr args))
-                             '()
-                             (list (convert res (caddr args) name))))))
+                (lname (gen-name))
+                (escape (if (null? res) name lname))
+                (condition `(if ,predname
+                              ,(convert '() (cadr args) escape)
+                              ,@(if (null? (cddr args))
+                                  '()
+                                  (list (convert '() (caddr args) escape)))))
+                (expr (if (null? res)
+                        condition
+                        `((lambda (,lname) ,condition)
+                          (lambda (,name) ,res)))))
            (if (self-eval? pred)
              expr
              (convert expr pred predname))))

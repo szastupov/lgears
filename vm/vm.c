@@ -119,8 +119,12 @@ static display_t* display_new(heap_t *heap, display_t **prev, env_t **env)
 
 static env_t* display_env(display_t *display, int idx)
 {
-	while (idx--) 
+	while (idx--) {
 		display = display->prev;
+		if (!display)
+			FATAL("Null display\n");
+	}
+
 	if (!display->has_env) {
 		LOG_ERR("display %p with depth %d doesn't has an env\n",
 				display, display->depth);
@@ -172,7 +176,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 	}
 
 	if (func->bcount) {
-		thread->bindmap = (void*)&thread->opstack[thread->op_stack_idx];
+		thread->bindmap = &thread->opstack[thread->op_stack_idx];
 		for (i = 0; i < func->bmcount; i++) {
 			env_t *env = display_env(thread->display, (func->bindmap[i]-1));
 			if (!env)

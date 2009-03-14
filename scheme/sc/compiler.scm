@@ -158,9 +158,10 @@
                (compiled (compile-body env body))
                (idx (store-push! code-store
                                  (make-func compiled env))))
-          (if (null? (env-bindings env))
-            `((LOAD_FUNC ,idx 1))
-            `((LOAD_CLOSURE ,idx 1)))))
+          `((LOAD_CLOSURE ,idx 1))))
+          ;(if (null? (env-bindings env))
+            ;`((LOAD_FUNC ,idx 1))
+            ;`((LOAD_CLOSURE ,idx 1)))))
 
       (define (compile-if env node)
         (let ((pred (compile env (car node)))

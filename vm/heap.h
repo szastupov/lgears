@@ -38,7 +38,7 @@ typedef struct {
 #define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
 #define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
 #define IS_TYPE(obj, tid) \
-	(obj.tag == id_ptr && HTYPE_TAG(PTR(obj)) == tid)
+	((obj).tag == id_ptr && HTYPE_TAG(PTR(obj)) == tid)
 #define MARK_MODIFIED(heap, ptr) if (!HTYPE(ptr)->modified)	\
 		heap_mark_modified(heap, ptr);
 

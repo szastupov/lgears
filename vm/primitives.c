@@ -74,7 +74,7 @@ void pair_repr(void *ptr)
 void string_repr(void *ptr)
 {
 	string_t *string = ptr;
-	printf("\"%s\"", string->str);
+	printf("%s", string->str);
 }
 
 void* _string(heap_t *heap, char *str, int copy)
@@ -155,15 +155,6 @@ static int cdr(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(cdr);
 
-static int eq(vm_thread_t *thread, obj_t *a, obj_t *b)
-{
-	const_t res = CIF(a->ptr == b->ptr);
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
-}
-MAKE_NATIVE_BINARY(eq);
-
 static void print_const(obj_t obj)
 {
 	const_t c = { .obj = obj };
@@ -240,7 +231,6 @@ void print_obj(obj_t obj)
 static int display(vm_thread_t *thread, obj_t *obj)
 {
 	print_obj(*obj);
-	printf("\n");
 	thread->tramp.arg[0] = cvoid.obj;
 
 	return RC_OK;
@@ -269,96 +259,6 @@ static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE(call_cc, -1, 1, 0);
 
-/* 
- * File descriptors
- * Export only low level descriptros,
- * r6rs port system will be build on it
- */
-
-typedef struct {
-	char str[3];
-	int mode;
-} fd_mode_t;
-
-static const fd_mode_t fd_modes[] = {
-	{ "r", O_RDONLY },
-	{ "r+", O_RDWR },
-	{ "w", O_WRONLY|O_TRUNC|O_CREAT },
-	{ "w+", O_RDWR|O_TRUNC|O_CREAT },
-	{ "a", O_WRONLY|O_APPEND|O_CREAT },
-	{ "a+", O_RDWR|O_APPEND|O_CREAT },
-};
-
-int fd_parse_mode(const char *str)
-{
-	int i;
-	for (i = 0; i < sizeof(fd_modes)/sizeof(fd_mode_t); i++)
-		if (strncmp(str, fd_modes[i].str, 2) == 0)
-			return fd_modes[i].mode;
-	return fd_modes[0].mode;
-}
-
-static int fd_open(vm_thread_t *thread, obj_t *ostring, obj_t *omode)
-{
-	string_t *path_str = get_typed(*ostring, t_string);
-	SAFE_ASSERT(path_str != NULL);
-	string_t *mode_str = get_typed(*omode, t_string);
-	SAFE_ASSERT(mode_str != NULL);
-
-	int mode = fd_parse_mode(mode_str->str);
-	int fd = open(path_str->str, mode);
-
-	RESULT_FIXNUM(fd);
-}
-MAKE_NATIVE_BINARY(fd_open);
-
-static int fd_close(vm_thread_t *thread, obj_t *fd)
-{
-	RESULT_FIXNUM(close(FIXNUM(*fd)));
-}
-MAKE_NATIVE_UNARY(fd_close);
-
-static int fd_seek(vm_thread_t *thread, obj_t *fd, obj_t *offt, obj_t *omode)
-{
-	SAFE_ASSERT(omode->tag == id_fixnum);
-	SAFE_ASSERT(offt->tag == id_fixnum);
-
-	int mode = 0;
-	switch (FIXNUM(*omode)) {
-		case 0:
-			mode = SEEK_SET;
-			break;
-		case 1:
-			mode = SEEK_CUR;
-			break;
-		case 2:
-			mode = SEEK_END;
-			break;
-		default:
-			mode = SEEK_SET;
-	}
-
-	off_t offset = lseek(FIXNUM(*fd), FIXNUM(*offt), mode);
-	RESULT_FIXNUM(offset);
-}
-MAKE_NATIVE_TERNARY(fd_seek);
-
-static int fd_write(vm_thread_t *thread, obj_t *fd, obj_t *data)
-{
-	SAFE_ASSERT(fd->tag == id_fixnum);
-	SAFE_ASSERT(data->tag == id_ptr);
-
-	string_t *str = get_typed(*data, t_string);
-	if (!str)
-		RESULT_ERROR("argument is not a string\n");
-
-	int wrote = write(FIXNUM(*fd), str->str, str->size-1);
-
-	RESULT_FIXNUM(wrote);
-}
-MAKE_NATIVE_BINARY(fd_write);
-
-
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
 {
@@ -366,6 +266,42 @@ void ns_install_native(hash_table_t *tbl,
 	FUNC_INIT(ptr, nt);
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
+
+/*
+ * Predicates
+ */
+
+static int eq(vm_thread_t *thread, obj_t *a, obj_t *b)
+{
+	RESULT_BOOL(a->ptr == b->ptr);
+}
+MAKE_NATIVE_BINARY(eq);
+
+static int is_procedure(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(obj->tag == id_func ||
+			obj->tag == id_cont || 
+			(obj->tag == id_ptr && IS_TYPE(*obj, t_closure)));
+}
+MAKE_NATIVE_UNARY(is_procedure);
+
+static int is_boolean(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(IS_BOOL(*obj));
+}
+MAKE_NATIVE_UNARY(is_boolean);
+
+static int is_pair(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(obj->tag == id_ptr && IS_TYPE(*obj, t_pair));
+}
+MAKE_NATIVE_UNARY(is_pair);
+
+static int is_symbol(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(obj->tag == id_symbol);
+}
+MAKE_NATIVE_UNARY(is_symbol);
 
 void ns_install_primitives(hash_table_t *tbl)
 {
@@ -376,12 +312,12 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "list", &list_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
-	ns_install_native(tbl, "eq?", &eq_nt);
 
-	ns_install_native(tbl, "fd-open", &fd_open_nt);
-	ns_install_native(tbl, "fd-close", &fd_close_nt);
-	ns_install_native(tbl, "fd-seek", &fd_seek_nt);
-	ns_install_native(tbl, "fd-write", &fd_write_nt);
+	ns_install_native(tbl, "eq?", &eq_nt);
+	ns_install_native(tbl, "procedure?", &is_procedure_nt);
+	ns_install_native(tbl, "boolean?", &is_boolean_nt);
+	ns_install_native(tbl, "pair?", &is_pair_nt);
+	ns_install_native(tbl, "symbol?", &is_symbol_nt);
 
 	ns_install_fixnum(tbl);
 }

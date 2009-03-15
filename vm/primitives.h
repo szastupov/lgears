@@ -64,10 +64,9 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 	FIXNUM_INIT(*(fixnum_t*)&thread->tramp.arg[0], num); \
 	return RC_OK;
 
-#define PUSH_RESULT(ptr) { \
-	STACK_PUSH(ptr); \
-	thread->tramp.argc++; \
-}
+#define RESULT_BOOL(b) \
+	thread->tramp.arg[0] = CIF(b).obj; \
+	return RC_OK;
 
 /** 
  * @brief Terminate thread if assertion failed

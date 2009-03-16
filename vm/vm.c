@@ -541,14 +541,21 @@ static void info()
 	SIZE_INFO(card_t);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	info();
-//	exit(0);
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s /path/to/assembly\n", argv[0]);
+		exit(1);
+	}
+
+	if (!strcmp(argv[1], "info")) {
+		info();
+		exit(0);
+	}
 
 	vm_init();
 
-	module_t *mod = module_load("/tmp/assembly");
+	module_t *mod = module_load(argv[1]);
 	vm_eval_module(mod);
 	module_free(mod);
 

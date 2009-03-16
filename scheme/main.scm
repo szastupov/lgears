@@ -9,4 +9,8 @@
   (format #t "Usage: ~a file.scm\n" (car (command-line)))
   (exit 1))
 
-(compile-file (cadr (command-line)) "/tmp/assembly")
+(let* ((source (cadr (command-line)))
+       (assm (string-append "compiled/" source ".o")))
+  (if (not (file-exists? "compiled"))
+    (create-directory "compiled"))
+  (compile-file source assm))

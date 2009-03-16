@@ -1,1 +1,21 @@
 Education experiment on implementing scheme vm and compiler.
+
+Source structure:
+
+scheme - scheme sources
+scheme/sc - compiler itself
+vm - vm sources
+
+At this moment, you need a external scheme implementation to run the compiler,
+I prefer ypsilon, but you can use any r6rs implementation after rewriting some
+ypsilon-dependent code (I will do it in the future).
+
+So if you want to play with lgears:
+run `make' to build VM
+from scheme/ run `./main.scm test.scm' (need ypsilon)
+You will see a lot of debug info and compilation stage dumps.
+compiler will create files:
+	compiled/test.scm.o - bytecode
+	compiled/test.scm.dbg - debug symbols
+
+To execute bytecode run: `../vm/vm compiled/test.scm.o'

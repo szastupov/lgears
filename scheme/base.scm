@@ -30,3 +30,6 @@
       (iter (cdr cur)
             (cons (car cur) res))))
   (iter lst '()))
+
+(define (newline)
+  (display "\n"))

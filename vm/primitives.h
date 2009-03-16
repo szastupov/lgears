@@ -60,13 +60,21 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 #define MAKE_NATIVE_TERNARY(func) \
 	MAKE_NATIVE(func, 3, 3, 0)
 
-#define RESULT_FIXNUM(num) \
-	FIXNUM_INIT(*(fixnum_t*)&thread->tramp.arg[0], num); \
+#define RESULT_OBJ(obj) \
+	STACK_PUSH(obj.ptr); \
 	return RC_OK;
 
-#define RESULT_BOOL(b) \
-	thread->tramp.arg[0] = CIF(b).obj; \
+#define RESULT_PTR(p) \
+	STACK_PUSH(p); \
 	return RC_OK;
+
+#define RESULT_FIXNUM(num) { \
+	fixnum_t fx; FIXNUM_INIT(fx, num); \
+	RESULT_OBJ(fx.obj); \
+}
+
+#define RESULT_BOOL(b) \
+	RESULT_OBJ(CIF(b).obj);
 
 /** 
  * @brief Terminate thread if assertion failed
@@ -104,5 +112,11 @@ typedef struct {
 
 void* _string(heap_t *heap, char *str, int copy);
 void string_repr(void *ptr);
+
+typedef struct {
+	obj_t func;
+} continuation_t;
+
+void continuation_visit(visitor_t *vs, void *data);
 
 #endif /* PRIMITIVES_H */

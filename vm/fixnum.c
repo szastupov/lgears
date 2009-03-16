@@ -5,12 +5,12 @@ static int fxsum(vm_thread_t *thread, obj_t *argv, int argc)
 	fixnum_t res;
 	FIXNUM_INIT(res, 0);
 	int i;
-	for (i = 1; i < argc; i++)
+	for (i = 1; i < argc; i++) {
+		SAFE_ASSERT(argv[i].tag == id_fixnum);
 		res.val += FIXNUM(argv[i]);
+	}
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxsum, 0);
 
@@ -22,9 +22,8 @@ static int fxsub(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 2; i < argc; i++)
 		res.val -= FIXNUM(argv[i]);
 
-	thread->tramp.arg[0] = res.obj;
 
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxsub, 2);
 
@@ -36,9 +35,7 @@ static int fxmul(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 1; i < argc; i++)
 		res.val *= FIXNUM(argv[i]);
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxmul, 0);
 
@@ -50,9 +47,7 @@ static int fxdiv(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 2; i < argc; i++)
 		res.val /= FIXNUM(argv[i]);
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxdiv, 2);
 
@@ -64,9 +59,7 @@ static int fxmod(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 2; i < argc; i++)
 		res.val %= FIXNUM(argv[i]);
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxmod, 2);
 
@@ -81,9 +74,7 @@ static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
 			break;
 		}
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxeq, 2);
 
@@ -99,9 +90,7 @@ static int fxless(vm_thread_t *thread, obj_t *argv, int argc)
 		}
 	}
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxless, 2);
 
@@ -117,9 +106,7 @@ static int fxgreat(vm_thread_t *thread, obj_t *argv, int argc)
 		}
 	}
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxgreat, 2);
 
@@ -131,9 +118,7 @@ static int fxior(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 1; i < argc; i++)
 		res.val |= FIXNUM(argv[i]);
 
-	thread->tramp.arg[0] = res.obj;
-
-	return RC_OK;
+	RESULT_OBJ(res.obj);
 }
 MAKE_NATIVE_VARIADIC(fxior, 0);
 

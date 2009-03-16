@@ -33,9 +33,10 @@ static void closure_visit(visitor_t *vs, void *data);
 const type_t type_table[] = {
 	{ .name = "env", .visit = env_visit },
 	{ .name = "closure", .visit = closure_visit },
+	{ .name = "continiation", .visit = continuation_visit },
 	{ .name = "display", .visit = display_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
-	{ .name = "string", .repr = string_repr }
+	{ .name = "string", .repr = string_repr },
 };
 
 hash_table_t ns_global;
@@ -193,7 +194,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	char *opcode;
 	int op_code, op_arg;
 	func_t *func;
-	int i;
 	void (*trace_func)();
 
 	void trace_opcode()
@@ -304,17 +304,23 @@ dispatch_func:
 				switch (fp.tag) {
 					case id_ptr:
 						{
-							closure_t *closure = get_typed(fp.obj, t_closure);
-							if (!closure)
-								THREAD_ERROR("got pointer but it isn't a closure\n");
+							if (IS_TYPE(fp.obj, t_closure)) {
+								closure_t *closure = get_typed(fp.obj, t_closure);
+								if (!closure)
+									THREAD_ERROR("wth? null closure?\n");
 
-							ptr = closure->func;
-							thread->display = closure->display;
+								ptr = closure->func;
+								thread->display = closure->display;
+							} else if (IS_TYPE(fp.obj, t_cont)) {
+								continuation_t *cont = get_typed(fp.obj, t_cont);
+								if (!cont)
+									THREAD_ERROR("wth? null continuation?\n");
+								fp.obj = cont->func;
+								op_arg--;
+								goto dispatch_func;
+							} else
+								THREAD_ERROR("got pointer but it isn't a closure or a continuation\n");
 						}
-						break;
-					case id_cont:
-						op_arg--;
-						ptr = PTR_GET(fp);
 						break;
 					case id_func:
 						ptr = PTR_GET(fp);
@@ -371,9 +377,6 @@ dispatch_func:
 							else
 								fp.obj = argv[0];
 
-							thread->op_stack_idx = 0;
-							for (i = 0; i < thread->tramp.argc; i++)
-								STACK_PUSH(thread->tramp.arg[i].ptr);
 							op_arg = thread->tramp.argc;
 
 							goto dispatch_func;
@@ -477,7 +480,7 @@ static void vm_thread_init(vm_thread_t *thread)
 
 	heap_init(&thread->heap, vm_get_roots, vm_after_gc, thread);
 
-	thread->ssize = 1024;
+	thread->ssize = 4096;
 	thread->opstack = mem_alloc(thread->ssize);
 
 }

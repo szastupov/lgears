@@ -110,9 +110,7 @@ static void* _cons(heap_t *heap, obj_t *car, obj_t *cdr)
 
 static int cons(vm_thread_t *thread, obj_t *car, obj_t *cdr)
 {
-	thread->tramp.arg[0].ptr = _cons(&thread->heap, car, cdr);
-
-	return RC_OK;
+	RESULT_PTR(_cons(&thread->heap, car, cdr));
 }
 MAKE_NATIVE_BINARY(cons);
 
@@ -125,33 +123,23 @@ static int list(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = argc-1; i > 0; i--)
 		res.ptr = _cons(&thread->heap, &argv[i], &res);
 
-	thread->tramp.arg[0] = res;
-
-	return RC_OK;
+	RESULT_OBJ(res);
 }
 MAKE_NATIVE_VARIADIC(list, 0);
 
 static int car(vm_thread_t *thread, obj_t *obj)
 {
+	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
 	pair_t *pair = get_typed(*obj, t_pair);
-	if (pair)
-		thread->tramp.arg[0] = pair->car;
-	else
-		thread->tramp.arg[0].ptr = NULL;
-
-	return RC_OK;
+	RESULT_OBJ(pair->car);
 }
 MAKE_NATIVE_UNARY(car);
 
 static int cdr(vm_thread_t *thread, obj_t *obj)
 {
+	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
 	pair_t *pair = get_typed(*obj, t_pair);
-	if (pair)
-		thread->tramp.arg[0] = pair->cdr;
-	else
-		thread->tramp.arg[0].ptr = NULL;
-
-	return RC_OK;
+	RESULT_OBJ(pair->cdr);
 }
 MAKE_NATIVE_UNARY(cdr);
 
@@ -231,9 +219,7 @@ void print_obj(obj_t obj)
 static int display(vm_thread_t *thread, obj_t *obj)
 {
 	print_obj(*obj);
-	thread->tramp.arg[0] = cvoid.obj;
-
-	return RC_OK;
+	RESULT_OBJ(cvoid.obj);
 }
 MAKE_NATIVE_UNARY(display);
 
@@ -243,21 +229,62 @@ static int vm_exit(vm_thread_t *thread)
 }
 MAKE_NATIVE_NULLARY(vm_exit);
 
+
+void continuation_visit(visitor_t *vs, void *data)
+{
+	continuation_t *cont = data;
+	vs->visit(vs, &cont->func);
+}
+
+static void *continuation_new(heap_t *heap, obj_t *func)
+{
+	continuation_t *cont = heap_alloc(heap, sizeof(continuation_t), t_cont);
+	cont->func = *func;
+
+	return make_ptr(cont, id_ptr);
+}
+
 static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	thread->tramp.func.ptr = argv[1].ptr;
-	// Pass current continuation to both arguments
-	thread->tramp.arg[0] = argv[0];
-	thread->tramp.arg[1] = argv[0];
-	thread->tramp.argc = 2;
+	SAFE_ASSERT(IS_FUNC(argv[1]));
 
-	// But for second, change tag
-	thread->tramp.arg[1].tag = id_cont;
-	//TODO check for valid function
+	// Push continuation
+	STACK_PUSH(argv[0].ptr);
+	STACK_PUSH(continuation_new(&thread->heap, &argv[0]));
+
+	thread->tramp.argc = 2;
+	thread->tramp.func = argv[1];
 
 	return RC_OK;
 }
 MAKE_NATIVE(call_cc, -1, 1, 0);
+
+static int apply(vm_thread_t *thread, obj_t *argv, int argc)
+{
+	SAFE_ASSERT(IS_FUNC(argv[1]));
+	SAFE_ASSERT(IS_TYPE(argv[2], t_pair));
+
+	// Push continuation
+	STACK_PUSH(argv[0].ptr);
+
+	// Push arguments from list
+	pair_t *pair = get_typed(argv[2], t_pair);
+	int cargc = 1;
+	while (1) {
+		STACK_PUSH(pair->car.ptr);
+		cargc++;
+		if (IS_TYPE(pair->cdr, t_pair))
+			pair = PTR(pair->cdr);
+		else
+			break;
+	}
+
+	thread->tramp.func = argv[1];
+	thread->tramp.argc = cargc;
+
+	return RC_OK;
+}
+MAKE_NATIVE(apply, -1, 2, 0);
 
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
@@ -279,9 +306,7 @@ MAKE_NATIVE_BINARY(eq);
 
 static int is_procedure(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(obj->tag == id_func ||
-			obj->tag == id_cont || 
-			(obj->tag == id_ptr && IS_TYPE(*obj, t_closure)));
+	RESULT_BOOL(IS_FUNC(*obj));
 }
 MAKE_NATIVE_UNARY(is_procedure);
 
@@ -308,6 +333,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "display", &display_nt);
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
 	ns_install_native(tbl, "call/cc", &call_cc_nt);
+	ns_install_native(tbl, "apply", &apply_nt);
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "list", &list_nt);
 	ns_install_native(tbl, "car", &car_nt);

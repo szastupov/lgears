@@ -77,7 +77,6 @@ typedef struct {
 
 typedef struct {
 	obj_t func;
-	obj_t arg[2];
 	int argc;
 } trampoline_t;
 

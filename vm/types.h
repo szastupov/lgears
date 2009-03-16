@@ -49,7 +49,6 @@ enum {
 	id_char,	/**< Character */
 	id_func,	/**< Function pointer */
 	id_symbol,	/**< Symbol pointer */
-	id_cont,	/**< Continuation */
 	id_const	/**< Constant */
 };
 
@@ -91,6 +90,9 @@ DEFINE_CONST(cvoid, 3);
 #define IS_TRUE(obj) ((obj).ptr == ctrue.ptr)
 #define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
 #define IS_NULL(obj) ((obj).ptr == cnull.ptr)
+#define IS_FUNC(obj) ((obj).tag == id_func || \
+		((obj).tag == id_ptr && \
+		 (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
 
 /**
  * @brief Tagged poiner repesintation
@@ -168,6 +170,6 @@ typedef struct {
  * @brief Type table
  */
 extern const type_t type_table[];
-enum { t_env, t_closure, t_display, t_pair, t_string };
+enum { t_env, t_closure, t_cont, t_display, t_pair, t_string };
 
 #endif /* TYPES_H */

@@ -19,7 +19,6 @@
   (export cps-convert)
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
-          (trace)
           (format)
           (sc quotes))
 
@@ -47,11 +46,6 @@
                  ((lambda (x y) (x y)) a b)
                  ((c d) x y)
                  |#
-
-                 (dsiplay "one")
-                 (begin
-                   (define (foo n)
-                     (display n)))
 
                  ))
 
@@ -108,6 +102,7 @@
              (list name func)
              `(,func (lambda (,name) ,res)))))
 
+        ;;; FIXME: if else ommited, then compiler generate wrong code
         ((if)
          (if (or (> (length node) 4)
                  (< (length node) 3))
@@ -147,10 +142,9 @@
         ((quasiquote)
          (convert-quote res (cadr node) trquasiquote name))
 
-        #|
-         | Conversion of call
-         | We covnert both arguments and functions
-         |#
+        ;;; Conversion of call
+        ;;; We covnert both arguments and functions
+        ;;; FIXME function fail if symbol in tail position
         (else
           (let* ((args (reverse node))
                  ;;; List of arguments ready for applicaton
@@ -163,7 +157,7 @@
                  (control (cond ((null? res)
                                  name)
                                 ((and (pair? (car res))
-                                      (eq? (caar res) 'set!))
+                                      (eq? (caar res) 'set!)) ;;FIXME
                                  `(lambda (,name) ,@res))
                                 (else
                                   `(lambda (,name) ,res))))
@@ -183,9 +177,17 @@
            `((set! ,(caar def)
                ,(convert-func (cdar def) (cdr def)))
              ,@res))
+
           ((self-eval? (cadr def))
            `((set! ,(car def) ,(cadr def))
              ,@res))
+
+          ((and (pair? (cadr def))
+                (eq? (caadr def) 'lambda))
+           `((set! ,(car def)
+               ,(convert-lambda (cadr def)))
+             ,@res))
+
           ((pair? (cadr def))
            (let* ((name (gen-name))
                   (expr `((set! ,(car def) ,name)
@@ -210,7 +212,7 @@
     (let loop ((cur src))
       (cond ((null? cur)
              '())
-            ((and (pair? cur)
+            ((and (pair? cur) (pair? (car cur))
                   (eq? (caar cur) 'begin))
              (append (cdar cur) (loop (cdr cur))))
             (else
@@ -218,24 +220,24 @@
 
   (define (convert-body body name)
     (let ((body (splice-begin body)))
-    (let-values (((defines expressions)
-                  (partition defination? body)))
-      (if (null? expressions)
-        (syntax-violation 'convert-body "empty body" #f))
-      (let* ((rest (convert-seq '() expressions name))
-             (extend (if (null? defines)
-                       '()
-                       `((extend ,(map (lambda (x)
-                                         (if (pair? (cadr x))
-                                           (caadr x)
-                                           (cadr x)))
-                                       defines))))))
-        `(,@extend
-           ,@(fold-left (lambda (prev x)
-                          (if (null? (cddr x))
-                            prev
-                            (convert-define prev (cdr x))))
-                        (list rest) (reverse defines)))))))
+      (let-values (((defines expressions)
+                    (partition defination? body)))
+        (if (null? expressions)
+          (syntax-violation 'convert-body "empty body" #f))
+        (let* ((rest (convert-seq '() expressions name))
+               (extend (if (null? defines)
+                         '()
+                         `((extend ,(map (lambda (x)
+                                           (if (pair? (cadr x))
+                                             (caadr x)
+                                             (cadr x)))
+                                         defines))))))
+          `(,@extend
+             ,@(fold-left (lambda (prev x)
+                            (if (null? (cddr x))
+                              prev
+                              (convert-define prev (cdr x))))
+                          (list rest) (reverse defines)))))))
 
   (define (cps-convert source)
     (let ((res (convert-body source '__exit)))

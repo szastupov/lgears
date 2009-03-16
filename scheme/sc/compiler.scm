@@ -232,8 +232,17 @@
                   (reverse (store-head string-store))
                   (cadar entry-point)))))
 
+  (define (parse-includes src)
+    (map (lambda (x)
+           (if (and (pair? x)
+                    (eq? (car x) 'include))
+             (cons 'begin (read-source (cadr x)))
+             x))
+         src))
+
   (define (compile-expr expr path)
-    (let ((ilr (start-compile (cps-convert expr))))
+    (let ((ilr (start-compile
+                 (cps-convert (parse-includes expr)))))
       (print-ilr ilr)
       (assemble ilr path)))
 

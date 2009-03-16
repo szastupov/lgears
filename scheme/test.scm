@@ -21,6 +21,8 @@
 
 ;(display (problem-2 120))
 
+(include "base.scm")
+
 (define (test-pred pred arg expect)
   (display "Testing ") (display pred)
   (if (eq? (pred arg) expect)

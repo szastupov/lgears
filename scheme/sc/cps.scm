@@ -30,6 +30,12 @@
                  ((lambda (x y) (x y)) a b)
                  ((c d) x y)
                  |#
+
+                 (dsiplay "one")
+                 (begin
+                   (define (foo n)
+                     (display n)))
+
                  ))
 
 
@@ -183,7 +189,18 @@
   (define (defination? x)
     (and (pair? x) (eq? (car x) 'define)))
 
+  (define (splice-begin src)
+    (let loop ((cur src))
+      (cond ((null? cur)
+             '())
+            ((and (pair? cur)
+                  (eq? (caar cur) 'begin))
+             (append (cdar cur) (loop (cdr cur))))
+            (else
+              (cons (car cur) (loop (cdr cur)))))))
+
   (define (convert-body body name)
+    (let ((body (splice-begin body)))
     (let-values (((defines expressions)
                   (partition defination? body)))
       (if (null? expressions)
@@ -201,7 +218,7 @@
                           (if (null? (cddr x))
                             prev
                             (convert-define prev (cdr x))))
-                        (list rest) (reverse defines))))))
+                        (list rest) (reverse defines)))))))
 
   (define (cps-convert source)
     (let ((res (convert-body source '__exit)))

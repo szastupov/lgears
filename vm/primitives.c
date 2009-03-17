@@ -318,7 +318,7 @@ MAKE_NATIVE_UNARY(is_boolean);
 
 static int is_pair(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(obj->tag == id_ptr && IS_TYPE(*obj, t_pair));
+	RESULT_BOOL(IS_TYPE(*obj, t_pair));
 }
 MAKE_NATIVE_UNARY(is_pair);
 

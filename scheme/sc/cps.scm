@@ -47,6 +47,9 @@
                  ((c d) x y)
                  |#
 
+
+                 (if #f #t)
+
                  ))
 
 
@@ -102,7 +105,6 @@
              (list name func)
              `(,func (lambda (,name) ,res)))))
 
-        ;;; FIXME: if else ommited, then compiler generate wrong code
         ((if)
          (if (or (> (length node) 4)
                  (< (length node) 3))
@@ -115,9 +117,9 @@
                 (escape (if (null? res) name lname))
                 (condition `(if ,predname
                               ,(convert '() (cadr args) escape)
-                              ,@(if (null? (cddr args))
-                                  '()
-                                  (list (convert '() (caddr args) escape)))))
+                              ,(if (null? (cddr args))
+                                  (convert '() '(void) escape)
+                                  (convert '() (caddr args) escape))))
                 (expr (if (null? res)
                         condition
                         `((lambda (,lname) ,condition)

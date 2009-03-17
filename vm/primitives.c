@@ -286,6 +286,12 @@ static int apply(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE(apply, -1, 2, 0);
 
+static int get_void(vm_thread_t *thread)
+{
+	RESULT_OBJ(cvoid.obj);
+}
+MAKE_NATIVE_NULLARY(get_void);
+
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_t *nt)
 {
@@ -338,6 +344,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "list", &list_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
+	ns_install_native(tbl, "void", &get_void_nt);
 
 	ns_install_native(tbl, "eq?", &eq_nt);
 	ns_install_native(tbl, "procedure?", &is_procedure_nt);

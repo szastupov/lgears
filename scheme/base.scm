@@ -31,5 +31,23 @@
             (cons (car cur) res))))
   (iter lst '()))
 
+(define (for-each-1 proc lst)
+  (if (null? lst)
+    (void)
+    (begin
+      (proc (car lst))
+      (for-each-1 proc (cdr lst)))))
+
+(define for-each for-each-1)
+
+(define (map-1 proc lst)
+  (if (null? lst)
+    '()
+    (begin
+      (cons (proc (car lst))
+            (map-1 proc (cdr lst))))))
+
+(define map map-1)
+
 (define (newline)
   (display "\n"))

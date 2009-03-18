@@ -89,7 +89,10 @@
     (convert-func (cadr node) (cddr node)))
 
   (define (convert res node name)
-    (if (pair? node)
+    (if (self-eval? node)
+      (if (null? res)
+        (list name node)
+        `((lambda (,name) ,res) ,node))
       (case (car node)
         ((lambda)
          (if (< (length node) 3)
@@ -118,8 +121,8 @@
                 (condition `(if ,predname
                               ,(convert '() (cadr args) escape)
                               ,(if (null? (cddr args))
-                                  (convert '() '(void) escape)
-                                  (convert '() (caddr args) escape))))
+                                 (convert '() '(void) escape)
+                                 (convert '() (caddr args) escape))))
                 (expr (if (null? res)
                         condition
                         `((lambda (,lname) ,condition)
@@ -169,10 +172,7 @@
                          (if (or (self-eval? x) (inlinable? x))
                            prev
                            (convert prev x n)))
-                       expr args largs))))
-      (if (null? res)
-        (list name node)
-        `((lambda (,name) ,res) ,node))))
+                       expr args largs))))))
 
   (define (convert-define res def)
     (cond ((pair? (car def))

@@ -25,6 +25,7 @@
 struct func_hdr_s {
 	uint16_t env_size;
 	uint16_t argc;
+	uint16_t swallow;
 	uint16_t stack_size;
 	uint16_t op_count;
 	uint16_t heap_env;
@@ -197,7 +198,7 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 	for (count = 0; count < mhdr->fun_count; count++) {
 		hdr = code_assign(FUN_HDR_SIZE);
 		func_t *func = &mod->functions[count];
-		func->hdr.swallow = 0;
+		func->hdr.swallow = hdr->swallow;
 		func->hdr.type = func_inter;
 		func->hdr.argc = hdr->argc;
 		func->env_size = hdr->env_size;

@@ -157,6 +157,20 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
 	thread->func = func;
 	int i;
+	void *args;
+
+	if (func->hdr.swallow) {
+		i = op_arg - func->hdr.argc;
+		if (i) {
+			void *args = &thread->opstack[thread->op_stack_idx - i];
+			thread->op_stack_idx -= i;
+			STACK_PUSH(_list(&thread->heap, args, i));
+			op_arg -= (i-1);
+		} else {
+			STACK_PUSH(cnull.ptr);
+			op_arg++;
+		}
+	}
 
 	if (tag != id_ptr && thread->display) {
 		while (func->depth-1 < thread->display->depth)
@@ -167,7 +181,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 		thread->env = env_new(&thread->heap, func->env_size);
 		thread->objects = thread->env->objects;
 		if (op_arg) {
-			void *args = &thread->opstack[thread->op_stack_idx - op_arg];
+			args = &thread->opstack[thread->op_stack_idx - op_arg];
 			thread->op_stack_idx = 0;
 			memcpy(thread->objects, args, op_arg*sizeof(obj_t));
 		}

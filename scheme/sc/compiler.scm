@@ -26,10 +26,10 @@
     (let loop ((idx 0) (lst args))
       (cond
         ((null? lst)
-         idx)
+         (cons #f idx))
         ((symbol? lst)
          (hashtable-set! ntbl lst idx)
-         (+ idx 1))
+         (cons #t idx))
         ((pair? lst)
          (hashtable-set! ntbl (car lst) idx)
          (loop (+ idx 1) (cdr lst)))
@@ -40,7 +40,7 @@
   (define-record-type env
     (fields parent
       tbl (mutable size)
-      argc depth
+      argc swallow depth
       (mutable onheap)
       (mutable bindings)
       (mutable bindmap))
@@ -50,8 +50,12 @@
           (let* ((ntbl (make-eq-hashtable))
                  (nargc (set-func-args! ntbl args))
                  (ndepth (if (null? prev) 0
-                           (+ 1(env-depth prev)))))
-            (new prev ntbl nargc nargc ndepth #f '() '()))))))
+                           (+ 1(env-depth prev))))
+                 (nsize (if (car nargc)
+                          (+ (cdr nargc) 1)
+                          (cdr nargc))))
+            (new prev ntbl nsize (cdr nargc)
+                 (car nargc) ndepth #f '() '()))))))
 
   (define (env-define env name)
     (let ((size (env-size env)))
@@ -83,6 +87,7 @@
       code
       (env-size env)
       (env-argc env)
+      (env-swallow env)
       (env-onheap env)
       (env-depth env)
       (reverse (env-bindings env))

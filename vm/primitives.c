@@ -114,16 +114,22 @@ static int cons(vm_thread_t *thread, obj_t *car, obj_t *cdr)
 }
 MAKE_NATIVE_BINARY(cons);
 
-static int list(vm_thread_t *thread, obj_t *argv, int argc)
+void* _list(heap_t *heap, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
 
-	heap_require(&thread->heap, sizeof(pair_t)*(argc-1));
+	heap_require(heap, sizeof(pair_t)*(argc));
 	int i;
-	for (i = argc-1; i > 0; i--)
-		res.ptr = _cons(&thread->heap, &argv[i], &res);
+	for (i = argc-1; i >= 0; i--)
+		res.ptr = _cons(heap, &argv[i], &res);
 
-	RESULT_OBJ(res);
+	return res.ptr;
+}
+
+static int list(vm_thread_t *thread, obj_t *argv, int argc)
+{
+	void *res = _list(&thread->heap, &argv[1], argc-1);
+	RESULT_PTR(res);
 }
 MAKE_NATIVE_VARIADIC(list, 0);
 

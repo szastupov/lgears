@@ -103,6 +103,7 @@ typedef struct {
 
 void pair_repr(void *ptr);
 void pair_visit(visitor_t *vs, void *data);
+void* _list(heap_t *heap, obj_t *argv, int argc);
 
 typedef struct {
 	char *str;

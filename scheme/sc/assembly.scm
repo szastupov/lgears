@@ -27,8 +27,8 @@
       strings entry-point))
 
   (define-record-type i-func
-    (fields code size argc heap?
-      depth bindings bindmap))
+    (fields code size argc swallow
+      heap? depth bindings bindmap))
 
   (define (print-ilr res)
     (display "ILR: \n")
@@ -47,8 +47,11 @@
                  (+ 2 offset))
                0 args))
 
+  (define (bool->int b)
+    (if b 1 0))
+
   (define (assemble-code func)
-    (let* ((funhdr-size 16)
+    (let* ((funhdr-size 18)
            (code (i-func-code func))
            (bcount (length (i-func-bindings func)))
            (bmcount (length (i-func-bindmap func)))
@@ -66,6 +69,7 @@
             (bytevector-u8-set! mem offset (opcode (car cmd)))
             (bytevector-s8-set! mem (+ 1 offset) (cadr cmd))
             (assemble-main (cdr cur)
+                           ;; Add debug symbols
                            (cons 
                              (string->utf8
                                (if (null? (cdddr cmd))
@@ -96,9 +100,10 @@
           (write-func-hdr mem
                           (i-func-size func)    ; env size
                           (i-func-argc func)    ; argc
+                          (bool->int (i-func-swallow func))
                           res-size              ; stack size
                           (length code)         ; op count
-                          (if (i-func-heap? func) 1 0)  ; allocate env on heap?
+                          (bool->int (i-func-heap? func))  ; allocate env on heap?
                           (i-func-depth func)   ; depth
                           bcount                ; count of bindings
                           bmcount)              ; size of bindmap

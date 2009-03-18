@@ -49,5 +49,12 @@
 
 (define map map-1)
 
+(define (fold-left-1 proc res lst)
+  (if (null? lst)
+    res
+    (fold-left-1 proc (proc res (car lst)) (cdr lst))))
+
+(define fold-left fold-left-1)
+
 (define (newline)
   (display "\n"))

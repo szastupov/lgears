@@ -57,44 +57,45 @@
            (bmcount (length (i-func-bindmap func)))
            (mem (make-bytevector
                   (+ funhdr-size
-                     (* 2 (length code)) ; code
-                     (* 2 bcount) ; bindings
-                     bmcount)))) ; bindmap
+                     (* 4 (length code)) ; code
+                     (* 4 bcount) ; bindings
+                     (* 2 bmcount))))) ; bindmap
+
+      (define (make-dbg-sym cmd)
+        (string->utf8
+          (if (null? (cdddr cmd))
+            "\x0;"
+            (let ((sym (cadddr cmd)))
+              (string-append
+                (if (string? sym)
+                  sym
+                  (symbol->string sym))
+                "\x0;")))))
 
       (define (assemble-main cur dbg stack-use stack-size offset)
         (if (null? cur)
           (values stack-size (reverse dbg))
           (let* ((cmd (car cur))
                  (nuse (+ stack-use (caddr cmd))))
-            (bytevector-u8-set! mem offset (opcode (car cmd)))
-            (bytevector-s8-set! mem (+ 1 offset) (cadr cmd))
+            (bytevector-s16-native-set! mem offset (opcode (car cmd)))
+            (bytevector-s16-native-set! mem (+ 2 offset) (cadr cmd))
             (assemble-main (cdr cur)
                            ;; Add debug symbols
-                           (cons 
-                             (string->utf8
-                               (if (null? (cdddr cmd))
-                                 "\x0;"
-                                 (let ((sym (cadddr cmd)))
-                                   (string-append
-                                     (if (string? sym)
-                                       sym
-                                       (symbol->string sym))
-                                     "\x0;"))))
-                             dbg)
+                           (cons (make-dbg-sym cmd) dbg)
                            nuse
                            (max nuse stack-size)
-                           (+ offset 2)))))
+                           (+ offset 4)))))
 
       (let* ((bindmap-offset
                (fold-left (lambda (offset bind)
-                            (bytevector-u8-set! mem offset (car bind))
-                            (bytevector-u8-set! mem (+ 1 offset) (cdr bind))
-                            (+ offset 2))
+                            (bytevector-u16-native-set! mem offset (car bind))
+                            (bytevector-u16-native-set! mem (+ 2 offset) (cdr bind))
+                            (+ offset 4))
                           funhdr-size (i-func-bindings func)))
              (code-offset
                (fold-left (lambda (offset bm)
-                            (bytevector-u8-set! mem offset bm)
-                            (+ 1 offset))
+                            (bytevector-u16-native-set! mem offset bm)
+                            (+ 2 offset))
                           bindmap-offset (i-func-bindmap func))))
         (let-values (((res-size dbg) (assemble-main code '() 0 0 code-offset)))
           (write-func-hdr mem

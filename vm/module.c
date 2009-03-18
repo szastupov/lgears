@@ -212,14 +212,15 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 
 		if (hdr->bcount) {
 			int i;
-			const char *cur;
+			const uint16_t *cur;
 
-			int bind_size = hdr->bcount * 2;
-			const char *bindings = code_assign(bind_size);
+			int bind_size = hdr->bcount * 4;
+			const uint16_t *bindings = code_assign(bind_size);
 			func->bindings = mem_calloc(hdr->bcount, sizeof(bind_t));
 
-			const char *bindmap = code_assign(hdr->bmcount);
-			func->bindmap = mem_calloc(hdr->bmcount, sizeof(int));
+			int bindmap_size = hdr->bmcount * 2;
+			const uint16_t *bindmap = code_assign(bindmap_size);
+			func->bindmap = mem_calloc(bindmap_size, sizeof(int));
 			cur = bindmap;
 			for (i = 0; i < hdr->bmcount; i++) {
 				func->bindmap[i] = *(cur++);
@@ -234,7 +235,7 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 		} else
 			func->bindings = NULL;
 
-		int opcode_size = hdr->op_count * 2;
+		int opcode_size = hdr->op_count * 4;
 		func->opcode = mem_alloc(opcode_size);
 		if (codecpy(func->opcode, opcode_size) != 0)
 			FATAL("Failed to read opcode");

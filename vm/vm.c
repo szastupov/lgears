@@ -205,7 +205,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
-	char *opcode;
+	int16_t *opcode;
 	int op_code, op_arg;
 	func_t *func;
 	void (*trace_func)();

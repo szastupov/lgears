@@ -37,7 +37,7 @@ typedef struct {
 	int op_count;
 	short heap_env;
 	int depth;
-	char *opcode;
+	int16_t *opcode;
 	bind_t *bindings;
 	int bcount;
 	int *bindmap;

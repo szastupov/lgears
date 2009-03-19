@@ -20,6 +20,8 @@
           make-ilr make-i-func print-ilr)
   (import (rnrs)
           (sc opcode)
+          (cpacked)
+          (debug)
           (format))
 
   (define-record-type ilr
@@ -29,6 +31,27 @@
   (define-record-type i-func
     (fields code size argc swallow
       heap? depth bindings bindmap))
+
+  (define-cpacked
+    header
+    (u32 import-size)
+    (u32 symbols-size)
+    (u32 strings-size)
+    (u16 fun-count)
+    (u16 entry-point))
+
+  (define-cpacked
+    fun-hdr
+    (u16 env-size)
+    (u16 argc)
+    (u16 swallow)
+    (u16 stack-size)
+    (u16 op-count)
+    (u16 heap-env)
+    (u16 depth)
+    (u16 bcount)
+    (u16 bmcount))
+
 
   (define (print-ilr res)
     (display "ILR: \n")
@@ -51,13 +74,11 @@
     (if b 1 0))
 
   (define (assemble-code func)
-    (let* ((funhdr-size 18)
-           (code (i-func-code func))
+    (let* ((code (i-func-code func))
            (bcount (length (i-func-bindings func)))
            (bmcount (length (i-func-bindmap func)))
            (mem (make-bytevector
-                  (+ funhdr-size
-                     (* 4 (length code)) ; code
+                  (+ (* 4 (length code)) ; code
                      (* 4 bcount) ; bindings
                      (* 2 bmcount))))) ; bindmap
 
@@ -91,15 +112,15 @@
                             (bytevector-u16-native-set! mem offset (car bind))
                             (bytevector-u16-native-set! mem (+ 2 offset) (cdr bind))
                             (+ offset 4))
-                          funhdr-size (i-func-bindings func)))
+                          0 (i-func-bindings func)))
              (code-offset
                (fold-left (lambda (offset bm)
                             (bytevector-u16-native-set! mem offset bm)
                             (+ 2 offset))
                           bindmap-offset (i-func-bindmap func))))
         (let-values (((res-size dbg) (assemble-main code '() 0 0 code-offset)))
-          (write-func-hdr mem
-                          (i-func-size func)    ; env size
+          (values
+            (make-fun-hdr (i-func-size func)    ; env size
                           (i-func-argc func)    ; argc
                           (bool->int (i-func-swallow func))
                           res-size              ; stack size
@@ -108,11 +129,9 @@
                           (i-func-depth func)   ; depth
                           bcount                ; count of bindings
                           bmcount)              ; size of bindmap
-          (values dbg mem)))))
-
+            dbg mem)))))
 
   (define (assemble root path)
-
     (define (write-strings port strings)
       (let ((oldpos (port-position port)))
         (put-u8 port (length strings))
@@ -142,18 +161,19 @@
                       (put-bytevector dbg-port x))
                     dbg)))
 
-      (let* ((hdr-size 16)
-             (header (make-bytevector hdr-size)))
-        (set-port-position! asm-port hdr-size)
-        (bytevector-u32-native-set! header 0 (write-strings asm-port (ilr-imports root)))
-        (bytevector-u32-native-set! header 4 (write-strings asm-port (ilr-symbols root)))
-        (bytevector-u32-native-set! header 8 (write-strings asm-port (ilr-strings root)))
-        (bytevector-u16-native-set! header 12 (length (ilr-code root)))
-        (bytevector-u16-native-set! header 14 (ilr-entry-point root))
+      (set-port-position! asm-port (header-size))
+      (let* ((header
+               (make-header
+                 (write-strings asm-port (ilr-imports root))
+                 (write-strings asm-port (ilr-symbols root))
+                 (write-strings asm-port (ilr-strings root))
+                 (length (ilr-code root))
+                 (ilr-entry-point root))))
 
         (fold-left (lambda (idx func)
-                     (let-values (((dbg code) (assemble-code func)))
+                     (let-values (((hdr dbg code) (assemble-code func)))
                        (write-dbg dbg)
+                       (put-bytevector asm-port hdr)
                        (put-bytevector asm-port code))
                      (+ 1 idx))
                    0 (ilr-code root))

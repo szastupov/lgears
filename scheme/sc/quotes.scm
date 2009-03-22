@@ -17,7 +17,8 @@
 
 (library (sc quotes)
   (export trquote trquasiquote)
-  (import (rnrs))
+  (import (rnrs)
+          (format))
 
   (define (self-eval? x)
     (or (number? x)
@@ -32,6 +33,8 @@
              (pfunc x))
             ((symbol? x)
              `(quote ,x))
+            ((null? x)
+             ''())
             (else x)))
 
     (cond ((list? qv)

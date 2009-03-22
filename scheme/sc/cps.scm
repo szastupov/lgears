@@ -60,16 +60,20 @@
   (define (self-eval? node)
     (or (not (pair? node))
         (and (eq? (car node) 'quote)
-             (not (pair? (cadr node))))))
+             (not (or (null? (cdr node))
+                      (pair? (cadr node))
+                      (vector? (cadr node)))))))
 
   (define (inlinable? node)
     (and (pair? node)
          (eq? (car node) 'lambda)))
 
   (define (convert-quote res node func name)
-    (if (pair? node)
-      (convert res (func node) name)
-      node))
+    (cond ((pair? node)
+           (convert res (func node) name))
+          ((vector? node)
+           (convert res (cons 'vector (vector->list node)) name))
+          (else node)))
 
   (define (convert-func args body)
     (let ((name (gen-name)))
@@ -122,6 +126,7 @@
     (convert-func (cadr node) (cddr node)))
 
   (define (convert res node name)
+    (format #t "~a\n" node)
     (if (self-eval? node)
       (if (null? res)
         (list name node)

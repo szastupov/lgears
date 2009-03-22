@@ -37,6 +37,7 @@ typedef struct {
 
 void* _string(heap_t *heap, char *str, int copy);
 void string_repr(void *ptr);
+void string_visit(visitor_t *vs, void *data);
 
 typedef struct {
 	obj_t func;

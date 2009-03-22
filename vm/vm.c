@@ -36,7 +36,7 @@ const type_t type_table[] = {
 	{ .name = "continiation", .visit = continuation_visit },
 	{ .name = "display", .visit = display_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
-	{ .name = "string", .repr = string_repr },
+	{ .name = "string", .visit = string_visit, .repr = string_repr },
 	{ .name = "vector", .visit = vector_visit, .repr = vector_repr },
 };
 

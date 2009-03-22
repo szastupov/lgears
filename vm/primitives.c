@@ -54,6 +54,13 @@ void string_repr(void *ptr)
 	printf("%s", string->str);
 }
 
+void string_visit(visitor_t *vs, void *data)
+{
+	string_t *str = data;
+	if (str->copy)
+		str->str = data+sizeof(string_t);
+}
+
 void* _string(heap_t *heap, char *str, int copy)
 {
 	int hsize = sizeof(string_t);

@@ -9,6 +9,7 @@ static const void* opcode_targets[] = {
 	&&TARGET_LOAD_SYM,
 	&&TARGET_PUSH_BOOL,
 	&&TARGET_PUSH_FIXNUM,
+	&&TARGET_PUSH_CHAR,
 	&&TARGET_LOAD_CONST,
 	&&TARGET_LOAD_STRING,
 	&&TARGET_LOAD_IMPORT,

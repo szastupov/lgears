@@ -1,5 +1,5 @@
-#|
 (include "base.scm")
+#|
 (define (range from to)
  (define (loop step res)
    (if (< step from)
@@ -46,6 +46,10 @@
 (test-pred pair? 'foo #f)
 (test-pred symbol? 'foo #t)
 (test-pred symbol? "foo" #f)
+(test-pred string? "foo" #t)
+(test-pred string? 'foo #f)
+(test-pred vector? '(1 2 3) #f)
+(test-pred vector? (vector 1 2 3) #t)
 
 (test apply = (apply + '(1 2 3 4 5)) 15)
 
@@ -53,4 +57,3 @@
                     (lambda (c)
                       (c 42)
                       1)) 42)
-

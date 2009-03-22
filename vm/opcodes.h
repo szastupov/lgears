@@ -10,15 +10,16 @@
 #define LOAD_SYM	4	/* Load predefined symbol local to module */
 #define PUSH_BOOL	5	/* Push boolean value */
 #define PUSH_FIXNUM	6	/* Push fixed number */
-#define LOAD_CONST	7	/* Load built-in constant */
-#define LOAD_STRING	8	/* Load string */
-#define LOAD_IMPORT	9	/* Load object from module import table */
-#define JUMP_IF_FALSE	10	/* Jump if false */
-#define JUMP_IF_TRUE	11	/* Jump if true */
-#define JUMP_FORWARD	12	/* Jump forward */
-#define FUNC_CALL	13	/* Call function */
-#define SET_LOCAL	14	/* Assign new value to local binding */
-#define SET_BIND	15	/* Asign new value to non-local binding */
+#define PUSH_CHAR	7	/* Push character */
+#define LOAD_CONST	8	/* Load built-in constant */
+#define LOAD_STRING	9	/* Load string */
+#define LOAD_IMPORT	10	/* Load object from module import table */
+#define JUMP_IF_FALSE	11	/* Jump if false */
+#define JUMP_IF_TRUE	12	/* Jump if true */
+#define JUMP_FORWARD	13	/* Jump forward */
+#define FUNC_CALL	14	/* Call function */
+#define SET_LOCAL	15	/* Assign new value to local binding */
+#define SET_BIND	16	/* Asign new value to non-local binding */
 
 #define OP_CASE(code) case code: return #code
 
@@ -32,6 +33,7 @@ const char* opcode_name(int code)
 		OP_CASE(LOAD_SYM);
 		OP_CASE(PUSH_BOOL);
 		OP_CASE(PUSH_FIXNUM);
+		OP_CASE(PUSH_CHAR);
 		OP_CASE(LOAD_CONST);
 		OP_CASE(LOAD_STRING);
 		OP_CASE(LOAD_IMPORT);

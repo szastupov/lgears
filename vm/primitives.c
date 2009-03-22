@@ -14,31 +14,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include "primitives.h"
 #include "fixnum.h"
-
-int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc)
-{
-	switch (native->arity) {
-		case -1:
-			return ((native_variadic)native->fp)(thread, argv, argc);
-		case 0:
-			return ((native_nullary)native->fp)(thread);
-		case 1:
-			return ((native_unary)native->fp)(thread, &argv[1]);
-		case 2:
-			return ((native_binary)native->fp)(thread, &argv[1], &argv[2]);
-		case 3:
-			return ((native_ternary)native->fp)(thread, &argv[1], &argv[2], &argv[3]);
-		default:
-			FATAL("wrong arity %d of %s\n", native->arity, native->name);
-	}
-}
-
-void print_obj(obj_t obj);
 
 void pair_visit(visitor_t *vs, void *data)
 {
@@ -148,79 +125,6 @@ static int cdr(vm_thread_t *thread, obj_t *obj)
 	RESULT_OBJ(pair->cdr);
 }
 MAKE_NATIVE_UNARY(cdr);
-
-static void print_const(obj_t obj)
-{
-	const_t c = { .obj = obj };
-	static const char* descr[] = {
-		"()",
-		"#t",
-		"#f",
-		"<void>"
-	};
-	static int max_id = sizeof(descr)/sizeof(char*)-1;
-	if (c.st.id < 0 || c.st.id > max_id)
-		FATAL("wrong const id %d\n", c.st.id);
-
-	printf("%s", descr[c.st.id]);
-}
-
-static void print_ptr(obj_t obj)
-{
-	void *ptr = PTR(obj);
-	const type_t *type = &type_table[HTYPE_TAG(ptr)];
-
-	if (type->repr)
-		type->repr(ptr);
-	else
-		printf("<ptr:%s>", type->name);
-}
-
-static void print_func(obj_t obj)
-{
-	void *ptr = PTR(obj);
-	native_t *native;
-	func_t *interp;
-	func_hdr_t *fhdr = ptr;
-	switch (fhdr->type) {
-		case func_inter:
-			interp = ptr;
-			printf("<lambda/%d>", interp->hdr.argc-1);
-			break;
-		case func_native:
-			native = ptr;
-			printf("<native %s/%d>", native->name, native->hdr.argc-1);
-			break;
-		default:
-			printf("<unknown func>");
-	}
-}
-
-void print_obj(obj_t obj)
-{
-	switch (obj.tag) {
-		case id_ptr:
-			print_ptr(obj);
-			break;
-		case id_fixnum:
-			printf("%ld", FIXNUM(obj));
-			break;
-		case id_char:
-			printf("%c", CHAR(obj));
-			break;
-		case id_func:
-			print_func(obj);
-			break;
-		case id_symbol:
-			printf("%s", (const char*)PTR(obj));
-			break;
-		case id_const:
-			print_const(obj);
-			break;
-		default:
-			printf("unknown obj");
-	}
-}
 
 static int display(vm_thread_t *thread, obj_t *obj)
 {
@@ -340,6 +244,12 @@ static int is_symbol(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(is_symbol);
 
+static int is_string(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(IS_TYPE(*obj, t_string));
+}
+MAKE_NATIVE_UNARY(is_string);
+
 void ns_install_primitives(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "display", &display_nt);
@@ -357,6 +267,8 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "boolean?", &is_boolean_nt);
 	ns_install_native(tbl, "pair?", &is_pair_nt);
 	ns_install_native(tbl, "symbol?", &is_symbol_nt);
+	ns_install_native(tbl, "string?", &is_string_nt);
 
 	ns_install_fixnum(tbl);
+	ns_install_vector(tbl);
 }

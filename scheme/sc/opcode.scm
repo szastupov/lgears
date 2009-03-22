@@ -30,6 +30,7 @@
                    (LOAD_SYM . "Load predefined symbol local to module")
                    (PUSH_BOOL . "Push boolean value")
                    (PUSH_FIXNUM . "Push fixed number")
+				   (PUSH_CHAR . "Push character")
                    (LOAD_CONST . "Load built-in constant")
                    (LOAD_STRING . "Load string")
                    (LOAD_IMPORT . "Load object from module import table")

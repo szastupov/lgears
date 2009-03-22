@@ -229,6 +229,8 @@
                   (compile-assigment env (cdr node)))
                  (else
                    (compile-call env node))))
+			  ((char? node)
+			   `((PUSH_CHAR ,(char->integer node) 1)))
               ((number? node)
                `((PUSH_FIXNUM ,node 1)))
               ((string? node)

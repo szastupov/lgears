@@ -170,6 +170,6 @@ typedef struct {
  * @brief Type table
  */
 extern const type_t type_table[];
-enum { t_env, t_closure, t_cont, t_display, t_pair, t_string };
+enum { t_env, t_closure, t_cont, t_display, t_pair, t_string, t_vector };
 
 #endif /* TYPES_H */

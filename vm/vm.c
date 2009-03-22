@@ -37,6 +37,7 @@ const type_t type_table[] = {
 	{ .name = "display", .visit = display_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
 	{ .name = "string", .repr = string_repr },
+	{ .name = "vector", .visit = vector_visit, .repr = vector_repr },
 };
 
 hash_table_t ns_global;
@@ -439,6 +440,13 @@ dispatch_func:
 				fixnum_t n;
 				FIXNUM_INIT(n, op_arg);
 				STACK_PUSH(n.ptr);
+			}
+			NEXT();
+
+			TARGET(PUSH_CHAR) {
+				char_t c;
+				CHAR_INIT(c, op_arg);
+				STACK_PUSH(c.ptr);
 			}
 			NEXT();
 

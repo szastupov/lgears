@@ -1,11 +1,11 @@
 (include "base.scm")
 #|
 (define (range from to)
- (define (loop step res)
-   (if (< step from)
-     res
-     (loop (- step 1) (cons step res))))
- (loop to '()))
+  (let loop ((step to)
+             (res '()))
+    (if (< step from)
+      res
+      (loop (- step 1) (cons step res)))))
 (display (range 1 100))
 
 ;(define (even? x)
@@ -50,6 +50,12 @@
 (test-pred string? 'foo #f)
 (test-pred vector? '(1 2 3) #f)
 (test-pred vector? (vector 1 2 3) #t)
+(test-pred char? #\f #t)
+(test-pred char? 1 #f)
+(test-pred null? '(1) #f)
+(test-pred null? '() #t)
+(test-pred number? 42 #t)
+(test-pred number? #\n #f)
 
 (test apply = (apply + '(1 2 3 4 5)) 15)
 
@@ -57,3 +63,5 @@
                     (lambda (c)
                       (c 42)
                       1)) 42)
+
+(test char->integer = (char->integer #\f) 102)

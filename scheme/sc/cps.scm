@@ -47,9 +47,11 @@
                  ((c d) x y)
                  |#
 
-
-                 (if #f #t)
-
+                 (let loop ((a 'fffffffffffffff)
+                            (b 'aaaaaaaaaaaa))
+                   (display a)
+                   (display b))
+                 
                  ))
 
 
@@ -85,6 +87,25 @@
              (cadr node))
        ,@(cddr node)))
 
+
+  (define (expand-let node)
+    (define (get-vals node)
+      (map cadr node))
+
+    (define (impl node)
+      (let ((names (map car (car node)))
+            (exprs (map cadr (car node))))
+        `(lambda ,names
+           (begin ,@(cdr node)))))
+
+    (if (symbol? (car node))
+      `((letrec ((,(car node) ,(impl (cdr node))))
+          ,(car node))
+        ,@(get-vals (cadr node)))
+      `(,(impl node)
+         ,@(get-vals (car node)))))
+
+
   (define (convert-lambda node)
     (convert-func (cadr node) (cddr node)))
 
@@ -107,6 +128,9 @@
            (if (null? res)
              (list name func)
              `(,func (lambda (,name) ,res)))))
+
+        ((let)
+         (convert res (expand-let (cdr node)) name))
 
         ((if)
          (if (or (> (length node) 4)

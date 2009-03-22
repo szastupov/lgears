@@ -283,7 +283,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(LOAD_STRING) {
-				string_t *str = _string(&thread->heap,
+				void *str = _string(&thread->heap,
 						func->module->strings[op_arg], 0);
 				STACK_PUSH(str);
 			}

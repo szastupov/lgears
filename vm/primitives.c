@@ -217,6 +217,22 @@ void ns_install_native(hash_table_t *tbl,
 	hash_table_insert(tbl, name, ptr.ptr); 
 }
 
+static int symbol_to_string(vm_thread_t *thread, obj_t *sym)
+{
+	SAFE_ASSERT(sym->tag == id_symbol);
+	char *str = PTR(*sym);
+
+	RESULT_PTR(_string(&thread->heap, str, 0));
+}
+MAKE_NATIVE_UNARY(symbol_to_string);
+
+static int char_to_integer(vm_thread_t *thread, obj_t *chr)
+{
+	SAFE_ASSERT(chr->tag == id_char);
+	RESULT_FIXNUM(CHAR(*chr));
+}
+MAKE_NATIVE_UNARY(char_to_integer);
+
 /*
  * Predicates
  */
@@ -239,6 +255,12 @@ static int is_boolean(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(is_boolean);
 
+static int is_null(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(IS_NULL(*obj));
+}
+MAKE_NATIVE_UNARY(is_null);
+
 static int is_pair(vm_thread_t *thread, obj_t *obj)
 {
 	RESULT_BOOL(IS_TYPE(*obj, t_pair));
@@ -250,6 +272,18 @@ static int is_symbol(vm_thread_t *thread, obj_t *obj)
 	RESULT_BOOL(obj->tag == id_symbol);
 }
 MAKE_NATIVE_UNARY(is_symbol);
+
+static int is_char(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(obj->tag == id_char);
+}
+MAKE_NATIVE_UNARY(is_char);
+
+static int is_number(vm_thread_t *thread, obj_t *obj)
+{
+	RESULT_BOOL(obj->tag == id_fixnum);
+}
+MAKE_NATIVE_UNARY(is_number);
 
 static int is_string(vm_thread_t *thread, obj_t *obj)
 {
@@ -268,10 +302,15 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "void", &get_void_nt);
+	ns_install_native(tbl, "symbol->string", &symbol_to_string_nt);
+	ns_install_native(tbl, "char->integer", &char_to_integer_nt);
 
 	ns_install_native(tbl, "eq?", &eq_nt);
 	ns_install_native(tbl, "procedure?", &is_procedure_nt);
 	ns_install_native(tbl, "boolean?", &is_boolean_nt);
+	ns_install_native(tbl, "null?", &is_null_nt);
+	ns_install_native(tbl, "char?", &is_char_nt);
+	ns_install_native(tbl, "number?", &is_number_nt);
 	ns_install_native(tbl, "pair?", &is_pair_nt);
 	ns_install_native(tbl, "symbol?", &is_symbol_nt);
 	ns_install_native(tbl, "string?", &is_string_nt);

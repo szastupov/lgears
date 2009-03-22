@@ -84,11 +84,14 @@ static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
 	const_t res = ctrue;
 
 	int i;
-	for (i = 2; i < argc; i++)
+	for (i = 2; i < argc; i++) {
+		SAFE_ASSERT(argv[i-1].tag == id_fixnum);
+		SAFE_ASSERT(argv[i].tag == id_fixnum);
 		if (FIXNUM(argv[i-1]) != FIXNUM(argv[i])) {
 			res = cfalse;
 			break;
 		}
+	}
 
 	RESULT_OBJ(res.obj);
 }

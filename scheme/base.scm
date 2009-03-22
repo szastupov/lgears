@@ -20,6 +20,47 @@
 (define (even? x)
   (= (mod x 2) 0))
 
+;; In context of lgears, eqv? and eq? are same
+(define eqv? eq?)
+
+(define (compare-pairs a b)
+  (let loop ((a a)
+             (b b))
+    (cond ((and (null? a)
+                (null? b))
+           #t)
+          ((and (pair? a) (pair? b)
+                (eqv? (car a) (car b)))
+           (loop (cdr a) (cdr b)))
+          (else
+            (eqv? a b)))))
+
+(define (compare-vectors a b)
+  (if (= (vector-length a)
+         (vector-length b))
+    (let ((len (vector-length a)))
+      (let loop ((n 0))
+        (cond ((= n len)
+               #t)
+              ((eqv? (vector-ref a n)
+                     (vector-ref b n))
+               (loop (+ 1 n)))
+              (else #f))))
+    #f))
+
+(define (equal? a b)
+  (cond ((and (string? a)
+              (string? b))
+         (string=? a b))
+        ((and (pair? a)
+              (pair? b))
+         (compare-pairs a b))
+        ((and (vector? a)
+              (vector? b))
+         (compare-vectors a b))
+        (else
+          (eqv? a b))))
+
 (define (reverse lst)
   (let loop ((cur lst)
              (res '()))
@@ -34,6 +75,7 @@
     (begin
       (proc (car lst))
       (for-each-1 proc (cdr lst)))))
+
 
 (define for-each for-each-1)
 
@@ -77,8 +119,7 @@
 (define (newline)
   (display "\n"))
 
-
-;FIXME: check length and rewrote with let when it will be avaliable
+;FIXME: check length
 (define (char=? . args)
   (let loop ((n (char->integer (car args)))
              (rest (cdr args)))

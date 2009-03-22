@@ -291,6 +291,17 @@ static int is_string(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(is_string);
 
+static int string_eq(vm_thread_t *thread, obj_t *a, obj_t *b)
+{
+	SAFE_ASSERT(IS_TYPE(*a, t_string));
+	SAFE_ASSERT(IS_TYPE(*b, t_string));
+	string_t *sa = get_typed(*a, t_string);
+	string_t *sb = get_typed(*b, t_string);
+
+	RESULT_BOOL(strcmp(sa->str, sb->str) == 0);
+}
+MAKE_NATIVE_BINARY(string_eq);
+
 void ns_install_primitives(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "display", &display_nt);
@@ -314,6 +325,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "pair?", &is_pair_nt);
 	ns_install_native(tbl, "symbol?", &is_symbol_nt);
 	ns_install_native(tbl, "string?", &is_string_nt);
+	ns_install_native(tbl, "string=?", &string_eq_nt);
 
 	ns_install_fixnum(tbl);
 	ns_install_vector(tbl);

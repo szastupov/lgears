@@ -1,7 +1,7 @@
 CFLAGS += -Wall -g3 -DCOMPUTED_GOTO -pg
 LDFLAGS += -pg -pthread
 
-vm_obj = vm.o heap.o native.o primitives.o hash.o module.o fixnum.o vector.o
+vm_obj = vm.o heap.o native.o primitives.o hash.o module.o fixnum.o vector.o string.o
 targets = vm
 
 include include.mk

@@ -14,26 +14,18 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#ifndef PRIMITIVES_H
-#define PRIMITIVES_H 
-#include "native.h"
-#include "vector.h"
-#include "string.h"
-
-void ns_install_primitives(hash_table_t *tbl);
+#ifndef STRING_H
+#define STRING_H 
 
 typedef struct {
-	obj_t car, cdr;
-} pair_t;
+	char *str;
+	int size;
+	unsigned copy:1;
+} string_t;
 
-void pair_repr(void *ptr);
-void pair_visit(visitor_t *vs, void *data);
-void* _list(heap_t *heap, obj_t *argv, int argc);
+void* _string(heap_t *heap, char *str, int copy);
+void string_repr(void *ptr);
+void string_visit(visitor_t *vs, void *data);
+void ns_install_string(hash_table_t *tbl);
 
-typedef struct {
-	obj_t func;
-} continuation_t;
-
-void continuation_visit(visitor_t *vs, void *data);
-
-#endif /* PRIMITIVES_H */
+#endif /* STRING_H */

@@ -107,12 +107,21 @@
     (map-1 lst1)
     (map-n (cons lst1 lst2))))
 
-(define (fold-left-1 proc res lst)
-  (if (null? lst)
-    res
-    (fold-left-1 proc (proc res (car lst)) (cdr lst))))
+(define (fold-left proc init lst1 . lst2)
+  (define (fold-left-1 res lst)
+    (if (null? lst)
+      res
+      (fold-left-1 (proc res (car lst)) (cdr lst))))
 
-(define fold-left fold-left-1)
+  (define (fold-left-n res lst)
+    (if (null? (car lst))
+      res
+      (fold-left-n (apply proc (cons res (map car lst)))
+                   (map cdr lst))))
+
+  (if (null? lst2)
+    (fold-left-1 init lst1)
+    (fold-left-n init (cons lst1 lst2))))
 
 (define (vec-for-each-1 ref len proc vec)
   (let loop ((n 0))
@@ -151,19 +160,29 @@
 
 (define string-for-each string-for-each-1)
 
+(define (string-append . args)
+  (fold-left string-concat "" args))
+
 (define (newline)
   (display "\n"))
 
-;FIXME: check length
+(define (char-op op args)
+  (apply op (map char->integer args)))
+
 (define (char=? . args)
-  (let loop ((n (char->integer (car args)))
-             (rest (cdr args)))
-    (if (null? rest)
-      #t
-      (let ((c (char->integer (car rest))))
-        (if (= c n)
-          (loop c (cdr rest))
-          #f)))))
+  (char-op = args))
+
+(define (char<? . args)
+  (char-op < args))
+
+(define (char>? . args)
+  (char-op > args))
+
+;(define (char<=? . args)
+  ;(char-op <= args))
+
+;(define (char>=? . args)
+  ;(char-op >= args))
 
 (define (test msg cmp arg expect)
   (display "Testing ") (display msg)
@@ -172,3 +191,5 @@
     (begin
       ; UGLY!!!!
       (display " fail, expected ") (display expect) (display ", got ") (display arg) (display "\n"))))
+
+(define call-with-current-continuation call/cc)

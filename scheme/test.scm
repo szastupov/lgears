@@ -8,20 +8,19 @@
       (loop (- step 1) (cons step res)))))
 (display (range 1 100))
 
-;(define (even? x)
-  ;(= (mod x 2) 0))
+(define (even? x)
+  (= (mod x 2) 0))
+(define (problem-2 lim)
+  (define (loop n p r sum)
+    (if (> r lim)
+      sum
+      (loop (+ 1 n) r (+ r p)
+            (if (even? r)
+              (+ sum r)
+              sum))))
+  (loop 2 1 1 0))
 
-;(define (problem-2 lim)
-  ;(define (loop n p r sum)
-    ;(if (> r lim)
-      ;sum
-      ;(loop (+ 1 n) r (+ r p)
-            ;(if (even? r)
-              ;(+ sum r)
-              ;sum))))
-  ;(loop 2 1 1 0))
-
-;(display (problem-2 120))
+(display (problem-2 120))
 |#
 
-(display (map (lambda (x y) (+ y x)) '(1 2 3) '(5 6 7)))
+(display (fold-left + 0 '(1 2 3) '(4 5 6)))

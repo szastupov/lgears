@@ -52,6 +52,29 @@ void* _string(heap_t *heap, char *str, int copy)
 	return make_ptr(string, id_ptr);
 }
 
+static int string_concat(vm_thread_t *thread, obj_t *oa, obj_t *ob)
+{
+	SAFE_ASSERT(IS_TYPE(*oa, t_string));
+	SAFE_ASSERT(IS_TYPE(*ob, t_string));
+
+	//FIXME: it's not gc safe
+	string_t *a = PTR(*oa);
+	string_t *b = PTR(*ob);
+
+	size_t new_size = a->size + b->size - 1;
+	void *mem = heap_alloc(&thread->heap, new_size+sizeof(string_t), t_string);
+	string_t *new_str = mem;
+	new_str->str = mem + sizeof(string_t);
+	new_str->size = new_size;
+
+	int sep = a->size-1;
+	memcpy(new_str->str, a->str, sep);
+	memcpy(new_str->str+sep, b->str, b->size);
+
+	RESULT_PTR(make_ptr(new_str, id_ptr));
+}
+MAKE_NATIVE_BINARY(string_concat);
+
 static int symbol_to_string(vm_thread_t *thread, obj_t *sym)
 {
 	SAFE_ASSERT(sym->tag == id_symbol);
@@ -106,4 +129,5 @@ void ns_install_string(hash_table_t *tbl)
 	ns_install_native(tbl, "string-length", &string_length_nt);
 	ns_install_native(tbl, "string?", &is_string_nt);
 	ns_install_native(tbl, "string=?", &string_eq_nt);
+	ns_install_native(tbl, "string-concat", &string_concat_nt);
 }

@@ -2,6 +2,23 @@
 ;; This library will be separated when modules will be ready
 ;;
 
+
+(define (+ . args)
+  (fold-left $+ 0 args))
+
+(define (- init . args)
+  (if (null? args)
+    ($- 0 init)
+    (fold-left $- init args)))
+
+(define (* . args)
+  (fold-left $* 1 args))
+
+(define (/ init . args)
+  (if (null? args)
+    ($/ 1 init)
+    (fold-left $/ init args)))
+
 (define (not x)
   (if x #f #t))
 

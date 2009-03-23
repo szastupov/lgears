@@ -16,68 +16,51 @@
  */
 #include "native.h"
 
-static int fxsum(vm_thread_t *thread, obj_t *argv, int argc)
+static int add(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	fixnum_t res;
-	FIXNUM_INIT(res, 0);
-	int i;
-	for (i = 1; i < argc; i++) {
-		ASSERT(argv[i].tag == id_fixnum);
-		res.val += FIXNUM(argv[i]);
-	}
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-	RESULT_OBJ(res.obj);
+	RESULT_FIXNUM(FIXNUM(*a) + FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxsum, 0);
+MAKE_NATIVE_BINARY(add);
 
-static int fxsub(vm_thread_t *thread, obj_t *argv, int argc)
+static int sub(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	fixnum_t res;
-	FIXNUM_INIT(res, FIXNUM(argv[1]));
-	int i;
-	for (i = 2; i < argc; i++)
-		res.val -= FIXNUM(argv[i]);
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-
-	RESULT_OBJ(res.obj);
+	RESULT_FIXNUM(FIXNUM(*a) - FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxsub, 2);
+MAKE_NATIVE_BINARY(sub);
 
-static int fxmul(vm_thread_t *thread, obj_t *argv, int argc)
+static int mul(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	fixnum_t res;
-	FIXNUM_INIT(res, 1);
-	int i;
-	for (i = 1; i < argc; i++)
-		res.val *= FIXNUM(argv[i]);
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-	RESULT_OBJ(res.obj);
+	RESULT_FIXNUM(FIXNUM(*a) * FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxmul, 0);
+MAKE_NATIVE_BINARY(mul);
 
-static int fxdiv(vm_thread_t *thread, obj_t *argv, int argc)
+static int divide(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	fixnum_t res;
-	FIXNUM_INIT(res, FIXNUM(argv[1]));
-	int i;
-	for (i = 2; i < argc; i++)
-		res.val /= FIXNUM(argv[i]);
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
+	SAFE_ASSERT(FIXNUM(*b) != 0);
 
-	RESULT_OBJ(res.obj);
+	RESULT_FIXNUM(FIXNUM(*a) / FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxdiv, 2);
+MAKE_NATIVE_BINARY(divide);
 
-static int fxmod(vm_thread_t *thread, obj_t *argv, int argc)
+static int mod(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	fixnum_t res;
-	FIXNUM_INIT(res, FIXNUM(argv[1]));
-	int i;
-	for (i = 2; i < argc; i++)
-		res.val %= FIXNUM(argv[i]);
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-	RESULT_OBJ(res.obj);
+	RESULT_FIXNUM(FIXNUM(*a) % FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxmod, 2);
+MAKE_NATIVE_BINARY(mod);
 
 static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -143,11 +126,11 @@ MAKE_NATIVE_VARIADIC(fxior, 0);
 
 void ns_install_fixnum(hash_table_t *tbl)
 {
-	ns_install_native(tbl, "+", &fxsum_nt);
-	ns_install_native(tbl, "-", &fxsub_nt);
-	ns_install_native(tbl, "*", &fxmul_nt);
-	ns_install_native(tbl, "/", &fxdiv_nt);
-	ns_install_native(tbl, "mod", &fxmod_nt);
+	ns_install_native(tbl, "$+", &add_nt);
+	ns_install_native(tbl, "$-", &sub_nt);
+	ns_install_native(tbl, "$*", &mul_nt);
+	ns_install_native(tbl, "$/", &divide_nt);
+	ns_install_native(tbl, "mod", &mod_nt);
 	ns_install_native(tbl, "=", &fxeq_nt);
 	ns_install_native(tbl, "<", &fxless_nt);
 	ns_install_native(tbl, ">", &fxgreat_nt);

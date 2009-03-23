@@ -23,4 +23,4 @@
 (display (problem-2 120))
 |#
 
-(display (fold-left + 0 '(1 2 3) '(4 5 6)))
+(display (/ 10 0))

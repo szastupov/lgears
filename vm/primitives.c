@@ -226,12 +226,40 @@ static int symbol_to_string(vm_thread_t *thread, obj_t *sym)
 }
 MAKE_NATIVE_UNARY(symbol_to_string);
 
+static int string_ref(vm_thread_t *thread, obj_t *ostr, obj_t *opos)
+{
+	SAFE_ASSERT(IS_TYPE(*ostr, t_string));
+	SAFE_ASSERT(opos->tag == id_fixnum);
+	string_t *str = get_typed(*ostr, t_string);
+	int pos = FIXNUM(*opos);
+	SAFE_ASSERT(pos < str->size-1);
+
+	RESULT_CHAR(str->str[pos]);
+}
+MAKE_NATIVE_BINARY(string_ref);
+
+static int string_length(vm_thread_t *thread, obj_t *ostr)
+{
+	SAFE_ASSERT(IS_TYPE(*ostr, t_string));
+	string_t *str = get_typed(*ostr, t_string);
+
+	RESULT_FIXNUM(str->size-1);
+}
+MAKE_NATIVE_UNARY(string_length);
+
 static int char_to_integer(vm_thread_t *thread, obj_t *chr)
 {
 	SAFE_ASSERT(chr->tag == id_char);
 	RESULT_FIXNUM(CHAR(*chr));
 }
 MAKE_NATIVE_UNARY(char_to_integer);
+
+static int integer_to_char(vm_thread_t *thread, obj_t *i)
+{
+	SAFE_ASSERT(i->tag == id_fixnum);
+	RESULT_CHAR(FIXNUM(*i));
+}
+MAKE_NATIVE_UNARY(integer_to_char);
 
 /*
  * Predicates
@@ -314,7 +342,10 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "void", &get_void_nt);
 	ns_install_native(tbl, "symbol->string", &symbol_to_string_nt);
+	ns_install_native(tbl, "string-ref", &string_ref_nt);
+	ns_install_native(tbl, "string-length", &string_length_nt);
 	ns_install_native(tbl, "char->integer", &char_to_integer_nt);
+	ns_install_native(tbl, "integer->char", &integer_to_char_nt);
 
 	ns_install_native(tbl, "eq?", &eq_nt);
 	ns_install_native(tbl, "procedure?", &is_procedure_nt);

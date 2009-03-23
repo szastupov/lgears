@@ -72,6 +72,11 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 		RESULT_OBJ(fx.obj);						\
 	}
 
+#define RESULT_CHAR(chr) {						\
+		char_t c; CHAR_INIT(c, chr);			\
+		RESULT_OBJ(c.obj);						\
+	}
+
 #define RESULT_BOOL(b)							\
 	RESULT_OBJ(CIF(b).obj);
 

@@ -109,6 +109,7 @@ MAKE_NATIVE_TERNARY(vector_set);
 static int vector_ref(vm_thread_t *thread, obj_t *obj, obj_t *opos)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
+	SAFE_ASSERT(opos->tag == id_fixnum);
 	vector_t *vec = get_typed(*obj, t_vector);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(vec->size > pos);

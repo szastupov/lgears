@@ -95,13 +95,16 @@
 
 (define fold-left fold-left-1)
 
-(define (vector-for-each-1 proc vec)
+(define (vec-for-each-1 ref len proc vec)
   (let loop ((n 0))
-    (if (= n (vector-length vec))
+    (if (= n (len vec))
       (void)
       (begin
-        (proc (vector-ref vec n))
+        (proc (ref vec n))
         (loop (+ 1 n))))))
+
+(define (vector-for-each-1 proc vec)
+  (vec-for-each-1 vector-ref vector-length proc vec))
 
 (define vector-for-each vector-for-each-1)
 
@@ -116,6 +119,19 @@
 
 (define vector-map vector-map-1)
 
+(define (string->list str)
+  (let loop ((pos (- (string-length str) 1))
+			 (res '()))
+	(if (= pos 0)
+		(cons (string-ref str pos) res)
+		(loop (- pos 1)
+			  (cons (string-ref str pos) res)))))
+
+(define (string-for-each-1 proc vec)
+  (vec-for-each-1 string-ref string-length proc vec))
+
+(define string-for-each string-for-each-1)
+
 (define (newline)
   (display "\n"))
 
@@ -129,3 +145,11 @@
         (if (= c n)
           (loop c (cdr rest))
           #f)))))
+
+(define (test msg cmp arg expect)
+  (display "Testing ") (display msg)
+  (if (cmp arg expect)
+    (display " ok\n")
+    (begin
+      ; UGLY!!!!
+      (display " fail, expected ") (display expect) (display ", got ") (display arg) (display "\n"))))

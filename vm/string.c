@@ -65,7 +65,7 @@ static int string_ref(vm_thread_t *thread, obj_t *ostr, obj_t *opos)
 {
 	SAFE_ASSERT(IS_TYPE(*ostr, t_string));
 	SAFE_ASSERT(opos->tag == id_fixnum);
-	string_t *str = get_typed(*ostr, t_string);
+	string_t *str = PTR(*ostr);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(pos < str->size-1);
 
@@ -76,7 +76,7 @@ MAKE_NATIVE_BINARY(string_ref);
 static int string_length(vm_thread_t *thread, obj_t *ostr)
 {
 	SAFE_ASSERT(IS_TYPE(*ostr, t_string));
-	string_t *str = get_typed(*ostr, t_string);
+	string_t *str = PTR(*ostr);
 
 	RESULT_FIXNUM(str->size-1);
 }
@@ -92,8 +92,8 @@ static int string_eq(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
 	SAFE_ASSERT(IS_TYPE(*a, t_string));
 	SAFE_ASSERT(IS_TYPE(*b, t_string));
-	string_t *sa = get_typed(*a, t_string);
-	string_t *sb = get_typed(*b, t_string);
+	string_t *sa = PTR(*a);
+	string_t *sb = PTR(*b);
 
 	RESULT_BOOL(strcmp(sa->str, sb->str) == 0);
 }

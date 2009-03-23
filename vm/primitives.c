@@ -85,7 +85,7 @@ MAKE_NATIVE_VARIADIC(list, 0);
 static int car(vm_thread_t *thread, obj_t *obj)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
-	pair_t *pair = get_typed(*obj, t_pair);
+	pair_t *pair = PTR(*obj);
 	RESULT_OBJ(pair->car);
 }
 MAKE_NATIVE_UNARY(car);
@@ -93,7 +93,7 @@ MAKE_NATIVE_UNARY(car);
 static int cdr(vm_thread_t *thread, obj_t *obj)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
-	pair_t *pair = get_typed(*obj, t_pair);
+	pair_t *pair = PTR(*obj);
 	RESULT_OBJ(pair->cdr);
 }
 MAKE_NATIVE_UNARY(cdr);
@@ -150,7 +150,7 @@ static int apply(vm_thread_t *thread, obj_t *argv, int argc)
 	STACK_PUSH(argv[0].ptr);
 
 	// Push arguments from list
-	pair_t *pair = get_typed(argv[2], t_pair);
+	pair_t *pair = PTR(argv[2]);
 	int cargc = 1;
 	while (1) {
 		STACK_PUSH(pair->car.ptr);

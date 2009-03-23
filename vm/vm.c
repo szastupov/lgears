@@ -320,14 +320,14 @@ dispatch_func:
 					case id_ptr:
 						{
 							if (IS_TYPE(fp.obj, t_closure)) {
-								closure_t *closure = get_typed(fp.obj, t_closure);
+								closure_t *closure = PTR(fp.obj);
 								if (!closure)
 									THREAD_ERROR("wth? null closure?\n");
 
 								ptr = closure->func;
 								thread->display = closure->display;
 							} else if (IS_TYPE(fp.obj, t_cont)) {
-								continuation_t *cont = get_typed(fp.obj, t_cont);
+								continuation_t *cont = PTR(fp.obj);
 								if (!cont)
 									THREAD_ERROR("wth? null continuation?\n");
 								fp.obj = cont->func;

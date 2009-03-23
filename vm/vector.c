@@ -80,7 +80,7 @@ MAKE_NATIVE_UNARY(make_vector);
 static int vector_length(vm_thread_t *thread, obj_t *obj)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
-	vector_t *vec = get_typed(*obj, t_vector);
+	vector_t *vec = PTR(*obj);
 
 	RESULT_FIXNUM(vec->size);
 }
@@ -95,7 +95,7 @@ MAKE_NATIVE_UNARY(is_vector);
 static int vector_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
-	vector_t *vec = get_typed(*obj, t_vector);
+	vector_t *vec = PTR(*obj);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(vec->size > pos);
 
@@ -110,7 +110,7 @@ static int vector_ref(vm_thread_t *thread, obj_t *obj, obj_t *opos)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
 	SAFE_ASSERT(opos->tag == id_fixnum);
-	vector_t *vec = get_typed(*obj, t_vector);
+	vector_t *vec = PTR(*obj);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(vec->size > pos);
 
@@ -121,7 +121,7 @@ MAKE_NATIVE_BINARY(vector_ref);
 static int vector_to_list(vm_thread_t *thread, obj_t *obj)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
-	vector_t *vec = get_typed(*obj, t_vector);
+	vector_t *vec = PTR(*obj);
 	void *res = _list(&thread->heap, vec->objects, vec->size);
 	RESULT_PTR(res);
 }

@@ -43,29 +43,6 @@ typedef struct {
 		heap_mark_modified(heap, ptr); \
 }
 
-/** 
- * @brief Check object type and return pointer
- * 
- * @param obj Object
- * @param type_id Valid type id
- */
-static inline void* get_typed(obj_t obj, int type_id)
-{
-	ASSERT(obj.ptr != NULL);
-	if (obj.tag != id_ptr) {
-		printf("expected ptr but got %d\n", obj.tag);
-		return NULL;
-	}
-	void *res = PTR(obj);
-
-	block_hdr_t *bhdr = res-BHDR_SIZE;
-	if (bhdr->type_id != type_id) {
-		printf("expected type %s but got %s\n", type_table[type_id].name, type_table[bhdr->type_id].name);
-		return NULL;
-	}
-	return res;
-}
-
 typedef struct {
 	uint8_t blocks:7;
 	uint8_t dirty:1;

@@ -52,14 +52,14 @@ enum {
 	id_const	/**< Constant */
 };
 
-#define DEFINE_TYPE(name, members...) \
-	typedef union { \
-		struct { \
-			TYPE_TAG; \
-			members; \
-		}; \
-		void *ptr; \
-		obj_t obj; \
+#define DEFINE_TYPE(name, members...)			\
+	typedef union {								\
+		struct {								\
+			TYPE_TAG;							\
+			members;							\
+		};										\
+		void *ptr;								\
+		obj_t obj;								\
 	} name;
 
 /** 
@@ -74,10 +74,10 @@ typedef union {
 	obj_t obj;
 } const_t;
 
-#define DEFINE_CONST(name, nid) \
-	static const const_t name = { \
-		.st.tag = id_const, \
-		.st.id = nid, \
+#define DEFINE_CONST(name, nid)					\
+	static const const_t name = {				\
+		.st.tag = id_const,						\
+		.st.id = nid,							\
 	};
 
 DEFINE_CONST(cnull, 0);
@@ -90,9 +90,9 @@ DEFINE_CONST(cvoid, 3);
 #define IS_TRUE(obj) ((obj).ptr == ctrue.ptr)
 #define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
 #define IS_NULL(obj) ((obj).ptr == cnull.ptr)
-#define IS_FUNC(obj) ((obj).tag == id_func || \
-		((obj).tag == id_ptr && \
-		 (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
+#define IS_FUNC(obj) ((obj).tag == id_func ||							\
+					  ((obj).tag == id_ptr &&							\
+					   (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
 
 /**
  * @brief Tagged poiner repesintation

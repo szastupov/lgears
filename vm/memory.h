@@ -21,9 +21,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#define container_of(ptr, type, member) ({ \
-	const typeof( ((type *)0)->member ) *__mptr = (ptr); \
-	(type *)( (char *)__mptr - offsetof(type,member) );})
+#define container_of(ptr, type, member) ({							\
+			const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+			(type *)( (char *)__mptr - offsetof(type,member) );})
 
 #if defined(__GNUC__)  && __GNUC__ >= 4
 #define offsetof(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
@@ -35,16 +35,16 @@
 #define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 
 #define LOG_DBG(msg...) fprintf(stderr, msg);
-#define LOG_ERR(msg...) { \
-	fprintf(stderr, "%s:%d `%s': ", \
-			__FILE__, __LINE__, __FUNCTION__); \
-	fprintf(stderr, msg); \
-}
+#define LOG_ERR(msg...) {							\
+		fprintf(stderr, "%s:%d `%s': ",				\
+				__FILE__, __LINE__, __FUNCTION__);	\
+		fprintf(stderr, msg);						\
+	}
 
-#define FATAL(msg...) { \
-	LOG_ERR(msg); \
-	abort(); \
-}
+#define FATAL(msg...) {							\
+		LOG_ERR(msg);							\
+		abort();								\
+	}
 
 static inline void* _mem_alloc(const char *file, int line,
 		const char *func, size_t size)

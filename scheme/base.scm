@@ -69,24 +69,43 @@
       (loop (cdr cur)
             (cons (car cur) res)))))
 
-(define (for-each-1 proc lst)
-  (if (null? lst)
-    (void)
-    (begin
-      (proc (car lst))
-      (for-each-1 proc (cdr lst)))))
+(define (for-each proc lst1 . lst2)
+  (define (for-each-1 lst)
+    (if (null? lst)
+      (void)
+      (begin
+        (proc (car lst))
+        (for-each-1 (cdr lst)))))
 
+  (define (for-each-n lst)
+    (if (null? (car lst))
+      (void)
+      (begin
+        (apply proc (map car lst))
+        (for-each-n (map cdr lst)))))
 
-(define for-each for-each-1)
+  ;; TODO chech that length of lists is same
+  (if (null? lst2)
+    (for-each-1 lst1)
+    (for-each-n (cons lst1 lst2))))
 
-(define (map-1 proc lst)
-  (if (null? lst)
-    '()
-    (begin
-      (cons (proc (car lst))
-            (map-1 proc (cdr lst))))))
+(define (map proc lst1 . lst2)
+  (define (map-1 lst)
+    (if (null? lst)
+      '()
+      (begin
+        (cons (proc (car lst))
+              (map-1 (cdr lst))))))
 
-(define map map-1)
+  (define (map-n lst)
+    (if (null? (car lst))
+      '()
+      (cons (apply proc (map car lst))
+            (map-n (map cdr lst)))))
+
+  (if (null? lst2)
+    (map-1 lst1)
+    (map-n (cons lst1 lst2))))
 
 (define (fold-left-1 proc res lst)
   (if (null? lst)
@@ -121,11 +140,11 @@
 
 (define (string->list str)
   (let loop ((pos (- (string-length str) 1))
-			 (res '()))
-	(if (= pos 0)
-		(cons (string-ref str pos) res)
-		(loop (- pos 1)
-			  (cons (string-ref str pos) res)))))
+             (res '()))
+    (if (= pos 0)
+      (cons (string-ref str pos) res)
+      (loop (- pos 1)
+            (cons (string-ref str pos) res)))))
 
 (define (string-for-each-1 proc vec)
   (vec-for-each-1 string-ref string-length proc vec))

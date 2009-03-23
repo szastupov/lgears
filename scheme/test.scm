@@ -24,11 +24,4 @@
 ;(display (problem-2 120))
 |#
 
-;(test apply = (apply + '(1 2 3 4 5)) 15)
-
-;; (test call/cc = (call/cc
-;;                     (lambda (c)
-;;                       (c 42)
-;;                       1)) 42)
-
-(test char->integer = (char->integer #\f) 102)
+(display (map (lambda (x y) (+ y x)) '(1 2 3) '(5 6 7)))

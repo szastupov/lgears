@@ -1,5 +1,5 @@
 ;;
-;; This library will be separated when modules will be ready
+;; This library will be separated when modules be ready
 ;;
 
 
@@ -19,6 +19,29 @@
     ($/ 1 init)
     (fold-left $/ init args)))
 
+(define (= init . args)
+  (let loop ((arg args))
+	(cond ((null? arg)
+		   #t)
+		  (($= init (car arg))
+		   (loop (cdr arg)))
+		  (else #f))))
+
+(define (cmp op init args)
+  (let loop ((a init)
+			 (arg args))
+	(cond ((null? arg)
+		   #t)
+		  ((op a (car arg))
+		   (loop (car arg) (cdr arg)))
+		  (else #f))))
+
+(define (< init . args)
+  (cmp $< init args))
+
+(define (> init . args)
+  (cmp $> init args))
+
 (define (not x)
   (if x #f #t))
 
@@ -37,7 +60,7 @@
 (define (even? x)
   (= (mod x 2) 0))
 
-;; In context of lgears, eqv? and eq? are same
+;; In context of lgears, eqv? and eq? is same
 (define eqv? eq?)
 
 (define (compare-pairs a b)

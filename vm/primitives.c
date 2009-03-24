@@ -82,6 +82,21 @@ static int list(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE_VARIADIC(list, 0);
 
+static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
+{
+	SAFE_ASSERT(count->tag == id_fixnum);
+	int size = FIXNUM(*count);
+	obj_t res = cnull.obj;
+
+	heap_require(&thread->heap, sizeof(pair_t)*size);
+	int i;
+	for (i = 0; i < size; i++)
+		res.ptr = _cons(&thread->heap, fill, &res);
+
+	RESULT_OBJ(res);
+}
+MAKE_NATIVE_BINARY(make_list);
+
 static int car(vm_thread_t *thread, obj_t *obj)
 {
 	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
@@ -256,6 +271,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "apply", &apply_nt);
 	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "list", &list_nt);
+	ns_install_native(tbl, "$make-list", &make_list_nt);
 	ns_install_native(tbl, "car", &car_nt);
 	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "void", &get_void_nt);

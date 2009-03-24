@@ -101,6 +101,27 @@
         (else
           (eqv? a b))))
 
+(define (list? lst)
+  (let loop ((cur lst))
+	(cond ((null? cur) #t)
+		  ((pair? cur) (loop (cdr cur)))
+		  (else #f))))
+
+;; Will be rewrited with exceptions
+(define (error what msg . unused)
+  (display "Error in ") (display what) (display ": ")
+  (display msg) (display "\n"))
+
+(define (length lst)
+  (let loop ((cur lst)
+			 (len 0))
+	(cond ((null? cur)
+		   len)
+		  ((pair? cur)
+		   (loop (cdr cur) (+ 1 len)))
+		  (else
+		   (error 'length "expected list but got" lst)))))
+	
 (define (reverse lst)
   (let loop ((cur lst)
              (res '()))
@@ -108,6 +129,7 @@
       res
       (loop (cdr cur)
             (cons (car cur) res)))))
+
 
 (define (for-each proc lst1 . lst2)
   (define (for-each-1 lst)
@@ -163,6 +185,32 @@
     (fold-left-1 init lst1)
     (fold-left-n init (cons lst1 lst2))))
 
+(define (cons* . args)
+  ;;FIXME argc must be at least 1
+  (let loop ((cur args))
+	(if (null? (cdr cur))
+		(car cur)
+		(cons (car cur)
+			  (loop (cdr cur))))))
+
+(define (append2 b a)
+  (let loop ((cur a))
+    (if (null? (cdr cur))
+		b
+		(cons (car cur)
+			  (loop (cdr cur))))))
+
+(define (append . args)
+  (if (null? args)
+	  '()
+	  (let ((rev (reverse args)))
+		(fold-left append2 (car rev) (cdr rev)))))
+
+(define (make-list count . args)
+  ($make-list count (if (null? args)
+						#f
+						(car args))))
+
 (define (vec-for-each-1 ref len proc vec)
   (let loop ((n 0))
     (if (= n (len vec))
@@ -186,6 +234,12 @@
           (loop (+ 1 n)))))))
 
 (define vector-map vector-map-1)
+
+;; Rewrite it with case-lambda
+(define (make-vector size . args)
+  ($make-vector size (if (null? args)
+						 (void)
+						 (car args))))
 
 (define (string->list str)
   (let loop ((pos (- (string-length str) 1))

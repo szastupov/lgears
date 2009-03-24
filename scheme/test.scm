@@ -23,4 +23,4 @@
 (display (problem-2 120))
 |#
 
-(display (> 3 2 1))
+(display (append '(1 2 3 4) '(5 6 7 8) '(9 10 11 12)))

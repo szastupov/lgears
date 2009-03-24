@@ -64,18 +64,18 @@ static int vector(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE_VARIADIC(vector, 0);
 
-static int make_vector(vm_thread_t *thread, obj_t *count)
+static int make_vector(vm_thread_t *thread, obj_t *count, obj_t *fill)
 {
 	SAFE_ASSERT(count->tag == id_fixnum);
 
 	vector_t *vec = vector_new(&thread->heap, FIXNUM(*count));
 	int i;
 	for (i = 0; i < vec->size; i++)
-		vec->objects[i] = cvoid.obj;
+		vec->objects[i] = *fill;
 
 	RESULT_PTR(make_ptr(vec, id_ptr));
 }
-MAKE_NATIVE_UNARY(make_vector);
+MAKE_NATIVE_BINARY(make_vector);
 
 static int vector_length(vm_thread_t *thread, obj_t *obj)
 {
@@ -135,5 +135,5 @@ void ns_install_vector(hash_table_t *tbl)
 	ns_install_native(tbl, "vector-set!", &vector_set_nt);
 	ns_install_native(tbl, "vector-ref", &vector_ref_nt);
 	ns_install_native(tbl, "vector->list", &vector_to_list_nt);
-	ns_install_native(tbl, "make-vector", &make_vector_nt);
+	ns_install_native(tbl, "$make-vector", &make_vector_nt);
 }

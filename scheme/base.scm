@@ -2,7 +2,7 @@
 ;; This library will be separated when modules be ready
 ;;
 
-
+;;; Arithmetic and numbers
 (define (+ . args)
   (fold-left $+ 0 args))
 
@@ -42,8 +42,21 @@
 (define (> init . args)
   (cmp $> init args))
 
-(define (not x)
-  (if x #f #t))
+(define (find-m op init args)
+  (fold-left (lambda (x y)
+               (if (op y x) y x))
+             init args))
+
+(define (min init . args)
+  (find-m < init args))
+
+(define (max init . args)
+  (find-m > init args))
+
+(define (abs x)
+  (if (> x 0)
+    x
+    (- x)))
 
 (define (zero? x)
   (= x 0))
@@ -59,6 +72,11 @@
 
 (define (even? x)
   (= (mod x 2) 0))
+
+;;; Predicates
+
+(define (not x)
+  (if x #f #t))
 
 ;; In context of lgears, eqv? and eq? is same
 (define eqv? eq?)
@@ -101,6 +119,8 @@
         (else
           (eqv? a b))))
 
+;;; List utilites
+
 (define (list? lst)
   (let loop ((cur lst))
 	(cond ((null? cur) #t)
@@ -122,15 +142,6 @@
 		  (else
 		   (error 'length "expected list but got" lst)))))
 	
-(define (reverse lst)
-  (let loop ((cur lst)
-             (res '()))
-    (if (null? cur)
-      res
-      (loop (cdr cur)
-            (cons (car cur) res)))))
-
-
 (define (for-each proc lst1 . lst2)
   (define (for-each-1 lst)
     (if (null? lst)
@@ -185,20 +196,29 @@
     (fold-left-1 init lst1)
     (fold-left-n init (cons lst1 lst2))))
 
-(define (cons* . args)
-  ;;FIXME argc must be at least 1
-  (let loop ((cur args))
-	(if (null? (cdr cur))
-		(car cur)
-		(cons (car cur)
-			  (loop (cdr cur))))))
+(define (fold-right proc init lst1 . lst2)
+  (define (fold-right-1 lst)
+    (if (null? lst)
+      init
+      (proc (car lst) (fold-right-1 (cdr lst)))))
+
+  (define (fold-right-n lst)
+    (if (null? (car lst))
+      init
+      (apply proc (append (map car lst) (list (fold-right-n (map cdr lst)))))))
+
+  (if (null? lst2)
+    (fold-right-1 lst1)
+    (fold-right-n (cons lst1 lst2))))
+
+
+(define (reverse lst)
+  (fold-left (lambda (x y)
+               (cons y x))
+             '() lst))
 
 (define (append2 b a)
-  (let loop ((cur a))
-    (if (null? (cdr cur))
-		b
-		(cons (car cur)
-			  (loop (cdr cur))))))
+  (fold-right cons b a))
 
 (define (append . args)
   (if (null? args)
@@ -210,6 +230,9 @@
   ($make-list count (if (null? args)
 						#f
 						(car args))))
+
+
+;;; Vector utilites
 
 (define (vec-for-each-1 ref len proc vec)
   (let loop ((n 0))
@@ -241,6 +264,8 @@
 						 (void)
 						 (car args))))
 
+;;; String and character utilites
+
 (define (string->list str)
   (let loop ((pos (- (string-length str) 1))
              (res '()))
@@ -256,9 +281,6 @@
 
 (define (string-append . args)
   (fold-left string-concat "" args))
-
-(define (newline)
-  (display "\n"))
 
 (define (char-op op args)
   (apply op (map char->integer args)))
@@ -287,3 +309,8 @@
       (display " fail, expected ") (display expect) (display ", got ") (display arg) (display "\n"))))
 
 (define call-with-current-continuation call/cc)
+
+(define (newline)
+  (display "\n"))
+
+(display "Base library loaded\n")

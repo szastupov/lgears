@@ -23,4 +23,4 @@
 (display (problem-2 120))
 |#
 
-(display (/ 10 0))
+(display (> 3 2 1))

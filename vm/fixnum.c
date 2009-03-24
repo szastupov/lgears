@@ -62,55 +62,32 @@ static int mod(vm_thread_t *thread, obj_t *a, obj_t *b)
 }
 MAKE_NATIVE_BINARY(mod);
 
-static int fxeq(vm_thread_t *thread, obj_t *argv, int argc)
+static int ieq(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	const_t res = ctrue;
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-	int i;
-	for (i = 2; i < argc; i++) {
-		SAFE_ASSERT(argv[i-1].tag == id_fixnum);
-		SAFE_ASSERT(argv[i].tag == id_fixnum);
-		if (FIXNUM(argv[i-1]) != FIXNUM(argv[i])) {
-			res = cfalse;
-			break;
-		}
-	}
-
-	RESULT_OBJ(res.obj);
+	RESULT_BOOL(FIXNUM(*a) == FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxeq, 2);
+MAKE_NATIVE_BINARY(ieq);
 
-static int fxless(vm_thread_t *thread, obj_t *argv, int argc)
+static int igreat(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	const_t res = ctrue;
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-	int i;
-	for (i = 2; i < argc; i++) {
-		if (!(FIXNUM(argv[i-1]) < FIXNUM(argv[i]))) {
-			res = cfalse;
-			break;
-		}
-	}
-
-	RESULT_OBJ(res.obj);
+	RESULT_BOOL(FIXNUM(*a) > FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxless, 2);
+MAKE_NATIVE_BINARY(igreat);
 
-static int fxgreat(vm_thread_t *thread, obj_t *argv, int argc)
+static int iless(vm_thread_t *thread, obj_t *a, obj_t *b)
 {
-	const_t res = ctrue;
+	SAFE_ASSERT(a->tag == id_fixnum);
+	SAFE_ASSERT(b->tag == id_fixnum);
 
-	int i;
-	for (i = 2; i < argc; i++) {
-		if (!(FIXNUM(argv[i-1]) > FIXNUM(argv[i]))) {
-			res = cfalse;
-			break;
-		}
-	}
-
-	RESULT_OBJ(res.obj);
+	RESULT_BOOL(FIXNUM(*a) < FIXNUM(*b));
 }
-MAKE_NATIVE_VARIADIC(fxgreat, 2);
+MAKE_NATIVE_BINARY(iless);
 
 static int fxior(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -131,8 +108,8 @@ void ns_install_fixnum(hash_table_t *tbl)
 	ns_install_native(tbl, "$*", &mul_nt);
 	ns_install_native(tbl, "$/", &divide_nt);
 	ns_install_native(tbl, "mod", &mod_nt);
-	ns_install_native(tbl, "=", &fxeq_nt);
-	ns_install_native(tbl, "<", &fxless_nt);
-	ns_install_native(tbl, ">", &fxgreat_nt);
+	ns_install_native(tbl, "$=", &ieq_nt);
+	ns_install_native(tbl, "$<", &iless_nt);
+	ns_install_native(tbl, "$>", &igreat_nt);
 	ns_install_native(tbl, "fxior", &fxior_nt);
 }

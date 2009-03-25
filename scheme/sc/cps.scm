@@ -87,41 +87,6 @@
        ,@(cddr node)))
 
 
-  (define (expand-let node)
-    (define (get-vals node)
-      (map cadr node))
-
-    (define (impl node)
-      (let ((names (map car (car node)))
-            (exprs (map cadr (car node))))
-        `(lambda ,names
-           (begin ,@(cdr node)))))
-
-    (if (symbol? (car node))
-      `((letrec ((,(car node) ,(impl (cdr node))))
-          ,(car node))
-        ,@(get-vals (cadr node)))
-      `(,(impl node)
-         ,@(get-vals (car node)))))
-
-  (define (expand-cond node)
-    (define (expand-cond-var prev var)
-      `(if ,(car var)
-         (begin ,@(cdr var))
-         ,prev))
-    (let ((body (reverse node)))
-      (if (eq? (caar body) 'else)
-        (fold-left expand-cond-var (cadar body) (cdr body))
-        (fold-left expand-cond-var '(void) body))))
-
-  (define (expand-and node)
-    (let ((body (reverse node)))
-      (fold-left (lambda (prev cur)
-                   `(if ,cur
-                      ,prev
-                      #f))
-                 (car body) (cdr body))))
-
   (define (convert-lambda node)
     (convert-func (cadr node) (cddr node)))
 
@@ -138,21 +103,6 @@
            (if (null? res)
              (list name func)
              `((lambda (,name) ,res) ,func))))
-
-        ;((letrec)
-         ;(let ((func (convert-func '() (unletrec node))))
-           ;(if (null? res)
-             ;(list name func)
-             ;`(,func (lambda (,name) ,res)))))
-
-        ;((let)
-         ;(convert res (expand-let (cdr node)) name))
-
-        ;((cond)
-         ;(convert res (expand-cond (cdr node)) name))
-
-        ;((and)
-         ;(convert res (expand-and (cdr node)) name))
 
         ((if)
          (if (or (> (length node) 4)

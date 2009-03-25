@@ -268,7 +268,8 @@
         (loop (let ((x (car cur)))
                 (if (and (pair? x)
                          (eq? (car x) 'include))
-                  (append (read-source (cadr x)) prev)
+                  (append (parse-includes (read-source (cadr x)))
+                          prev)
                   (cons x prev)))
               (cdr cur)))))
 

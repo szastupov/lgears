@@ -2,7 +2,7 @@
   (export expand)
   (import (rnrs)
           (rnrs eval)
-          (core))
+          (only (core) pretty-print))
 
   (define-record-type eenv
     (fields parent tbl)

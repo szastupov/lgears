@@ -13,6 +13,17 @@
                       #f))
                  (car body) (cdr body)))))
 
+(define-syntax let*
+  (lambda (stx)
+    (let loop ((args (cadr stx)))
+      (if (null? args)
+        (cons 'begin (cddr stx))
+        (let ((cur (car args)))
+          `((lambda (,(car cur))
+              ,(loop (cdr args)))
+            ,(cadr cur)))))))
+
+
 (define-syntax let
   (lambda (stx)
     (define (expand-let node)
@@ -26,9 +37,9 @@
              (begin ,@(cdr node)))))
 
       (if (symbol? (car node))
-        `((letrec ((,(car node) ,(impl (cdr node))))
-            ,(car node))
-          ,@(get-vals (cadr node)))
+        `(let ((,(car node) 'unspec))
+           (set! ,(car node) ,(impl (cdr node)))
+           (,(car node) ,@(get-vals (cadr node))))
         `(,(impl node)
            ,@(get-vals (car node)))))
     (expand-let (cdr stx))))

@@ -126,7 +126,6 @@
     (convert-func (cadr node) (cddr node)))
 
   (define (convert res node name)
-    (format #t "~a\n" node)
     (if (self-eval? node)
       (if (null? res)
         (list name node)
@@ -140,20 +139,20 @@
              (list name func)
              `((lambda (,name) ,res) ,func))))
 
-        ((letrec)
-         (let ((func (convert-func '() (unletrec node))))
-           (if (null? res)
-             (list name func)
-             `(,func (lambda (,name) ,res)))))
+        ;((letrec)
+         ;(let ((func (convert-func '() (unletrec node))))
+           ;(if (null? res)
+             ;(list name func)
+             ;`(,func (lambda (,name) ,res)))))
 
-        ((let)
-         (convert res (expand-let (cdr node)) name))
+        ;((let)
+         ;(convert res (expand-let (cdr node)) name))
 
-        ((cond)
-         (convert res (expand-cond (cdr node)) name))
+        ;((cond)
+         ;(convert res (expand-cond (cdr node)) name))
 
-        ((and)
-         (convert res (expand-and (cdr node)) name))
+        ;((and)
+         ;(convert res (expand-and (cdr node)) name))
 
         ((if)
          (if (or (> (length node) 4)
@@ -290,8 +289,8 @@
 
   (define (cps-convert source)
     (let ((res (convert-body source '__exit)))
-      (display "CPS: \n")
-      (pretty-print res)
+      ;(display "CPS: \n")
+      ;(pretty-print res)
       (newline)
       (if (pair? (car res))
         res

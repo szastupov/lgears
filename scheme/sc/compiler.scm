@@ -20,7 +20,9 @@
   (import (rnrs)
           (sc cps)
           (format)
-          (sc assembly))
+          (only (core) pretty-print) ; This works only for ypsilon
+          (sc assembly)
+          (sc expand))
 
   (define (set-func-args! ntbl args)
     (let loop ((idx 0) (lst args))
@@ -259,16 +261,23 @@
                   (cadar entry-point)))))
 
   (define (parse-includes src)
-    (map (lambda (x)
-           (if (and (pair? x)
-                    (eq? (car x) 'include))
-             (cons 'begin (read-source (cadr x)))
-             x))
-         src))
+    (let loop ((prev '())
+               (cur (reverse src)))
+      (if (null? cur)
+        prev
+        (loop (let ((x (car cur)))
+                (if (and (pair? x)
+                         (eq? (car x) 'include))
+                  (append (read-source (cadr x)) prev)
+                  (cons x prev)))
+              (cdr cur)))))
 
   (define (compile-expr expr path)
-    (let ((ilr (start-compile
-                 (cps-convert (parse-includes expr)))))
+    (let* ((expanded (expand '() (parse-includes expr)))
+           (ilr (start-compile
+                  (cps-convert expanded))))
+      (display "Expanded:\n")
+      (pretty-print expanded)
       (print-ilr ilr)
       (assemble ilr path)))
 

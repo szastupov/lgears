@@ -60,3 +60,7 @@
           (fold-left expand-cond-var (cadar body) (cdr body))
           (fold-left expand-cond-var '(void) body))))
     (expand-cond (cdr stx))))
+
+(define-syntax quasiquote
+  (lambda (stx)
+    (trquasiquote (cadr stx))))

@@ -22,34 +22,6 @@
           (format)
           (sc quotes))
 
-  ;For testing
-  (define orig '(
-                 #|
-                 (define (f-aux n a)
-                   (if (= n 0)
-                     a
-                     (f-aux (- n 1) (* n a))))
-
-                 (define (factorial n)
-                   (if (= n 0)
-                     1
-                     (* n (factorial (- n 1)))))
-                 (factorian 6)
-
-                 (define (foo n)
-                   (bar (lambda (x) (+ x n))))
-
-                 (define (bla)
-                   (display '(a b c d)))
-
-                 (display (lambda (x y) (x y)))
-                 ((lambda (x y) (x y)) a b)
-                 ((c d) x y)
-                 |#
-                 (and (boolean? a) (boolean? b) (string? s))
-                 ))
-
-
   (define last-name 0)
 
   (define (gen-name)
@@ -140,8 +112,6 @@
 
         ((quote)
          (convert-quote res (cadr node) trquote name))
-        ((quasiquote)
-         (convert-quote res (cadr node) trquasiquote name))
 
         ;;; Conversion of call
         ;;; We covnert both arguments and functions
@@ -171,12 +141,7 @@
                        expr args largs))))))
 
   (define (convert-define res def)
-    (cond ((pair? (car def))
-           `((set! ,(caar def)
-               ,(convert-func (cdar def) (cdr def)))
-             ,@res))
-
-          ((self-eval? (cadr def))
+    (cond ((self-eval? (cadr def))
            `((set! ,(car def) ,(cadr def))
              ,@res))
 
@@ -245,6 +210,4 @@
       (if (pair? (car res))
         res
         (list res))))
-
-  ;(pretty-print (convert-body orig 'exit))
   )

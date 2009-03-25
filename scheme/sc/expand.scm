@@ -22,8 +22,7 @@
   (define (compile-expander x)
     (cons (cadr x)
           (eval (caddr x) (environment '(rnrs)
-                                       '(format)
-                                       '(sc quotes)))))
+                                       '(format)))))
 
   (define (expand prev node)
     (let-values (((expanders source) (partition define-syntax? node)))

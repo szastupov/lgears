@@ -23,5 +23,5 @@
 (display (problem-2 120))
 |#
 
-(define ttt 12)
-(display `(1 2 3 ,ttt))
+(define ttt '(5 6 7))
+(display `(1 2 3 ,@ttt))

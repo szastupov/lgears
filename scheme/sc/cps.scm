@@ -19,8 +19,7 @@
   (export cps-convert)
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
-          (format)
-          (sc quotes))
+          (format))
 
   (define last-name 0)
 
@@ -40,9 +39,28 @@
     (and (pair? node)
          (eq? (car node) 'lambda)))
 
-  (define (convert-quote res node func name)
+  (define (trquote qv)
+    (define (apply-pfunc x)
+      (cond ((pair? x)
+             (trquote x))
+            ((symbol? x)
+             `(quote ,x))
+            ((null? x)
+             ''())
+            (else x)))
+
+    (cond ((list? qv)
+           (cons 'list (map apply-pfunc qv)))
+          ((null? qv)
+           '())
+          ((pair? qv)
+           `(cons ,(apply-pfunc (car qv))
+                  ,(trquote (cdr qv))))
+          (else (apply-pfunc qv))))
+
+  (define (convert-quote res node name)
     (cond ((pair? node)
-           (convert res (func node) name))
+           (convert res (trquote node) name))
           ((vector? node)
            (convert res (cons 'vector (vector->list node)) name))
           (else node)))
@@ -111,7 +129,7 @@
          (syntax-violation 'convert "misplaced defination" node))
 
         ((quote)
-         (convert-quote res (cadr node) trquote name))
+         (convert-quote res (cadr node) name))
 
         ;;; Conversion of call
         ;;; We covnert both arguments and functions
@@ -203,6 +221,7 @@
                           (list rest) (reverse defines)))))))
 
   (define (cps-convert source)
+	;(pretty-print source)
     (let ((res (convert-body source '__exit)))
       ;(display "CPS: \n")
       ;(pretty-print res)

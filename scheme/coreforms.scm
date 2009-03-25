@@ -63,4 +63,28 @@
 
 (define-syntax quasiquote
   (lambda (stx)
-    (trquasiquote (cadr stx))))
+	(fold-right (lambda (x y)
+				  (define (consed f)
+					(if (null? y)
+						`(cons ,f '())
+						`(cons ,f ,y)))
+				  (cond ((null? x)
+						 (consed ''()))
+						((symbol? x)
+						 (consed `(quote ,x)))
+						((pair? x)
+						 (case (car x)
+						   ((unquote)
+							(consed (cadr x)))
+						   ((unquote-splicing)
+							(if (null? y)
+								(cadr x)
+								`(append ,(cadr x) ,y)))
+						   (else
+							(consed x))))
+						((vector? x)
+						 (consed (cons 'vector (vector->list x))))
+						(else
+						 (consed x))))
+
+				'() (cadr stx))))

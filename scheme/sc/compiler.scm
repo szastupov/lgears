@@ -16,7 +16,7 @@
  |#
 
 (library (sc compiler)
-  (export compile-expr compile-file)
+  (export compile-file read-source dump-ilr)
   (import (rnrs)
           (sc cps)
           (format)
@@ -268,31 +268,32 @@
         (loop (let ((x (car cur)))
                 (if (and (pair? x)
                          (eq? (car x) 'include))
-                  (append (parse-includes (read-source (cadr x)))
+                  (append (read-source (cadr x))
                           prev)
                   (cons x prev)))
               (cdr cur)))))
 
-  (define (compile-expr expr path)
-    (let* ((expanded (expand '() (parse-includes expr)))
-           (ilr (start-compile
-                  (cps-convert expanded))))
-      (display "Expanded:\n")
-      (pretty-print expanded)
-      (print-ilr ilr)
-      (assemble ilr path)))
-
   (define (read-source file)
-    (call-with-port
-      (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder))
-      (lambda (port)
-        (let loop ((res '())
-                   (datum (get-datum port)))
-          (if (eof-object? datum)
-            (reverse res)
-            (loop (cons datum res) (get-datum port)))))))
+    (parse-includes
+      (call-with-port
+        (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder))
+        (lambda (port)
+          (let loop ((res '())
+                     (datum (get-datum port)))
+            (if (eof-object? datum)
+              (reverse res)
+              (loop (cons datum res) (get-datum port))))))))
+
+  (define (compile-ilr-file in)
+    (start-compile
+      (cps-convert
+        (expand '() (read-source in)))))
 
   (define (compile-file in out)
-    (compile-expr (read-source in) out))
+    (assemble (compile-ilr-file in)
+              out))
+
+  (define (dump-ilr path)
+    (print-ilr (compile-ilr-file path)))
 
   )

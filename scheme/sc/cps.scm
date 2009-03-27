@@ -221,11 +221,7 @@
                           (list rest) (reverse defines)))))))
 
   (define (cps-convert source)
-	;(pretty-print source)
     (let ((res (convert-body source '__exit)))
-      ;(display "CPS: \n")
-      ;(pretty-print res)
-      (newline)
       (if (pair? (car res))
         res
         (list res))))

@@ -66,7 +66,7 @@
 	(fold-right (lambda (x y)
 				  (define (consed f)
 					(if (null? y)
-						`(cons ,f '())
+						`(list ,f)
 						`(cons ,f ,y)))
 				  (cond ((null? x)
 						 (consed ''()))

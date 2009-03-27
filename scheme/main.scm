@@ -21,7 +21,7 @@
                 (file (caddr argv)))
            (cond ((equal? flag "-E")
                   (format #t ";;; Expanded from ~a\n" file)
-                  (pretty-print (expand-file file)))
+                  (pretty-print (car (expand-file file))))
 
                  ((equal? flag "-C")
                   (format #t ";;; CPS-converted from ~a\n" file)
@@ -34,3 +34,4 @@
                    (error 'main "unknown option" (cadr argv))))))
         (else
           (full-compile (cadr argv)))))
+(newline)

@@ -19,14 +19,8 @@
   (export cps-convert)
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
+          (sc gen-name)
           (format))
-
-  (define last-name 0)
-
-  (define (gen-name)
-    (let ((res (string-append "_var" (number->string last-name 16))))
-      (set! last-name (+ last-name 1))
-      (string->symbol res)))
 
   (define (self-eval? node)
     (or (not (pair? node))
@@ -67,7 +61,7 @@
 
   (define (convert-func args body)
     (let ((name (gen-name)))
-      `(lambda (,name ,@args)
+      `(lambda ,(cons name args)
          ,@(convert-body body name))))
 
   (define (unletrec node)
@@ -85,6 +79,7 @@
       (if (null? res)
         (list name node)
         `((lambda (,name) ,res) ,node))
+
       (case (car node)
         ((lambda)
          (if (< (length node) 3)
@@ -121,9 +116,24 @@
          (convert-seq res (cdr node) name))
 
         ((set!)
-         (if (> (length node) 3)
+         (if (not (= (length node) 3))
            (syntax-violation 'convert "set! expected two arguments" node))
-         (convert `((set! ,(cadr node) ,name) ,res) (caddr node) name))
+         (let* ((sval (gen-name))
+                (expr `(lambda (,sval)
+                         (set! ,(cadr node) ,sval)
+                         ,(if (null? res)
+                            `(void ,name)
+                            res))))
+           (let ((value (caddr node)))
+             (cond ((self-eval? value)
+                    (list expr value))
+                   ((inlinable? value)
+                    (list expr (convert-lambda value)))
+                   (else 
+                     (let ((setter (gen-name)))
+                       `((lambda (,setter)
+                           ,(convert '() value setter))
+                         ,expr)))))))
 
         ((define)
          (syntax-violation 'convert "misplaced defination" node))
@@ -225,4 +235,9 @@
       (if (pair? (car res))
         res
         (list res))))
+
+  ;(pretty-print (cps-convert '(
+                               ;(set! foo (lambda (x y) (x y)))
+                               ;(display foo)
+                               ;)))
   )

@@ -61,6 +61,17 @@
           (fold-left expand-cond-var '(void) body))))
     (expand-cond (cdr stx))))
 
+(define-syntax case
+  (lambda (stx)
+    (let ((tmp (gen-name)))
+      `(let ((,tmp ,(cadr stx)))
+         (cond ,@(map (lambda (x)
+                        (if (eq? (car x) 'else)
+                            x
+                            `((memv ,tmp ',(car x))
+                              ,@(cdr x))))
+                      (cddr stx)))))))
+
 (define-syntax quasiquote
   (lambda (stx)
 	(fold-right (lambda (x y)

@@ -22,6 +22,7 @@
   (define (compile-expander x)
     (cons (cadr x)
           (eval (caddr x) (environment '(rnrs)
+                                       '(sc gen-name)
                                        '(format)))))
 
   (define (expand prev node)
@@ -53,10 +54,6 @@
                         ((quote) x)
                         ((lambda)
                          `(lambda ,(cadr x) ,@(expand env (cddr x))))
-                        ((if)
-                         `(if ,@(expand env (cdr x))))
-                        ((set!)
-                         `(set! ,(cadr x) ,(expand env (caddr x))))
                         ((define)
                          (expand-define (cdr x)))
                         (else

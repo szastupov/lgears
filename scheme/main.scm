@@ -21,7 +21,7 @@
                 (file (caddr argv)))
            (cond ((equal? flag "-E")
                   (format #t ";;; Expanded from ~a\n" file)
-                  (pretty-print (car (expand-file file))))
+                  (pretty-print (expand-file file)))
 
                  ((equal? flag "-C")
                   (format #t ";;; CPS-converted from ~a\n" file)

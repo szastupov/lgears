@@ -233,6 +233,29 @@
                       #f
                       (car args))))
 
+(define (find proc lst)
+  (cond ((null? lst) #f)
+        ((proc (car lst)) (car lst))
+        (else (find proc (cdr lst)))))
+
+(define (memp proc lst)
+  (cond ((null? lst) #f)
+        ((proc (car lst)) lst)
+        (else (memp proc (cdr lst)))))
+
+(define (mempred pred? obj lst)
+  (memp (lambda (x)
+          (pred? x obj))
+        lst))
+
+(define (member obj lst)
+  (mempred equal? obj lst))
+
+(define (memv obj lst)
+  (mempred eqv? obj lst))
+
+(define (memq obj lst)
+  (mempred eq? obj lst))
 
 ;;; Vector utilites
 

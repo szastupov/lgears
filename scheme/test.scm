@@ -29,4 +29,4 @@
     ((2) "two")
     ((3 4 5) "3, 4, or 5")
     (else "unknown :(")))
-(display (get-num 9))
+(display (get-num 2))

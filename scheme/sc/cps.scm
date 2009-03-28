@@ -74,6 +74,26 @@
   (define (convert-lambda node)
     (convert-func (cadr node) (cddr node)))
 
+  (define (convert-set res node name)
+    (if (not (= (length node) 2))
+      (syntax-violation 'convert "set! expected two arguments" node))
+    (let* ((sval (gen-name))
+           (expr `(lambda (,sval)
+                    (set! ,(car node) ,sval)
+                    ,(if (null? res)
+                       `(void ,name)
+                       res))))
+      (let ((value (cadr node)))
+        (cond ((self-eval? value)
+               (list expr value))
+              ((inlinable? value)
+               (list expr (convert-lambda value)))
+              (else 
+                (let ((setter (gen-name)))
+                  `((lambda (,setter)
+                      ,(convert '() value setter))
+                    ,expr)))))))
+
   (define (convert res node name)
     (if (self-eval? node)
       (if (null? res)
@@ -116,24 +136,7 @@
          (convert-seq res (cdr node) name))
 
         ((set!)
-         (if (not (= (length node) 3))
-           (syntax-violation 'convert "set! expected two arguments" node))
-         (let* ((sval (gen-name))
-                (expr `(lambda (,sval)
-                         (set! ,(cadr node) ,sval)
-                         ,(if (null? res)
-                            `(void ,name)
-                            res))))
-           (let ((value (caddr node)))
-             (cond ((self-eval? value)
-                    (list expr value))
-                   ((inlinable? value)
-                    (list expr (convert-lambda value)))
-                   (else 
-                     (let ((setter (gen-name)))
-                       `((lambda (,setter)
-                           ,(convert '() value setter))
-                         ,expr)))))))
+         (convert-set res (cdr node) name))
 
         ((define)
          (syntax-violation 'convert "misplaced defination" node))
@@ -167,23 +170,6 @@
                            prev
                            (convert prev x n)))
                        expr args largs))))))
-
-  (define (convert-define res def)
-    (cond ((self-eval? (cadr def))
-           `((set! ,(car def) ,(cadr def))
-             ,@res))
-
-          ((and (pair? (cadr def))
-                (eq? (caadr def) 'lambda))
-           `((set! ,(car def)
-               ,(convert-lambda (cadr def)))
-             ,@res))
-
-          ((pair? (cadr def))
-           (let* ((name (gen-name))
-                  (expr `((set! ,(car def) ,name)
-                          ,@res)))
-             (list (convert expr (cadr def) name))))))
 
   (define (convert-seq res source name)
     (if (null? source)
@@ -224,11 +210,11 @@
                                              (cadr x)))
                                          defines))))))
           `(,@extend
-             ,@(fold-left (lambda (prev x)
+             ,(fold-left (lambda (prev x)
                             (if (null? (cddr x))
                               prev
-                              (convert-define prev (cdr x))))
-                          (list rest) (reverse defines)))))))
+                              (convert-set prev (cdr x) (gen-name))))
+                          rest (reverse defines)))))))
 
   (define (cps-convert source)
     (let ((res (convert-body source '__exit)))

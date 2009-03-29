@@ -233,6 +233,13 @@
                       #f
                       (car args))))
 
+(define (cons* . args)
+  (let loop ((args args))
+    (if (null? (cdr args))
+        (car args)
+        (cons (car args)
+              (loop (cdr args))))))
+
 (define (find proc lst)
   (cond ((null? lst) #f)
         ((proc (car lst)) (car lst))

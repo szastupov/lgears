@@ -43,13 +43,17 @@
              ''())
             (else x)))
 
+    (define (pairs->list p)
+      (if (pair? p)
+          (cons (car p) (pairs->list (cdr p)))
+          (cons p '())))
+
     (cond ((list? qv)
            (cons 'list (map apply-pfunc qv)))
           ((null? qv)
            '())
           ((pair? qv)
-           `(cons ,(apply-pfunc (car qv))
-                  ,(trquote (cdr qv))))
+           (cons 'cons* (map apply-pfunc (pairs->list qv))))
           (else (apply-pfunc qv))))
 
   (define (convert-quote res node name)

@@ -135,14 +135,7 @@
   (display msg) (display "\n"))
 
 (define (length lst)
-  (let loop ((cur lst)
-             (len 0))
-    (cond ((null? cur)
-           len)
-          ((pair? cur)
-           (loop (cdr cur) (+ 1 len)))
-          (else
-            (error 'length "expected list but got" lst)))))
+  (fold-left (lambda (x y) (+ 1 x)) 0 lst))
 
 (define (for-each proc lst1 . lst2)
   (define (for-each-1 lst)

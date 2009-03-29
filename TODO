@@ -1,5 +1,4 @@
 Fix GC generations
-Complete unquote-splicing
 Implement modules
 Redesign constants allocation (numbers, strings, constant lists and vectors, etc..)
 Store symbols as module string constants but maintaine symbol table per-thread

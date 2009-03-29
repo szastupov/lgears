@@ -2,6 +2,7 @@
   (export expand)
   (import (rnrs)
           (rnrs eval)
+          (format)
           (only (core) pretty-print))
 
   (define-record-type eenv
@@ -15,19 +16,36 @@
                       expanders)
             (new prev ntbl))))))
 
+  (define (eenv-install env name expander)
+    (hashtable-set! (eenv-tbl env) name expander))
+
   (define (define-syntax? x)
     (and (pair? x)
          (eq? (car x) 'define-syntax)))
 
-  (define (compile-expander x)
+  (define (macro->expander m)
+    (lambda (x e) (e (m x) e)))
+
+  (define (compile-macro x)
     (cons (cadr x)
-          (eval (caddr x) (environment '(rnrs)
-                                       '(sc gen-name)
-                                       '(format)))))
+          (macro->expander
+           (eval (caddr x) (environment '(rnrs)
+                                        '(sc gen-name)
+                                        '(format))))))
+   (define (splice-begin src)
+    (let loop ((cur src))
+      (cond ((null? cur)
+             '())
+            ((and (pair? cur) (pair? (car cur))
+                  (eq? (caar cur) 'begin))
+             (append (cdar cur) (loop (cdr cur))))
+            (else
+              (cons (car cur) (loop (cdr cur)))))))
 
   (define (expand prev node)
-    (let-values (((expanders source) (partition define-syntax? node)))
-      (let ((env (make-eenv prev (map compile-expander expanders))))
+    (let-values (((expanders source) (partition define-syntax?
+                                                (splice-begin node))))
+      (let ((env (make-eenv prev (map compile-macro expanders))))
 
         (define (expand? x)
           (let loop ((cur-env env))
@@ -38,28 +56,25 @@
                   (else
                     (loop (eenv-parent cur-env))))))
 
-        (define (expand-define x)
-          (if (pair? (car x))
-            `(define ,(caar x)
-               (lambda ,(cdar x) ,@(map scan-node (expand env (cdr x)))))
-            `(define ,@(expand env x))))
-
-        (define (scan-node x)
-          (cond ((not (pair? x))
-                 x)
+        (define (initial-expander x e)
+          (cond ((not (pair? x)) x)
                 ((expand? (car x)) => (lambda (f)
-                                        (let ((res (f x)))
-                                          (scan-node res))))
-                (else (case (car x)
-                        ((quote) x)
-                        ((lambda)
-                         `(lambda ,(cadr x) ,@(expand env (cddr x))))
-                        ((define)
-                         (expand-define (cdr x)))
-                        (else
-                          (map scan-node x))))))
+                                        (f x e)))
+                (else (map (lambda (x) (e x e)) x))))
 
-        (map scan-node source))))
+        (eenv-install env 'quote (lambda (x e) x))
+        (eenv-install env 'lambda (lambda (x e)
+                                    `(lambda ,(cadr x)
+                                       ,@(expand env (cddr x)))))
+        (eenv-install env 'define (lambda (x e)
+                                    (if (pair? (cadr x))
+                                        `(define ,(caadr x)
+                                           ,(e `(lambda ,(cdadr x)
+                                                  ,@(cddr x)) e))
+                                        `(define ,(cadr x)
+                                           ,(e (caddr x) e)))))
+        (map (lambda (x)
+               (initial-expander x initial-expander)) source))))
 
   ;(pretty-print (expand '() (read-source "test.scm")))
   )

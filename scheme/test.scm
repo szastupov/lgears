@@ -23,10 +23,5 @@
 (display (problem-2 120))
 |#
 
-(define (get-num x)
-  (case x
-    ((1) "one")
-    ((2) "two")
-    ((3 4 5) "3, 4, or 5")
-    (else "unknown :(")))
-(display (get-num 2))
+(assert (= 1 2))
+(display "ok")

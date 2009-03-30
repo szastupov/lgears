@@ -99,3 +99,18 @@
 						 (consed x))))
 
 				'() (cadr stx))))
+
+(define-syntax when
+  (lambda (stx)
+    `(if ,(cadr stx)
+       (begin ,@(cddr stx)))))
+
+(define-syntax unless
+  (lambda (stx)
+    `(if (not ,(cadr stx))
+       (begin ,@(cddr stx)))))
+
+(define-syntax assert
+  (lambda (stx)
+    `(unless ,(cadr stx)
+       (error 'assert "Assertion failed" ',(cadr stx)))))

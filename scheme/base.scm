@@ -129,10 +129,16 @@
           ((pair? cur) (loop (cdr cur)))
           (else #f))))
 
-;; Will be rewrited with exceptions
-(define (error what msg . unused)
+;; Will be rewrited with exceptions and format
+(define (error what msg . irritians)
   (display "Error in ") (display what) (display ": ")
-  (display msg) (display "\n"))
+  (display msg) (display "\n")
+  (for-each (lambda (i)
+              (display "\t")
+              (display i)
+              (newline))
+            irritians)
+  (__exit 1))
 
 (define (length lst)
   (fold-left (lambda (x y) (+ 1 x)) 0 lst))

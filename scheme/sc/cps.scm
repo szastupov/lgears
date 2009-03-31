@@ -68,13 +68,6 @@
       `(lambda ,(cons name args)
          ,@(convert-body body name))))
 
-  (define (unletrec node)
-    `(,@(map (lambda (x)
-               `(define ,(car x) ,(cadr x)))
-             (cadr node))
-       ,@(cddr node)))
-
-
   (define (convert-lambda node)
     (convert-func (cadr node) (cddr node)))
 

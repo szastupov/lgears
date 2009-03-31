@@ -1,6 +1,6 @@
 (library (sc expand)
   (export expand)
-  (import (rnrs)
+  (import (except (rnrs) identifier?)
           (rnrs eval)
           (format)
           (sc gen-name)
@@ -8,6 +8,17 @@
 
   (define-record-type binding
     (fields type value))
+
+  (define-record-type syntax-object
+    (fields expr wrap))
+
+  (define (identifier? x)
+    (and (syntax-object? x)
+         (symbol? (syntax-object-expr x))))
+
+  (define (self-evaluating? x)
+    (not (or (pair? x)
+             (syntax-object? x))))
 
   (define (macro x)
     (make-binding 'macro x))

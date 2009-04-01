@@ -16,8 +16,9 @@
 
   (define-record-type label)
 
-  (define-record-type binding
-    (fields type value))
+  (define make-binding cons)
+  (define binding-type car)
+  (define binding-value cdr)
 
   (define top-mark (make-mark))
 
@@ -273,5 +274,20 @@
   (define (expand x)
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
+
+  (define (syntax-match x reserved rules)
+    (define (match? xpr pat)
+      ;;(format #t "match? ~a ~a\n" (strip xpr) pat)
+      (cond ((pair? pat)
+             (if (syntax-pair? xpr)
+                 (for-all match? (syntax->list xpr) pat)
+                 #f))
+            (else #t)))
+    (let loop ((rules rules))
+      (cond ((null? rules)
+          (format #t "no match\n"))
+          ((match? x (car rules))
+           (format #t "matched ~a!\n" (car rules)))
+          (else (loop (cdr rules))))))
 
   )

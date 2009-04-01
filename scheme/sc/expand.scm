@@ -36,7 +36,8 @@
                  (d (strip (cdr x))))
              (if (and (eq? a (car x)) (eq? d (cdr x)))
                  x
-                 (cons a d))))))
+                 (cons a d))))
+          (else x)))
 
   (define (syntax-error what msg)
     (error (strip what) msg))
@@ -191,7 +192,7 @@
     (cond ((identifier? x)
            (let ((b (id-binding x r)))
              (case (binding-type b)
-               ((macro) (exp-macro (binding-value b) x) r mr)
+               ((macro) (exp-dispatch (exp-macro (binding-value b) x) r mr))
                ((lexical)(binding-value b))
                (else (syntax-error x "invalid syntax")))))
           ((not (syntax-pair? x))
@@ -199,7 +200,7 @@
           ((identifier? (syntax-car x))
            (let ((b (id-binding (syntax-car x) r)))
              (case (binding-type b)
-               ((macro) (exp-macro (binding-value b) x) r mr)
+               ((macro) (exp-dispatch (exp-macro (binding-value b) x) r mr))
                ((lexical)
                 `(,(binding-value b)
                   ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))
@@ -231,10 +232,35 @@
                                    body vars labels)
                         env mr))))
 
+  (define (exp-if x r mr)
+    (let ((args (syntax->list (syntax-cdr x))))
+      `(if ,(exp-dispatch (car args) r mr)
+           ,(exp-dispatch (cadr args) r mr)
+           ,(exp-dispatch (caddr args) r mr))))
+
+  (define (macro-let x)
+    (extend-wrap
+     (syntax-object-wrap x)
+     (let ((vars (syntax->list (syntax-cadr x))))
+       `((lambda ,(map syntax-car vars)
+           ,@(syntax-cddr x))
+         ,@(map syntax-cadr vars)))))
+
+  (define (macro-or x)
+    (extend-wrap
+     (syntax-object-wrap x)
+     `(let ((t ,(syntax-cadr x)))
+        (if t t ,(syntax-caddr x)))))
+                 
+
   (define (initial-wrap-end-env)
     (define bindings
       `((quote . ,(make-binding 'core exp-quote))
-        (lambda . ,(make-binding 'core exp-lambda))))
+        (lambda . ,(make-binding 'core exp-lambda))
+        (if . ,(make-binding 'core exp-if))
+        (let . ,(make-binding 'macro macro-let))
+        (or . ,(make-binding 'macro macro-or))
+        ))
     (let ((labels (map (lambda (x) (make-label)) bindings)))
       (values
        `(,@(map (lambda (sym label)

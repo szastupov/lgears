@@ -78,6 +78,9 @@
         (cons (syntax-car x)
               (syntax->list (syntax-cdr x)))))
 
+  (define (syntax-length x)
+    (length (syntax->list x)))
+
   (define (datum->syntax template-id x)
     (make-syntax-object x (syntax-object-wrap template-id)))
 
@@ -239,21 +242,6 @@
            ,(exp-dispatch (cadr args) r mr)
            ,(exp-dispatch (caddr args) r mr))))
 
-  (define (macro-let x)
-    (extend-wrap
-     (syntax-object-wrap x)
-     (let ((vars (syntax->list (syntax-cadr x))))
-       `((lambda ,(map syntax-car vars)
-           ,@(syntax-cddr x))
-         ,@(map syntax-cadr vars)))))
-
-  (define (macro-or x)
-    (extend-wrap
-     (syntax-object-wrap x)
-     `(let ((t ,(syntax-cadr x)))
-        (if t t ,(syntax-caddr x)))))
-                 
-
   (define (initial-wrap-end-env)
     (define bindings
       `((quote . ,(make-binding 'core exp-quote))
@@ -275,19 +263,69 @@
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
 
-  (define (syntax-match x reserved rules)
+  (define (make-vars res x pat)
+    (if (pair? pat)
+        (fold-left make-vars res (syntax->list x) pat)
+        (cons (cons pat x) res)))
+  
+  (define (syntax-accessor vars)
+    ;(for-each (lambda (x) (format #t "var ~a\n" (car x)))
+              ;(reverse vars))
+    (lambda (id)
+      (cond ((assq id vars) => cdr)
+            (else (syntax-error id "not found")))))
+
+  (define (syntax-dispatch x reserved . rules)
     (define (match? xpr pat)
-      ;;(format #t "match? ~a ~a\n" (strip xpr) pat)
       (cond ((pair? pat)
-             (if (syntax-pair? xpr)
+             (if (and (syntax-pair? xpr)
+                      (= (length pat) (syntax-length xpr)))
                  (for-all match? (syntax->list xpr) pat)
                  #f))
             (else #t)))
     (let loop ((rules rules))
       (cond ((null? rules)
-          (format #t "no match\n"))
-          ((match? x (car rules))
-           (format #t "matched ~a!\n" (car rules)))
-          (else (loop (cdr rules))))))
+             (syntax-error x "no match\n"))
+            ((match? x (caar rules))
+             (format #t "matched ~a!\n" (caar rules))
+             (extend-wrap (syntax-object-wrap x)
+                          ((cdar rules)
+                           (syntax-accessor (make-vars '() x (caar rules))))))
+            (else (loop (cdr rules))))))
+
+  (define-syntax syntax-match
+    (lambda (x)
+      (syntax-case x ()
+        ((_ source reserved . fields)
+         (let* ((fields* (syntax->datum #'fields))
+                (temp (generate-temporaries fields*)))
+           #`(let #,(map (lambda (f t)
+                           `(,t (lambda (stx)
+                                  ,@(cdr f))))
+                         fields* temp)
+               (syntax-dispatch
+                source
+                'reserved
+                #,@(map (lambda (f t)
+                          #`(cons '#,(car f) #,t))
+                        fields* temp))))))))
+
+  (define (macro-or x)
+    (syntax-match
+     x ()
+     ((or) '#f)
+     ((or a) (stx a))
+     ((or a b)
+      `(let ((t ,(stx 'a)))
+         (if t t ,(stx 'b))))))
+
+  (define (macro-let x)
+    (syntax-match
+     x ()
+     ((let vars body)
+      (let ((args (syntax->list (stx 'vars))))
+        `((lambda ,(map syntax-car args)
+          ,(stx 'body))
+          ,@(map syntax-cadr args))))))
 
   )

@@ -47,9 +47,8 @@
     (and (syntax-object? x)
          (symbol? (syntax-object-expr x))))
 
-  (define (ellipsis? x)
-    (and (identifier? x)
-         (eq? (syntax-object-expr x) '...)))
+  (define (free-identifier? x y)
+    (eq? (id-label x) (id-label y)))
 
   (define (syntax-pair? x)
     (pair? (syntax-object-expr x)))
@@ -204,16 +203,24 @@
         (cons x res)))
 
   (define (syntax-dispatch x reserved . rules)
+    
     (define (match? xpr pat)
       (cond ((pair? pat)
-             (if (and (syntax-pair? xpr)
-                      (= (length pat) (syntax-length xpr)))
-                 (for-all match? (syntax->list xpr) pat)
-                 #f))
+             (and (syntax-pair? xpr)
+                  (= (length pat) (syntax-length xpr))
+                  (for-all match? (syntax->list xpr) pat)))
+            ((eq? pat '_) #t)
+            ((symbol? pat)
+             (cond ((memq pat reserved)
+                    (and (or (symbol? xpr)
+                             (identifier? xpr))
+                         (free-identifier? xpr)))
+                   (else #t)))
             (else #t)))
+    
     (let loop ((rules rules))
       (cond ((null? rules)
-             (syntax-error x "ivalid syntax"))
+             (syntax-error x "ivalid syntax, no match"))
             ((match? x (caar rules))
              (format #t "matched ~a!\n" (caar rules))
                           (apply (cdar rules)
@@ -323,5 +330,4 @@
   (define (expand x)
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
-
   )

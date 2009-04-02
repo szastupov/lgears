@@ -1,6 +1,6 @@
 (library (sc expand)
   (export expand)
-  (import (except (rnrs) identifier? datum->syntax)
+  (import (except (rnrs) identifier? ...)
           (rnrs eval)
           (format)
           (sc gen-name)
@@ -47,6 +47,10 @@
     (and (syntax-object? x)
          (symbol? (syntax-object-expr x))))
 
+  (define (ellipsis? x)
+    (and (identifier? x)
+         (eq? (syntax-object-expr x) '...)))
+
   (define (syntax-pair? x)
     (pair? (syntax-object-expr x)))
 
@@ -80,9 +84,6 @@
 
   (define (syntax-length x)
     (length (syntax->list x)))
-
-  (define (datum->syntax template-id x)
-    (make-syntax-object x (syntax-object-wrap template-id)))
 
   (define (self-evaluating? x)
     (not (or (pair? x)
@@ -160,29 +161,12 @@
       (if a (cdr a)
           (syntax-error id "displaced lexical"))))
 
-  (define (macro x)
-    (make-binding 'macro x))
-
-  (define (lexical x)
-    (make-binding 'lexical x))
-
-  (define (define-syntax? x)
-    (and (pair? x)
-         (eq? (car x) 'define-syntax)))
-
-  (define (splice-begin src)
-    (let loop ((cur src))
-      (cond ((null? cur)
-             '())
-            ((and (pair? cur) (pair? (car cur))
-                  (eq? (caar cur) 'begin))
-             (append (cdar cur) (loop (cdr cur))))
-            (else
-              (cons (car cur) (loop (cdr cur)))))))
-
   (define (exp-macro p x)
-    (let ((m (make-mark)))
-      (add-mark m (p (add-mark m x)))))
+    (let* ((m (make-mark))
+           (xm (add-mark m x)))
+      (add-mark m (extend-wrap
+                   (syntax-object-wrap xm)
+                   (p xm)))))
 
   (define (exp-core p x r mr)
     (p x r mr))
@@ -214,8 +198,54 @@
            `(,(exp-dispatch (syntax-car x) r mr)
              ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
 
+  (define (get-vars res x pat)
+    (if (pair? pat)
+        (fold-left get-vars res (syntax->list x) pat)
+        (cons x res)))
+
+  (define (syntax-dispatch x reserved . rules)
+    (define (match? xpr pat)
+      (cond ((pair? pat)
+             (if (and (syntax-pair? xpr)
+                      (= (length pat) (syntax-length xpr)))
+                 (for-all match? (syntax->list xpr) pat)
+                 #f))
+            (else #t)))
+    (let loop ((rules rules))
+      (cond ((null? rules)
+             (syntax-error x "ivalid syntax"))
+            ((match? x (caar rules))
+             (format #t "matched ~a!\n" (caar rules))
+                          (apply (cdar rules)
+                                  (cdr (reverse (get-vars '() x (caar rules))))))
+            (else (loop (cdr rules))))))
+
+  ;; Simplified version of syntax case. We need it to bootstrap, when
+  ;; lgears will be able to compile itself, the code using
+  ;; syntax-match will be rewriten with syntax-case
+  (define-syntax syntax-match
+    (lambda (x)
+      (define (rename-args args)
+        (map (lambda (a)
+               (string->symbol
+                (string-append "_" (symbol->string a))))
+             args))
+      (syntax-case x ()
+        ((_ source reserved . fields)
+         (let* ((fields* (syntax->datum #'fields)))
+           #`(syntax-dispatch
+                source
+                'reserved
+                #,@(map (lambda (f)
+                          `(cons ',(car f)
+                                 (lambda ,(rename-args (cdar f))
+                                   ,(cadr f))))
+                        fields*)))))))
+
   (define (exp-quote x r mr)
-    `(quote ,(strip (syntax-cadr x))))
+    (syntax-match
+     x ()
+     ((quote a) `(quote ,(strip _a)))))
 
   (define (make-lambda-env env labels new-vars)
     (fold-left (lambda (prev l v)
@@ -232,21 +262,52 @@
            (env (make-lambda-env r labels new-vars)))
       `(lambda ,new-vars
          ,@(exp-dispatch (fold-left (lambda (xpr id label)
-                                     (add-subst id label xpr))
-                                   body vars labels)
-                        env mr))))
-
+                                      (add-subst id label xpr))
+                                    body vars labels)
+                         env mr))))
+  
   (define (exp-if x r mr)
-    (let ((args (syntax->list (syntax-cdr x))))
-      `(if ,(exp-dispatch (car args) r mr)
-           ,(exp-dispatch (cadr args) r mr)
-           ,(exp-dispatch (caddr args) r mr))))
+    (syntax-match
+     x ()
+     ((if a b)
+      `(if ,(exp-dispatch _a r mr)
+           ,(exp-dispatch _b r mr)))
+     ((if a b c)
+      `(if ,(exp-dispatch _a r mr)
+           ,(exp-dispatch _b r mr)
+           ,(exp-dispatch _c r mr)))))
+
+  (define (exp-set! x r mr)
+    (syntax-match
+     x ()
+     ((set! a b)
+      `(set! ,(exp-dispatch _a r mr)
+             ,(exp-dispatch _b r mr)))))
+
+  (define (macro-or x)
+    (syntax-match
+     x ()
+     ((or) #f)
+     ((or a) _a)
+     ((or a b)
+      `(let ((t ,_a))
+         (if t t ,_b)))))
+
+  (define (macro-let x)
+    (syntax-match
+     x ()
+     ((let vars body)
+      (let ((args (syntax->list _vars)))
+        `((lambda ,(map syntax-car args)
+            ,_body)
+          ,@(map syntax-cadr args))))))
 
   (define (initial-wrap-end-env)
     (define bindings
       `((quote . ,(make-binding 'core exp-quote))
         (lambda . ,(make-binding 'core exp-lambda))
         (if . ,(make-binding 'core exp-if))
+        (set! . ,(make-binding 'core exp-set!))
         (let . ,(make-binding 'macro macro-let))
         (or . ,(make-binding 'macro macro-or))
         ))
@@ -262,70 +323,5 @@
   (define (expand x)
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
-
-  (define (make-vars res x pat)
-    (if (pair? pat)
-        (fold-left make-vars res (syntax->list x) pat)
-        (cons (cons pat x) res)))
-  
-  (define (syntax-accessor vars)
-    ;(for-each (lambda (x) (format #t "var ~a\n" (car x)))
-              ;(reverse vars))
-    (lambda (id)
-      (cond ((assq id vars) => cdr)
-            (else (syntax-error id "not found")))))
-
-  (define (syntax-dispatch x reserved . rules)
-    (define (match? xpr pat)
-      (cond ((pair? pat)
-             (if (and (syntax-pair? xpr)
-                      (= (length pat) (syntax-length xpr)))
-                 (for-all match? (syntax->list xpr) pat)
-                 #f))
-            (else #t)))
-    (let loop ((rules rules))
-      (cond ((null? rules)
-             (syntax-error x "no match\n"))
-            ((match? x (caar rules))
-             (format #t "matched ~a!\n" (caar rules))
-             (extend-wrap (syntax-object-wrap x)
-                          ((cdar rules)
-                           (syntax-accessor (make-vars '() x (caar rules))))))
-            (else (loop (cdr rules))))))
-
-  (define-syntax syntax-match
-    (lambda (x)
-      (syntax-case x ()
-        ((_ source reserved . fields)
-         (let* ((fields* (syntax->datum #'fields))
-                (temp (generate-temporaries fields*)))
-           #`(let #,(map (lambda (f t)
-                           `(,t (lambda (stx)
-                                  ,@(cdr f))))
-                         fields* temp)
-               (syntax-dispatch
-                source
-                'reserved
-                #,@(map (lambda (f t)
-                          #`(cons '#,(car f) #,t))
-                        fields* temp))))))))
-
-  (define (macro-or x)
-    (syntax-match
-     x ()
-     ((or) '#f)
-     ((or a) (stx a))
-     ((or a b)
-      `(let ((t ,(stx 'a)))
-         (if t t ,(stx 'b))))))
-
-  (define (macro-let x)
-    (syntax-match
-     x ()
-     ((let vars body)
-      (let ((args (syntax->list (stx 'vars))))
-        `((lambda ,(map syntax-car args)
-          ,(stx 'body))
-          ,@(map syntax-cadr args))))))
 
   )

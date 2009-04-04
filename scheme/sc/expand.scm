@@ -4,162 +4,9 @@
           (rnrs eval)
           (format)
           (sc gen-name)
+          (sc syntax-core)
           (only (core) pretty-print))
-
-  (define-record-type syntax-object
-    (fields expr wrap))
-
-  (define-record-type mark)
-
-  (define-record-type subst
-    (fields sym mark* label))
-
-  (define-record-type label)
-
-  (define make-binding cons)
-  (define binding-type car)
-  (define binding-value cdr)
-
-  (define top-mark (make-mark))
-
-  (define (top-marked? wrap)
-    (and (not (null? wrap))
-         (or (eq? (car wrap) top-mark)
-             (top-marked? (cdr wrap)))))
-
-  (define (strip x)
-    (cond ((syntax-object? x)
-           (if (top-marked? (syntax-object-wrap x))
-               (syntax-object-expr x)
-               (strip (syntax-object-expr x))))
-          ((pair? x)
-           (let ((a (strip (car x)))
-                 (d (strip (cdr x))))
-             (if (and (eq? a (car x)) (eq? d (cdr x)))
-                 x
-                 (cons a d))))
-          (else x)))
-
-  (define (syntax-error what msg)
-    (error (strip what) msg))
-
-  (define (identifier? x)
-    (and (syntax-object? x)
-         (symbol? (syntax-object-expr x))))
-
-  (define (free-identifier? x y)
-    (eq? (id-label x) (id-label y)))
-
-  (define (syntax-pair? x)
-    (pair? (syntax-object-expr x)))
-
-  (define (syntax-car x)
-    (extend-wrap
-     (syntax-object-wrap x)
-     (car (syntax-object-expr x))))
-
-  (define (syntax-cdr x)
-    (extend-wrap
-     (syntax-object-wrap x)
-     (cdr (syntax-object-expr x))))
-
-  (define (syntax-cadr x)
-    (syntax-car (syntax-cdr x)))
-
-  (define (syntax-cddr x)
-    (syntax-cdr (syntax-cdr x)))
-
-  (define (syntax-caddr x)
-    (syntax-car (syntax-cddr x)))
-
-  (define (syntax-null? x)
-    (null? (syntax-object-expr x)))
-
-  (define (syntax->list x)
-    (if (syntax-null? x)
-        '()
-        (cons (syntax-car x)
-              (syntax->list (syntax-cdr x)))))
-
-  (define (syntax-length x)
-    (length (syntax->list x)))
-
-  (define (self-evaluating? x)
-    (not (or (pair? x)
-             (syntax-object? x))))
-
-  (define (wrap-marks wrap)
-    (if (null? wrap)
-      '()
-      (let ((w0 (car wrap)))
-        (if (mark? w0)
-          (cons w0 (wrap-marks (cdr wrap)))
-          (wrap-marks (cdr wrap))))))
-
-  (define (same-marks? m1* m2*)
-    (if (null? m1*)
-        (null? m2*)
-        (and (not (null? m2*))
-             (eq? (car m1*) (car m2*))
-             (same-marks? (cdr m1*) (cdr m2*)))))
-
-  (define (extend-wrap wrap x)
-    (if (syntax-object? x)
-        (make-syntax-object
-         (syntax-object-expr x)
-         (join-wraps wrap (syntax-object-wrap x)))
-        (make-syntax-object x wrap)))
-
-  (define (join-wraps wrap1 wrap2)
-    (cond ((null? wrap1) wrap2)
-          ((null? wrap2) wrap1)
-          (else
-           (let loop ((w (car wrap1))
-                      (w* (cdr wrap1)))
-             (if (null? w*)
-                 (if (and (mark? w)
-                          (eq? (car wrap2) w))
-                     (cdr wrap2)
-                     (cons w wrap2))
-                 (cons w (loop (car w*) (cdr w*))))))))
-
-  (define (add-mark mark x)
-    (extend-wrap (list mark) x))
-
-  (define (add-subst id label x)
-    (extend-wrap
-     (list (make-subst
-            (syntax-object-expr id)
-            (wrap-marks (syntax-object-wrap id))
-            label))
-     x))
-
-  (define (extend-env label binding env)
-    (cons (cons label binding) env))
-
-  (define (id-binding id r)
-    (label-binding id (id-label id) r))
-
-  (define (id-label id)
-    (let ((sym (syntax-object-expr id))
-          (wrap (syntax-object-wrap id)))
-      (let search ((wrap wrap)
-                   (mark* (wrap-marks wrap)))
-        (if (null? wrap)
-            (syntax-error id "undefined identifier")
-            (let ((w0 (car wrap)))
-              (if (mark? w0)
-                  (search (cdr wrap) (cdr mark*))
-                  (if (and (eq? (subst-sym w0) sym)
-                           (same-marks? (subst-mark* w0) mark*))
-                      (subst-label w0)
-                      (search (cdr wrap) mark*))))))))
-
-  (define (label-binding id label r)
-    (let ((a (assq label r)))
-      (if a (cdr a)
-          (syntax-error id "displaced lexical"))))
-
+  
   (define (exp-macro p x)
     (let* ((m (make-mark))
            (xm (add-mark m x)))
@@ -197,11 +44,6 @@
            `(,(exp-dispatch (syntax-car x) r mr)
              ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
 
-  (define (get-vars res x pat)
-    (if (pair? pat)
-        (fold-left get-vars res (syntax->list x) pat)
-        (cons x res)))
-
   (define (ellipsis-pair? pat)
     (and (pair? pat)
          (pair? (cdr pat))
@@ -211,7 +53,7 @@
     (define (match-ellipsis? xprs pat)
       (or (null? xprs)
           (and (match? (car xprs) (car pat))
-               (match-ellipsis? (cdr xprs) (cdr pat)))))
+               (match-ellipsis? (cdr xprs) pat))))
     
     (define (match? xpr pat)
       ;(format #t "match? ~a ~a\n" pat (ellipsis-pair? pat))
@@ -230,13 +72,45 @@
                    (else #t)))
             (else (equal? pat (syntax-object-expr xpr)))))
 
+    (define (fix-tail r)
+      (if (or (null? r)
+              (pair? r))
+          r
+          (list r)))
+
+    (define (bind-ellipsis xprs pat)
+      (if (null? xprs)
+          '()
+          (let ((l (bind-vars (car xprs) (car pat)))
+                (r (bind-ellipsis (cdr xprs) pat)))
+            (if l
+                (cons l (fix-tail r))
+                r))))
+    
+    (define (bind-vars xpr pat)
+      ;(format #t "bind ~a ~a\n" pat (strip xpr))
+      (cond ((null? pat)
+             '())
+            ((ellipsis-pair? pat)
+             (list (bind-ellipsis (syntax->list xpr) pat)))
+            ((pair? pat)
+             (let ((l (bind-vars (syntax-car xpr) (car pat)))
+                   (r (bind-vars (syntax-cdr xpr) (cdr pat))))
+               (if l
+                   (cons l (fix-tail r))
+                   r)))
+            ((eq? pat '_) #f)
+            ((symbol? pat)
+             (if (memq pat reserved)
+                 #f xpr))
+            (else #f)))
+
     (let loop ((rules rules))
       (cond ((null? rules)
              (syntax-error x "ivalid syntax, no match"))
             ((match? x (caar rules))
              (format #t "matched ~a!\n" (caar rules))
-                          (apply (cdar rules)
-                                  (cdr (reverse (get-vars '() x (caar rules))))))
+             (apply (cdar rules) (cdr (bind-vars x (caar rules)))))
             (else (loop (cdr rules))))))
 
   ;; Simplified version of syntax case. We need it to bootstrap, when
@@ -244,6 +118,20 @@
   ;; syntax-match will be rewriten with syntax-case
   (define-syntax syntax-match
     (lambda (x)
+      (define (get-vars v)
+        (cond ((null? v) '())
+              ((pair? v)
+               (let ((l (get-vars (car v)))
+                     (r (get-vars (cdr v))))
+                 (if l
+                     (if (pair? l)
+                         (append l r)
+                         (cons l r))
+                     r)))
+              ((eq? v '_) #f)
+              ((eq? v '...) #f)
+              ((symbol? v) v)
+              (else #f)))
       (syntax-case x ()
         ((_ source reserved . fields)
          (let* ((fields* (syntax->datum #'fields)))
@@ -252,7 +140,7 @@
                 'reserved
                 #,@(map (lambda (f)
                           `(cons ',(car f)
-                                 (lambda ,(cdar f)
+                                 (lambda ,(get-vars (cdar f))
                                    ,(cadr f))))
                         fields*)))))))
 
@@ -333,17 +221,20 @@
      x ()
      ((or) #f)
      ((or a) a)
-     ((or a b)
+     ((or a b ...)
+      (if (or (identifier? a)
+              (self-evaluating? (strip a)))
+          `(if ,a ,a (or ,@b))
       `(let ((t ,a))
-         (if t t (or ,b))))))
-
+         (if t t (or ,@b)))))))
+  
   (define (macro-let x)
     (syntax-match
      x ()
-     ((let vars body)
+     ((let vars body ...)
       (let ((args (syntax->list vars)))
         `((lambda ,(map syntax-car args)
-            ,body)
+            ,@body)
           ,@(map syntax-cadr args))))))
 
   (define (initial-wrap-end-env)
@@ -368,4 +259,6 @@
   (define (expand x)
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
+
+  (pretty-print (expand '(let ((t 12) (a 40)) (or (t a) 10 12))))
   )

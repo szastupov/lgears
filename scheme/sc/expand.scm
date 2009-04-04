@@ -5,6 +5,7 @@
           (format)
           (sc gen-name)
           (sc syntax-core)
+          (sc syntax-pattern)
           (only (core) pretty-print))
   
   (define (exp-macro p x)
@@ -108,9 +109,11 @@
     (let loop ((rules rules))
       (cond ((null? rules)
              (syntax-error x "ivalid syntax, no match"))
-            ((match? x (caar rules))
-             (format #t "matched ~a!\n" (caar rules))
-             (apply (cdar rules) (cdr (bind-vars x (caar rules)))))
+            ((pattern-match reserved x (caar rules))
+             => (lambda (res)
+                  (format #t "matched ~a = ~a\n" (caar rules) (strip res))
+                  (apply (cdar rules)
+                         (cdr (pattern-bind res (caar rules) '())))))
             (else (loop (cdr rules))))))
 
   ;; Simplified version of syntax case. We need it to bootstrap, when
@@ -227,15 +230,26 @@
           `(if ,a ,a (or ,@b))
       `(let ((t ,a))
          (if t t (or ,@b)))))))
+
+  (define (macro-and x)
+    (syntax-match
+     x ()
+     ((and) #t)
+     ((and a) a)
+     ((and a b ...)
+      `(if ,a (and ,@b)))))
   
   (define (macro-let x)
     (syntax-match
      x ()
-     ((let vars body ...)
-      (let ((args (syntax->list vars)))
-        `((lambda ,(map syntax-car args)
-            ,@body)
-          ,@(map syntax-cadr args))))))
+     ((let ((vars vals) ...) body ...)
+      `((lambda ,vars
+          ,@body)
+        ,@vals))
+     ((let loop ((vars vals) ...) body ...)
+      `(let ((,loop 'unspec))
+         (set! ,loop (lambda ,vars ,@body))
+         (,loop ,@vals)))))
 
   (define (initial-wrap-end-env)
     (define bindings
@@ -246,6 +260,7 @@
         (set! . ,(make-binding 'core exp-set!))
         (let . ,(make-binding 'macro macro-let))
         (or . ,(make-binding 'macro macro-or))
+        (and . ,(make-binding 'macro macro-and))
         ))
     (let ((labels (gen-labels bindings)))
       (values
@@ -260,5 +275,5 @@
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
 
-  (pretty-print (expand '(let ((t 12) (a 40)) (or (t a) 10 12))))
+  (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
   )

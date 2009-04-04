@@ -63,9 +63,10 @@
 
     (define (strip x)
     (cond ((syntax-object? x)
-           (if (top-marked? (syntax-object-wrap x))
-               (syntax-object-expr x)
-               (strip (syntax-object-expr x))))
+           (strip (syntax-object-expr x)))
+           ;(if (top-marked? (syntax-object-wrap x))
+               ;(syntax-object-expr x)
+               ;(strip (syntax-object-expr x))))
           ((pair? x)
            (let ((a (strip (car x)))
                  (d (strip (cdr x))))
@@ -85,7 +86,8 @@
     (eq? (id-label x) (id-label y)))
 
   (define (syntax-pair? x)
-    (pair? (syntax-object-expr x)))
+    (and (syntax-object? x)
+         (pair? (syntax-object-expr x))))
 
   (define (syntax-car x)
     (extend-wrap

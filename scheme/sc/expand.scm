@@ -1,3 +1,20 @@
+#|
+ | Copyright (C) 2009 - Stepan Zastupov
+ | This program is free software; you can redistribute it and/or
+ | modify it under the terms of the GNU General Public License
+ | as published by the Free Software Foundation; either version 2
+ | of the License, or (at your option) any later version.
+ |
+ | This program is distributed in the hope that it will be useful,
+ | but WITHOUT ANY WARRANTY; without even the implied warranty of
+ | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ | GNU General Public License for more details.
+ |
+ | You should have received a copy of the GNU General Public License
+ | along with this program; if not, write to the Free Software
+ | Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ |#
+
 (library (sc expand)
   (export expand)
   (import (except (rnrs) identifier? ...)
@@ -45,70 +62,10 @@
            `(,(exp-dispatch (syntax-car x) r mr)
              ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
 
-  (define (ellipsis-pair? pat)
-    (and (pair? pat)
-         (pair? (cdr pat))
-         (eq? (cadr pat) '...)))
-
   (define (syntax-dispatch x reserved . rules)
-    (define (match-ellipsis? xprs pat)
-      (or (null? xprs)
-          (and (match? (car xprs) (car pat))
-               (match-ellipsis? (cdr xprs) pat))))
-    
-    (define (match? xpr pat)
-      ;(format #t "match? ~a ~a\n" pat (ellipsis-pair? pat))
-      (cond ((ellipsis-pair? pat)
-             (match-ellipsis? (syntax->list xpr) pat))
-            ((pair? pat)
-             (and (syntax-pair? xpr)
-                  (match? (syntax-car xpr) (car pat))
-                  (match? (syntax-cdr xpr) (cdr pat))))
-            ((eq? pat '_) #t)
-            ((symbol? pat)
-             (cond ((memq pat reserved)
-                    (and (or (symbol? xpr)
-                             (identifier? xpr))
-                         (free-identifier? xpr)))
-                   (else #t)))
-            (else (equal? pat (syntax-object-expr xpr)))))
-
-    (define (fix-tail r)
-      (if (or (null? r)
-              (pair? r))
-          r
-          (list r)))
-
-    (define (bind-ellipsis xprs pat)
-      (if (null? xprs)
-          '()
-          (let ((l (bind-vars (car xprs) (car pat)))
-                (r (bind-ellipsis (cdr xprs) pat)))
-            (if l
-                (cons l (fix-tail r))
-                r))))
-    
-    (define (bind-vars xpr pat)
-      ;(format #t "bind ~a ~a\n" pat (strip xpr))
-      (cond ((null? pat)
-             '())
-            ((ellipsis-pair? pat)
-             (list (bind-ellipsis (syntax->list xpr) pat)))
-            ((pair? pat)
-             (let ((l (bind-vars (syntax-car xpr) (car pat)))
-                   (r (bind-vars (syntax-cdr xpr) (cdr pat))))
-               (if l
-                   (cons l (fix-tail r))
-                   r)))
-            ((eq? pat '_) #f)
-            ((symbol? pat)
-             (if (memq pat reserved)
-                 #f xpr))
-            (else #f)))
-
     (let loop ((rules rules))
       (cond ((null? rules)
-             (syntax-error x "ivalid syntax, no match"))
+             (syntax-error x "invalid syntax, no match"))
             ((pattern-match reserved x (caar rules))
              => (lambda (res)
                   (format #t "matched ~a = ~a\n" (caar rules) (strip res))
@@ -121,6 +78,7 @@
   ;; syntax-match will be rewriten with syntax-case
   (define-syntax syntax-match
     (lambda (x)
+      ;; Extract variables from pattern
       (define (get-vars v)
         (cond ((null? v) '())
               ((pair? v)
@@ -162,7 +120,7 @@
                              (and (syntax-pair? x)
                                   (eq? (syntax-object-expr (syntax-car x))
                                        'define)))
-                           (syntax->list body))))
+                           body)))
       (map (lambda (x)
              (let ((head (syntax-cadr x)))
                (if (syntax-pair? head)
@@ -179,20 +137,21 @@
     (map (lambda (x) (make-label)) lst))
 
   (define (exp-lambda x r mr)
-    (let* ((body (syntax-cddr x))
-           (vars (syntax->list (syntax-cadr x)))
-           (new-vars (gen-names vars))
-           (defines (scan-defines body))
-           (new-defines (gen-names defines))
-           (env-vars (append vars defines))
-           (labels (gen-labels env-vars))
-           (env (make-lambda-env r labels
-                                 (append new-vars new-defines))))
-      `(lambda ,new-vars
-         ,@(exp-dispatch (fold-left (lambda (xpr id label)
-                                      (add-subst id label xpr))
-                                    body env-vars labels)
-                         env mr))))
+    (syntax-match
+     x ()
+     ((lambda (varlist ...) body ...)
+      (let* ((new-vars (gen-names varlist))
+             (defines (scan-defines body))
+             (new-defines (gen-names defines))
+             (env-vars (append varlist defines))
+             (labels (gen-labels env-vars))
+             (env (make-lambda-env
+                   r labels (append new-vars new-defines))))
+        `(lambda ,new-vars
+           ,@(exp-dispatch (fold-left (lambda (xpr id label)
+                                        (add-subst id label xpr))
+                                      body env-vars labels)
+                           env mr))))))
 
   (define (exp-define x r mr)
     (syntax-match
@@ -215,7 +174,8 @@
      x ()
      ((if a b)
       `(if ,(exp-dispatch a r mr)
-           ,(exp-dispatch b r mr)))
+           ,(exp-dispatch b r mr)
+           (void)))
      ((if a b c)
       `(if ,(exp-dispatch a r mr)
            ,(exp-dispatch b r mr)
@@ -284,6 +244,6 @@
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
 
-  ;(pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
+  (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
   (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
   )

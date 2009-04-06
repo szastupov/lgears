@@ -196,10 +196,19 @@
 
   (define (exp-define x r mr)
     (syntax-match
-     x ()
-     ((define var val)
-      `(define ,(exp-dispatch var r mr)
-         ,(exp-dispatch val r mr)))))
+      x ()
+      ((define (var args ...) body ...)
+       `(define ,(exp-dispatch var r mr)
+          ,(exp-dispatch (extend-wrap
+                           (syntax-object-wrap x)
+                           `(lambda ,args
+                              ,@body))
+                         r mr)))
+      ((define var val)
+       `(define ,(exp-dispatch var r mr)
+          ,(exp-dispatch val r mr)))
+      ((define var)
+       `(define ,(exp-dispatch var r mr) (void)))))
   
   (define (exp-if x r mr)
     (syntax-match
@@ -242,13 +251,13 @@
   (define (macro-let x)
     (syntax-match
      x ()
-     ((let ((vars vals) ...) body ...)
+     ((let ((vars vals) ...) e1 e2 ...)
       `((lambda ,vars
-          ,@body)
+          ,e1 ,@e2)
         ,@vals))
-     ((let loop ((vars vals) ...) body ...)
+     ((let loop ((vars vals) ...) e1 e2 ...)
       `(let ((,loop 'unspec))
-         (set! ,loop (lambda ,vars ,@body))
+         (set! ,loop (lambda ,vars ,e1 ,@e2))
          (,loop ,@vals)))))
 
   (define (initial-wrap-end-env)
@@ -275,5 +284,6 @@
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
 
-  (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
+  ;(pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
+  (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
   )

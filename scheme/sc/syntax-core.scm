@@ -204,7 +204,10 @@
     (cons (cons label binding) env))
 
   (define (id-binding id r)
-    (label-binding id (id-label id) r))
+    (cond ((id-label id)
+           => (lambda (label)
+                (label-binding id label r)))
+          (else #f)))
 
   (define (id-label id)
     (let ((sym (syntax-object-expr id))
@@ -212,7 +215,7 @@
       (let search ((wrap wrap)
                    (mark* (wrap-marks wrap)))
         (if (null? wrap)
-            (syntax-error id "undefined identifier")
+            #f
             (let ((w0 (car wrap)))
               (if (mark? w0)
                   (search (cdr wrap) (cdr mark*))

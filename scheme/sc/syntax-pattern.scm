@@ -18,6 +18,7 @@
 (library (sc syntax-pattern)
   (export pattern-match pattern-bind)
   (import (rnrs base)
+          (rnrs lists)
           (format)
           (sc syntax-core))
   
@@ -68,7 +69,13 @@
                           (match (syntax-cdr xpr) (cdr pat)))
                     (return #f)))
                ((eq? pat '_) '())
-               ((symbol? pat) xpr)
+               ((symbol? pat)
+                (if (memq pat reserved)
+                    (if (and (identifier? xpr)
+                             (eq? pat (syntax-object-expr xpr)))
+                        xpr
+                        (return #f))
+                    xpr))
                ((equal? pat (syntax-object-expr xpr)) '())
                (else (return #f))))
        

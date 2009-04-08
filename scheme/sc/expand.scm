@@ -154,9 +154,25 @@
              (cons (car cur) (loop (cdr cur))))
             (else (list cur)))))
 
+  (define (splice-begin body)
+    (define (begin? x)
+      (and (syntax-pair? x)
+           (eq? (syntax-object-expr
+                 (syntax-car x))
+                'begin)))
+    (fold-right (lambda (x y)
+                  (if (begin? x)
+                      (append (splice-begin
+                               (syntax->list
+                                (syntax-cdr x)))
+                              y)
+                      (cons x y)))
+               '() body))
+
   (define (exp-lambda x r mr)
     (define (expand-lambda varlist new-vars body)
-      (let* ((defines (scan-defines body))
+      (let* ((body (splice-begin body))
+             (defines (scan-defines body))
              (new-defines (gen-names defines))
              (env-vars (append varlist defines))
              (labels (gen-labels env-vars))

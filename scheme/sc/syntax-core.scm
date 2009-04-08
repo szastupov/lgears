@@ -44,6 +44,7 @@
           syntax-caddr
           syntax-null?
           syntax->list
+          syntax->pair
           syntax-length
           top-marked?
           top-mark
@@ -130,6 +131,15 @@
         '()
         (cons (syntax-car x)
               (syntax->list (syntax-cdr x)))))
+
+  ;; Same as syntax->list but convert to improper list
+  (define (syntax->pair x)
+    (cond ((syntax-null? x)
+          '())
+          ((syntax-pair? x)
+           (cons (syntax-car x)
+                 (syntax->pair (syntax-cdr x))))
+          (else x)))
 
   (define (syntax-length x)
     (length (syntax->list x)))

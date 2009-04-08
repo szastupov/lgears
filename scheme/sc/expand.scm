@@ -79,6 +79,14 @@
   (define-syntax syntax-match
     (lambda (x)
       ;; Extract variables from pattern
+      (define (append* l r)
+        (let loop ((l l))
+          (cond ((null? l) r)
+                ((pair? l)
+                 (cons (car l) (loop (cdr l))))
+                (else
+                 (cons l r)))))
+
       (define (get-vars v)
         (cond ((null? v) '())
               ((pair? v)
@@ -86,7 +94,7 @@
                      (r (get-vars (cdr v))))
                  (if l
                      (if (pair? l)
-                         (append l r)
+                         (append* l r)
                          (cons l r))
                      r)))
               ((eq? v '_) #f)
@@ -136,22 +144,44 @@
   (define (gen-labels lst)
     (map (lambda (x) (make-label)) lst))
 
+  (define (improper->propper pair)
+    (let loop ((cur pair))
+      (cond ((pair? cur)
+             (cons (car cur) (loop (cdr cur))))
+            (else (list cur)))))
+
   (define (exp-lambda x r mr)
-    (syntax-match
-     x ()
-     ((lambda (varlist ...) body ...)
-      (let* ((new-vars (gen-names varlist))
-             (defines (scan-defines body))
+    (define (expand-lambda varlist new-vars body)
+      (let* ((defines (scan-defines body))
              (new-defines (gen-names defines))
              (env-vars (append varlist defines))
              (labels (gen-labels env-vars))
              (env (make-lambda-env
                    r labels (append new-vars new-defines))))
+        (exp-dispatch (fold-left (lambda (xpr id label)
+                                   (add-subst id label xpr))
+                                 body env-vars labels)
+                      env mr)))
+
+    (syntax-match
+     x ()
+     ((lambda (varlist ...) body ...)
+      (let ((new-vars (gen-names varlist)))
         `(lambda ,new-vars
-           ,@(exp-dispatch (fold-left (lambda (xpr id label)
-                                        (add-subst id label xpr))
-                                      body env-vars labels)
-                           env mr))))))
+           ,@(expand-lambda varlist new-vars body))))
+     
+     ((lambda (v1 . rem) body ...)
+      (let* ((varlist (improper->propper
+                       (cons v1 (syntax->pair rem))))
+             (new-vars (gen-names varlist)))
+        `(lambda ,(apply cons* new-vars)
+           ,@(expand-lambda varlist new-vars body))))
+     
+     ((lambda var body ...)
+      (let* ((varlist (list var))
+             (new-vars (gen-names varlist)))
+        `(lambda ,@new-vars
+           ,@(expand-lambda varlist new-vars body))))))
 
   (define (exp-define x r mr)
     (syntax-match

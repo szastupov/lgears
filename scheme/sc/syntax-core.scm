@@ -150,7 +150,8 @@
     (and (not (null? wrap))
          (or (eq? (car wrap) top-mark)
              (top-marked? (cdr wrap)))))
-    (define (self-evaluating? x)
+  
+  (define (self-evaluating? x)
     (not (or (pair? x)
              (syntax-object? x))))
 

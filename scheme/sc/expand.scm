@@ -32,20 +32,20 @@
                    (syntax-object-wrap xm)
                    (p xm)))))
 
-  (define (exp-core p x r mr)
-    (p x r mr))
+  (define (exp-core p x r)
+    (p x r))
 
-  (define (exp-exprs x* r mr)
+  (define (exp-exprs x* r)
     (map (lambda (x)
-           (exp-dispatch x r mr))
+           (exp-dispatch x r))
          x*))
 
-  (define (exp-dispatch x r mr)
+  (define (exp-dispatch x r)
     (cond ((identifier? x)
            (cond ((id-binding x r)
                   => (lambda (b)
                        (case (binding-type b)
-                         ((macro) (exp-dispatch (exp-macro (binding-value b) x) r mr))
+                         ((macro) (exp-dispatch (exp-macro (binding-value b) x) r))
                          ((lexical)(binding-value b))
                          (else (syntax-error x "invalid syntax")))))
                  (else (strip x))))
@@ -55,18 +55,18 @@
            (cond ((id-binding (syntax-car x) r)
                   => (lambda (b)
                        (case (binding-type b)
-                         ((macro) (exp-dispatch (exp-macro (binding-value b) x) r mr))
+                         ((macro) (exp-dispatch (exp-macro (binding-value b) x) r))
                          ((lexical)
                           `(,(binding-value b)
-                            ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))
-                         ((core) (exp-core (binding-value b) x r mr))
+                            ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))
+                         ((core) (exp-core (binding-value b) x r))
                          (else (syntax-error x "invalid syntax")))))
                  (else
                   `(,(strip (syntax-car x))
-                    ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
+                    ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
           (else
-           `(,(exp-dispatch (syntax-car x) r mr)
-             ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
+           `(,(exp-dispatch (syntax-car x) r)
+             ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
 
   (define (syntax-dispatch x reserved . rules)
     (let loop ((rules rules))
@@ -119,22 +119,17 @@
                                    ,(cadr f))))
                         fields*)))))))
 
-  (define (exp-quote x r mr)
+  (define (exp-quote x r)
     (syntax-match
      x ()
      ((quote a) `(quote ,(strip a)))))
 
-  (define (make-lambda-env env labels new-vars)
-    (fold-left (lambda (prev l v)
-                 (extend-env l (make-binding 'lexical v) prev))
-               env labels new-vars))
-
   (define (scan-defines body)
-    (let ((defines (filter (lambda (x)
-                             (and (syntax-pair? x)
-                                  (eq? (syntax-object-expr (syntax-car x))
-                                       'define)))
-                           body)))
+    (define (define? x)
+      (and (syntax-pair? x)
+           (eq? (syntax-object-expr (syntax-car x))
+                'define)))
+    (let ((defines (filter define? body)))
       (map (lambda (x)
              (let ((head (syntax-cadr x)))
                (if (syntax-pair? head)
@@ -171,7 +166,12 @@
                       (cons x y)))
                '() body))
 
-  (define (exp-lambda x r mr)
+  (define (make-lambda-env env labels new-vars)
+    (fold-left (lambda (prev l v)
+                 (extend-env l (make-binding 'lexical v) prev))
+               env labels new-vars))
+
+  (define (exp-lambda x r)
     (define (expand-lambda varlist new-vars body)
       (let* ((body (splice-begin body))
              (defines (scan-defines body))
@@ -183,7 +183,7 @@
         (exp-dispatch (fold-left (lambda (xpr id label)
                                    (add-subst id label xpr))
                                  body env-vars labels)
-                      env mr)))
+                      env)))
 
     (syntax-match
      x ()
@@ -205,48 +205,48 @@
         `(lambda ,@new-vars
            ,@(expand-lambda varlist new-vars body))))))
 
-  (define (exp-define x r mr)
+  (define (exp-define x r)
     (syntax-match
       x ()
       ((define (var args ...) body ...)
-       `(define ,(exp-dispatch var r mr)
+       `(define ,(exp-dispatch var r)
           ,(exp-dispatch (extend-wrap
                            (syntax-object-wrap x)
                            `(lambda ,args
                               ,@body))
-                         r mr)))
+                         r)))
       ((define var val)
-       `(define ,(exp-dispatch var r mr)
-          ,(exp-dispatch val r mr)))
+       `(define ,(exp-dispatch var r)
+          ,(exp-dispatch val r)))
       ((define var)
-       `(define ,(exp-dispatch var r mr) (void)))))
+       `(define ,(exp-dispatch var r) (void)))))
   
-  (define (exp-if x r mr)
+  (define (exp-if x r)
     (syntax-match
      x ()
      ((if a b)
-      `(if ,(exp-dispatch a r mr)
-           ,(exp-dispatch b r mr)
+      `(if ,(exp-dispatch a r)
+           ,(exp-dispatch b r)
            (void)))
      ((if a b c)
-      `(if ,(exp-dispatch a r mr)
-           ,(exp-dispatch b r mr)
-           ,(exp-dispatch c r mr)))))
+      `(if ,(exp-dispatch a r)
+           ,(exp-dispatch b r)
+           ,(exp-dispatch c r)))))
 
-  (define (exp-set! x r mr)
+  (define (exp-set! x r)
     (syntax-match
      x ()
      ((set! a b)
-      `(set! ,(exp-dispatch a r mr)
-             ,(exp-dispatch b r mr)))))
+      `(set! ,(exp-dispatch a r)
+             ,(exp-dispatch b r)))))
 
-  (define (exp-begin x r mr)
+  (define (exp-begin x r)
     (syntax-match
      x ()
      ((begin e)
-      (exp-dispatch e r mr))
+      (exp-dispatch e r))
      ((begin body ...)
-      `(begin ,@(exp-exprs body r mr)))))
+      `(begin ,@(exp-exprs body r)))))
 
   (define (macro-or x)
     (syntax-match
@@ -331,11 +331,11 @@
 
   (define (expand x)
     (let-values (((wrap env) (initial-wrap-end-env)))
-      (exp-dispatch (make-syntax-object x wrap) env env)))
+      (exp-dispatch (make-syntax-object x wrap) env)))
 
   (define (expand-top x)
     (expand `(lambda () ,@x)))
 
-  ;(pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
-  ;(pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
+  (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
+  (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
   )

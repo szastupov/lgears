@@ -74,7 +74,7 @@
              (syntax-error x "invalid syntax, no match"))
             ((pattern-match reserved x (caar rules))
              => (lambda (res)
-                  (format #t "matched ~a = ~a\n" (caar rules) (strip res))
+                  ;(format #t "matched ~a = ~a\n" (caar rules) (strip res))
                   (apply (cdar rules)
                          (cdr (pattern-bind res (caar rules) '())))))
             (else (loop (cdr rules))))))
@@ -177,13 +177,20 @@
              (defines (scan-defines body))
              (new-defines (gen-names defines))
              (env-vars (append varlist defines))
-             (labels (gen-labels env-vars))
-             (env (make-lambda-env
-                   r labels (append new-vars new-defines))))
-        (exp-dispatch (fold-left (lambda (xpr id label)
-                                   (add-subst id label xpr))
-                                 body env-vars labels)
-                      env)))
+             (labels (gen-labels env-vars)))
+        (exp-dispatch 
+          (extend-wrap
+            (map (lambda (id label)
+                   (make-subst
+                     (syntax-object-expr id)
+                     (wrap-marks (syntax-object-wrap id))
+                     label))
+                 env-vars labels)
+            body)
+          (fold-left (lambda (prev l v)
+                       (extend-env l (make-binding 'lexical v) prev))
+                     r labels
+                     (append new-vars new-defines)))))
 
     (syntax-match
      x ()
@@ -337,5 +344,6 @@
     (expand `(lambda () ,@x)))
 
   (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
+  (newline)
   (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
   )

@@ -54,7 +54,6 @@
           extend-wrap
           join-wraps
           add-mark
-          add-subst
           extend-env
           id-binding
           id-label
@@ -192,14 +191,6 @@
 
   (define (add-mark mark x)
     (extend-wrap (list mark) x))
-
-  (define (add-subst id label x)
-    (extend-wrap
-     (list (make-subst
-            (syntax-object-expr id)
-            (wrap-marks (syntax-object-wrap id))
-            label))
-     x))
 
   (define (extend-env label binding env)
     (cons (cons label binding) env))

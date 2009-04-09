@@ -107,16 +107,18 @@
               ((eq? v '...) #f)
               ((symbol? v) v)
               (else #f)))
+
       (syntax-case x ()
-        ((_ source reserved . fields)
-         (let* ((fields* (syntax->datum #'fields)))
+        ((_ source reserved fields ...)
+         (let ((fields*  (syntax->datum #'(fields ...))))
            #`(syntax-dispatch
                 source
                 'reserved
                 #,@(map (lambda (f)
+                          (datum->syntax #'source
                           `(cons ',(car f)
                                  (lambda ,(get-vars (cdar f))
-                                   ,(cadr f))))
+                                   ,(cadr f)))))
                         fields*)))))))
 
   (define (exp-quote x r)

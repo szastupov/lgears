@@ -67,25 +67,31 @@
                               (symbol->string (cadr n))) (syntax->datum #'fields))))
            (let-values (((offsets size) (calc-offsets types)))
              #`(begin
-                 (define (#,(s+ struct-name "-size"))
+                 (define (#,(datum->syntax #'name (s+ struct-name "-size")))
                    #,size)
                  #,@(map (lambda (name type offset)
-                           #`(define (#,(s+ struct-name "-" name) st)
-                               (#,(car type) st #,offset)))
+                           (datum->syntax 
+                             #'name 
+                             `(define (,(s+ struct-name "-" name) st)
+                                (,(car type) st ,offset))))
                          names types offsets)
                  #,@(map (lambda (name type offset)
-                           #`(define (#,(s+ struct-name "-" name "-set!") st val)
-                               (#,(cadr type) st #,offset val)))
+                           (datum->syntax
+                             #'name
+                           `(define (,(s+ struct-name "-" name "-set!") st val)
+                               (,(cadr type) st ,offset val))))
                          names types offsets)
 
                  (define setters
                    (vector
                      #,@(map (lambda (name)
-                               #`(lambda (vec val)
-                                   (#,(s+ struct-name "-" name "-set!") vec val)))
+                               (datum->syntax
+                                 #'name
+                               `(lambda (vec val)
+                                   (,(s+ struct-name "-" name "-set!") vec val))))
                              names)))
 
-                 (define (#,(s+ "make-" struct-name) . args)
+                 (define (#,(datum->syntax #'name (s+ "make-" struct-name)) . args)
                    (let ((bv (make-bytevector #,size)))
                      (fold-left (lambda (idx arg)
                                   ((vector-ref setters idx) bv arg)

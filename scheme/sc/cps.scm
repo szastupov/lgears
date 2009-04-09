@@ -210,10 +210,8 @@
                        rest (reverse defines))))))
 
   (define (cps-convert source)
-    (let ((res (convert-body source '__exit)))
-      (if (pair? (car res))
-        res
-        (list res))))
+    (let ((res (convert-lambda source)))
+      (list res '__exit)))
 
   ;(pretty-print (cps-convert '(
                                ;(set! foo (lambda (x y) (x y)))

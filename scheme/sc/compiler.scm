@@ -286,8 +286,9 @@
 
   (define (compile-ilr-file in)
     (start-compile
+     (list
       (cps-convert
-        (expand (read-source in)))))
+       (expand-top (read-source in))))))
 
   (define (compile-file in out)
     (assemble (compile-ilr-file in)

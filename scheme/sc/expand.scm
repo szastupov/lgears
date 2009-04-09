@@ -16,7 +16,7 @@
  |#
 
 (library (sc expand)
-  (export expand)
+  (export expand expand-top)
   (import (except (rnrs) identifier? ...)
           (rnrs eval)
           (format)
@@ -61,7 +61,9 @@
                             ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))
                          ((core) (exp-core (binding-value b) x r mr))
                          (else (syntax-error x "invalid syntax")))))
-                 (else (strip x))))
+                 (else
+                  `(,(strip (syntax-car x))
+                    ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
           (else
            `(,(exp-dispatch (syntax-car x) r mr)
              ,@(exp-exprs (syntax->list (syntax-cdr x)) r mr)))))
@@ -330,6 +332,9 @@
   (define (expand x)
     (let-values (((wrap env) (initial-wrap-end-env)))
       (exp-dispatch (make-syntax-object x wrap) env env)))
+
+  (define (expand-top x)
+    (expand `(lambda () ,@x)))
 
   ;(pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
   ;(pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))

@@ -7,5 +7,5 @@
           (only (core) pretty-print)) ; This works only for ypsilon
 
   (define (expand-file file)
-    (expand (read-source file)))
+    (expand-top (read-source file)))
   )

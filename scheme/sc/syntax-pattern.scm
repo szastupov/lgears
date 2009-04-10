@@ -16,7 +16,7 @@
  |#
 
 (library (sc syntax-pattern)
-  (export pattern-match pattern-bind)
+  (export pattern-match pattern-bind pattern-bind-named)
   (import (rnrs base)
           (rnrs lists)
           (format)
@@ -57,8 +57,7 @@
                   (if (pair? (car pat))
                       elm
                       (list elm))))
-               ((or (syntax-null? xpr)
-                    (null? pat))
+               ((null? pat)
                 (if (and (syntax-null? xpr)
                          (null? pat))
                     '()
@@ -91,4 +90,18 @@
           ((symbol? pat)
            (cons xpr vars))
           (else vars)))
+
+  (define (pattern-bind-named xpr pat vars)
+    (cond ((ellipsis-pair? pat)
+           (append xpr vars))
+          ((pair? pat)
+           (pattern-bind-named
+            (car xpr) (car pat)
+            (pattern-bind-named (cdr xpr) (cdr pat) vars)))
+          ((eq? pat '_) vars)
+          ((symbol? pat)
+           (cons (cons pat xpr)
+                 vars))
+          (else vars)))
+  
   )

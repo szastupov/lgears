@@ -16,7 +16,7 @@
  |#
 
 (library (sc expand)
-  (export expand expand-top)
+  (export expand expand-top sc-dispatch)
   (import (except (rnrs) identifier? ...)
           (rnrs eval)
           (format)
@@ -77,6 +77,21 @@
                   ;(format #t "matched ~a = ~a\n" (caar rules) (strip res))
                   (apply (cdar rules)
                          (cdr (pattern-bind res (caar rules) '())))))
+            (else (loop (cdr rules))))))
+
+  (define (sc-dispatch x reserved . rules)
+    (let loop ((rules rules))
+      (cond ((null? rules)
+             (syntax-error x "invalid syntax, no match"))
+            ((pattern-match reserved x (caar rules))
+             => (lambda (matched)
+                  (let ((res ((cdar rules)))
+                        (bind (pattern-bind-named
+                               matched (caar rules) '())))
+                    (if (syntax-object? res)
+                        ;;;TODO create substitutions and expand output
+                        (format #t "~a\n" (strip bind))
+                        (syntax-error res "raw expander output")))))
             (else (loop (cdr rules))))))
 
   ;; Simplified version of syntax case. We need it to bootstrap, when
@@ -168,31 +183,58 @@
                       (cons x y)))
                '() body))
 
-  (define (make-lambda-env env labels new-vars)
-    (fold-left (lambda (prev l v)
-                 (extend-env l (make-binding 'lexical v) prev))
-               env labels new-vars))
+  (define (extend-syntax env body)
+    (define (define-syntax? x)
+        (and (syntax-pair? x)
+             (eq? (syntax-object-expr (syntax-car x))
+                  'define-syntax)))
+    (define (make-macro macro)
+      (syntax-match
+       macro ()
+       ((define-syntax name expander)
+        (list (strip name)
+              name
+              (eval (exp-dispatch expander env)
+                    (environment '(rnrs)
+                                 '(sc expand)))))))
+    (let-values (((macro* expr*) (partition define-syntax? body)))
+      (let* ((compiled (map make-macro macro*))
+             (labels (gen-labels compiled)))
+        (values
+         (extend-wrap
+          (map (lambda (macro label)
+                 (make-subst
+                  (car macro)
+                  (wrap-marks (syntax-object-wrap (cadr macro)))
+                  label))
+               compiled labels)
+          expr*)
+         (fold-left (lambda (prev l macro)
+                      (extend-env
+                       l (make-binding 'macro (caddr macro))
+                       prev))
+                    env labels compiled)))))
 
   (define (exp-lambda x r)
     (define (expand-lambda varlist new-vars body)
-      (let* ((body (splice-begin body))
-             (defines (scan-defines body))
-             (new-defines (gen-names defines))
-             (env-vars (append varlist defines))
-             (labels (gen-labels env-vars)))
-        (exp-dispatch 
-          (extend-wrap
+      (let-values (((body env) (extend-syntax r (splice-begin body))))
+        (let* ((defines (scan-defines body))
+               (new-defines (gen-names defines))
+               (env-vars (append varlist defines))
+               (labels (gen-labels env-vars)))
+          (exp-dispatch 
+           (extend-wrap
             (map (lambda (id label)
                    (make-subst
-                     (syntax-object-expr id)
-                     (wrap-marks (syntax-object-wrap id))
-                     label))
+                    (syntax-object-expr id)
+                    (wrap-marks (syntax-object-wrap id))
+                    label))
                  env-vars labels)
             body)
-          (fold-left (lambda (prev l v)
-                       (extend-env l (make-binding 'lexical v) prev))
-                     r labels
-                     (append new-vars new-defines)))))
+           (fold-left (lambda (prev l v)
+                        (extend-env l (make-binding 'lexical v) prev))
+                      env labels
+                      (append new-vars new-defines))))))
 
     (syntax-match
      x ()
@@ -257,6 +299,11 @@
      ((begin body ...)
       `(begin ,@(exp-exprs body r)))))
 
+  (define (exp-syntax x r)
+    (syntax-match
+     x ()
+     ((syntax e) `(quote ,e))))
+
   (define (macro-or x)
     (syntax-match
      x ()
@@ -316,6 +363,18 @@
            (begin ,result1 ,@result2)
            (cond ,clause1 ,@clause2)))))
 
+  (define (macro-syntax-case x)
+    (syntax-match
+     x ()
+     ((syntax-case src reserved (pat* acc*) ...)
+      `(sc-dispatch
+        ,src
+        ',reserved
+        ,@(map (lambda (pat acc)
+                 `(cons ',pat
+                        (lambda () ,acc)))
+               pat* acc*)))))
+
   (define (initial-wrap-end-env)
     (define bindings
       `((quote . ,(make-binding 'core exp-quote))
@@ -324,10 +383,12 @@
         (if . ,(make-binding 'core exp-if))
         (set! . ,(make-binding 'core exp-set!))
         (begin . ,(make-binding 'core exp-begin))
+        (syntax . ,(make-binding 'core exp-syntax))
         (let . ,(make-binding 'macro macro-let))
         (or . ,(make-binding 'macro macro-or))
         (and . ,(make-binding 'macro macro-and))
         (cond . ,(make-binding 'macro macro-cond))
+        (syntax-case . ,(make-binding 'macro macro-syntax-case))
         ))
     (let ((labels (gen-labels bindings)))
       (values
@@ -345,7 +406,7 @@
   (define (expand-top x)
     (expand `(lambda () ,@x)))
 
-  (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
-  (newline)
-  (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
+;;;   (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
+;;;   (newline)
+;;;   (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
   )

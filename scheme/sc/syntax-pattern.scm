@@ -91,9 +91,12 @@
            (cons xpr vars))
           (else vars)))
 
+  (define (bind-ellipsis-named xpr pat vars)
+    (cons (cons (car pat) xpr) vars))
+
   (define (pattern-bind-named xpr pat vars)
     (cond ((ellipsis-pair? pat)
-           (append xpr vars))
+           (bind-ellipsis-named xpr pat vars))
           ((pair? pat)
            (pattern-bind-named
             (car xpr) (car pat)

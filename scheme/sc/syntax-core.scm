@@ -62,17 +62,16 @@
   (import (except (rnrs) identifier?)
           (rnrs eval)
           (format)
+          (define-structure)
           (sc gen-name))
 
-  (define-record-type syntax-object
-    (fields expr wrap))
+  (define-structure syntax-object expr wrap)
 
-  (define-record-type mark)
+  (define-structure mark)
 
-  (define-record-type subst
-    (fields sym mark* label))
+  (define-structure subst sym mark* label)
 
-  (define-record-type label)
+  (define-structure label)
 
   (define make-binding cons)
   (define binding-type car)

@@ -1,27 +1,82 @@
-(include "base.scm")
-#|
-(define (range from to)
-  (let loop ((step to)
-             (res '()))
-    (if (< step from)
-      res
-      (loop (- step 1) (cons step res)))))
-(display (range 1 100))
+(define-syntax or
+  (lambda (x)
+    (syntax-case x ()
+      ((_) #'#f)
+      ((_ a) #'a)
+      ((_ a b ...)
+       #'(let ((t a))
+           (if t t (or b ...)))))))
 
-(define (even? x)
-  (= (mod x 2) 0))
-(define (problem-2 lim)
-  (define (loop n p r sum)
-    (if (> r lim)
-      sum
-      (loop (+ 1 n) r (+ r p)
-            (if (even? r)
-              (+ sum r)
-              sum))))
-  (loop 2 1 1 0))
+(define-syntax and
+  (lambda (x)
+    (syntax-case x ()
+      ((_) #'#t)
+      ((_ a) #'a)
+      ((_ a b ...)
+       #'(if a (and b ...) #f)))))
 
-(display (problem-2 120))
-|#
+(define-syntax let
+  (lambda (x)
+    (syntax-case x ()
+      ((_ ((vars vals) ...) e1 e2 ...)
+       #'((lambda (vars ...)
+            e1 e2 ...)
+          vals ...))
+      ((_ loop ((vars vals) ...) e1 e2 ...)
+       #'(let ((loop 'unspec))
+           (set! loop (lambda (vars ...)
+                        e1 e2 ...))
+           (loop vals ...))))))
 
-(assert (= 1 2))
-(display "ok")
+(define-syntax cond
+  (lambda (x)
+    (syntax-case x (else =>)
+      ((cond (else result1 result2 ...))
+       #'(begin result1 result2 ...))
+      ((cond (test => result))
+       #'(let ((temp test))
+           (if temp (result temp))))
+      ((cond (test => result) clause1 clause2 ...)
+       #'(let ((temp test))
+           (if temp
+               (result temp)
+               (cond clause1 clause2 ...))))
+      ((cond (test)) #'test)
+      ((cond (test) clause1 clause2 ...)
+       #'(let ((temp test))
+           (if temp
+               temp
+               (cond clause1 clause2 ...))))
+      ((cond (test result1 result2 ...))
+       #'(if test (begin result1 result2 ...)))
+      ((cond (test result1 result2 ...)
+             clause1 clause2 ...)
+       #'(if test
+             (begin result1 result2 ...)
+             (cond clause1 clause2 ...))))))
+
+(define-syntax when
+  (lambda (x)
+    (syntax-case x ()
+      ((_ test e1 e2 ...) #'(if test (begin e1 e2 ...))))))
+
+(define-syntax unless
+  (lambda (x)
+    (syntax-case x ()
+      ((_ test e1 e2 ...) #'(if (not test) (begin e1 e2 ...))))))
+
+(define-syntax with-syntax
+  (lambda (x)
+    (syntax-case x ()
+      ((_ () e1 e2 ...)
+       (syntax (begin e1 e2 ...)))
+      ((_ ((out in)) e1 e2 ...)
+       (syntax (syntax-case in () (out (begin e1 e2 ...)))))
+      ((_ ((out in) ...) e1 e2 ...)
+       (syntax (syntax-case (list in ...) ()
+                 ((out ...) (begin e1 e2 ...))))))))
+
+
+(cond ((and foo bar) 'test 'ttt)
+      ((bar? x) => (lambda (x) (cdr x)))
+      (else 'fuck))

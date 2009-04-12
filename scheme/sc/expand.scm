@@ -16,7 +16,7 @@
  |#
 
 (library (sc expand)
-  (export expand expand-top sc-dispatch gen-syntax)
+  (export expand expand-top sc-dispatch gen-syntax syntax-error)
   (import (except (rnrs) identifier? ...)
           (rnrs eval)
           (format)
@@ -61,7 +61,7 @@
                             ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))
                          ((core) (exp-core (binding-value b) x r))
                          (else (syntax-error x "invalid syntax")))))
-                 (else (format #t "1 ~a not found\n" (strip x))
+                 (else
                   `(,(strip (syntax-car x))
                     ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
           (else
@@ -80,8 +80,15 @@
             (else (loop (cdr rules))))))
 
   (define (gen-syntax vars stx)
+    (define (ellipsis-pair? x)
+      (and (pair? x)
+           (pair? (cdr x))
+           (eq? (cadr x) '...)))
     (let rewrite ((stx stx))
-      (cond ((pair? stx)
+      (cond ((ellipsis-pair? stx)
+             (cond ((assq (car stx) vars) => cdr)
+                   (else (syntax-error stx "ellipsis after non-patern"))))
+            ((pair? stx)
              (cons (rewrite (car stx))
                    (rewrite (cdr stx))))
             ((symbol? stx)
@@ -98,7 +105,7 @@
                   (let* ((bind (pattern-bind-named
                                 matched (caar rules) '()))
                          (res ((cdar rules) bind)))
-                    (format #t "bind ~a\n" (strip bind))
+                    ;(format #t "bind ~a\n" (strip bind))
                     res)))
             (else (loop (cdr rules))))))
 
@@ -334,65 +341,6 @@
                           ,(exp-dispatch acc r))))
                pat* acc*)))))
 
-  (define (macro-or x)
-    (syntax-match
-     x ()
-     ((or) #f)
-     ((or a) a)
-     ((or a b ...)
-      (if (or (identifier? a)
-              (self-evaluating? (strip a)))
-          `(if ,a ,a (or ,@b))
-      `(let ((t ,a))
-         (if t t (or ,@b)))))))
-
-  (define (macro-and x)
-    (syntax-match
-     x ()
-     ((and) #t)
-     ((and a) a)
-     ((and a b ...)
-      `(if ,a (and ,@b)))))
-  
-  (define (macro-let x)
-    (syntax-match
-     x ()
-     ((let ((vars vals) ...) e1 e2 ...)
-      `((lambda ,vars
-          ,e1 ,@e2)
-        ,@vals))
-     ((let loop ((vars vals) ...) e1 e2 ...)
-      `(let ((,loop 'unspec))
-         (set! ,loop (lambda ,vars ,e1 ,@e2))
-         (,loop ,@vals)))))
-
-  (define (macro-cond x)
-    (syntax-match
-     x (else =>)
-     ((cond (else res1 res2 ...))
-      `(begin ,res1 ,@res2))
-     ((cond (test => result))
-      `(let ((tmp ,test))
-         (if tmp (,result tmp))))
-     ((cond (test => result) clause1 clause2 ...)
-      `(let ((tmp ,test))
-         (if tmp
-             (,result tmp)
-             (cond ,clause1 ,@clause2))))
-     ((cond (test)) test)
-     ((cond (test) clause1 clause2 ...)
-      `(let ((tmp ,test))
-         (if tmp
-             tmp
-             (cond ,clause1 ,@clause2))))
-     ((cond (test result1 result2 ...))
-      `(if ,test (begin ,result1 ,@result2)))
-     ((cond (test result1 result2 ...)
-            clause1 clause2 ...)
-      `(if ,test
-           (begin ,result1 ,@result2)
-           (cond ,clause1 ,@clause2)))))
-
   (define (initial-wrap-end-env)
     (define bindings
       `((quote . ,(make-binding 'core exp-quote))
@@ -402,10 +350,6 @@
         (set! . ,(make-binding 'core exp-set!))
         (begin . ,(make-binding 'core exp-begin))
         (syntax . ,(make-binding 'core exp-syntax))
-        (let . ,(make-binding 'macro macro-let))
-        (or . ,(make-binding 'macro macro-or))
-        (and . ,(make-binding 'macro macro-and))
-        (cond . ,(make-binding 'macro macro-cond))
         (syntax-case . ,(make-binding 'core exp-syntax-case))
         ))
     (let ((labels (gen-labels bindings)))
@@ -424,7 +368,4 @@
   (define (expand-top x)
     (expand `(lambda () ,@x)))
 
-;;;   (pretty-print (expand '(let iter ((t 12) (a 40)) (or (t a) 10 (iter 12)))))
-;;;   (newline)
-;;;   (pretty-print (expand '(lambda (x y) (define foo) (define (bar x) (y x)))))
   )

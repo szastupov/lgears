@@ -122,7 +122,8 @@
     (syntax-car (syntax-cddr x)))
 
   (define (syntax-null? x)
-    (null? (syntax-object-expr x)))
+    (and (syntax-object? x)
+         (null? (syntax-object-expr x))))
 
   (define (syntax->list x)
     (if (syntax-null? x)

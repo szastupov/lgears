@@ -92,7 +92,11 @@
           (else vars)))
 
   (define (bind-ellipsis-named xpr pat vars)
-    (cons (cons (car pat) xpr) vars))
+    (if (pair? (car pat))
+        (pattern-bind-named (car xpr) (caar pat)
+                            (pattern-bind-named (cdr xpr) (cdar pat) vars))
+        (cons (cons (car pat) (car xpr)) ; FIXME (car xpr) -> xpr
+              vars)))
 
   (define (pattern-bind-named xpr pat vars)
     (cond ((ellipsis-pair? pat)

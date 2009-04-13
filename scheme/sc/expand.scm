@@ -16,7 +16,8 @@
  |#
 
 (library (sc expand)
-  (export expand expand-top sc-dispatch gen-syntax syntax-error)
+  (export expand expand-top sc-dispatch gen-syntax syntax-error
+          (rename (strip syntax->datum)))
   (import (except (rnrs) identifier? ...)
           (rnrs eval)
           (format)
@@ -213,7 +214,7 @@
               (eval (exp-dispatch
                      expander
                      env)
-                    (environment '(rnrs)
+                    (environment '(except (rnrs) syntax->datum)
                                  '(sc expand)))))))
     
     (let-values (((macro* expr*) (partition define-syntax? body)))

@@ -16,10 +16,12 @@
  |#
 
 (library (sc expand)
-  (export expand expand-top sc-dispatch gen-syntax syntax-error
-          (rename (strip syntax->datum)))
-  (import (except (rnrs) identifier? ...)
-          (rnrs eval)
+  (export expand expand-top sc-dispatch gen-syntax syntax-error)
+  (import (rnrs eval)
+          (rename (rnrs)
+                  (identifier? sys-identifier?)
+                  (syntax->datum sys-syntax->datum)
+                  (datum->syntax sys-datum->syntax))
           (format)
           (sc gen-name)
           (sc syntax-core)
@@ -70,15 +72,15 @@
              ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
 
   (define (syntax-dispatch x reserved . rules)
-    (let loop ((rules rules))
-      (cond ((null? rules)
-             (syntax-error x "invalid syntax, no match"))
-            ((pattern-match reserved x (caar rules))
+    (let loop ((rule rules))
+      (cond ((null? rule)
+             (syntax-error x "invalid syntax, no match, variants" rules))
+            ((pattern-match reserved x (caar rule))
              => (lambda (res)
-                  ;(format #t "matched ~a = ~a\n" (caar rules) (strip res))
-                  (apply (cdar rules)
-                         (cdr (pattern-bind res (caar rules) '())))))
-            (else (loop (cdr rules))))))
+                  ;(format #t "matched ~a = ~a\n" (caar rule) (strip res))
+                  (apply (cdar rule)
+                         (cdr (pattern-bind res (caar rule) '())))))
+            (else (loop (cdr rule))))))
 
   (define (gen-syntax vars stx)
     (define (ellipsis-pair? x)
@@ -87,7 +89,12 @@
            (eq? (cadr x) '...)))
     (let rewrite ((stx stx))
       (cond ((ellipsis-pair? stx)
-             (cond ((assq (car stx) vars) => cdr)
+             (cond ((assq (car stx) vars)
+                    => (lambda (res)
+                         (if (and (= (length (cdr res)) 1)
+                                  (eq? (cadr res) '()))
+                             '()
+                             (cdr res))))
                    (else (syntax-error stx "ellipsis after non-patern"))))
             ((pair? stx)
              (cons (rewrite (car stx))
@@ -98,17 +105,17 @@
             (else stx))))
 
   (define (sc-dispatch x reserved . rules)
-    (let loop ((rules rules))
-      (cond ((null? rules)
-             (syntax-error x "invalid syntax, no match"))
-            ((pattern-match reserved x (caar rules))
+    (let loop ((rule rules))
+      (cond ((null? rule)
+             (syntax-error
+              x (format "invalid syntax, no match, variants ~a" rules)))
+            ((pattern-match reserved x (caar rule))
              => (lambda (matched)
                   (let* ((bind (pattern-bind-named
-                                matched (caar rules) '()))
-                         (res ((cdar rules) bind)))
-                    ;(format #t "bind ~a\n" (strip bind))
-                    res)))
-            (else (loop (cdr rules))))))
+                                matched (caar rule) '())))
+                    (format #t "bind ~a\n" (strip bind))
+                    ((cdar rule) bind))))
+            (else (loop (cdr rule))))))
 
   ;; Simplified version of syntax case. We need it to bootstrap, when
   ;; lgears will be able to compile itself, the code using
@@ -141,12 +148,12 @@
 
       (syntax-case x ()
         ((_ source reserved fields ...)
-         (let ((fields*  (syntax->datum #'(fields ...))))
+         (let ((fields*  (sys-syntax->datum #'(fields ...))))
            #`(syntax-dispatch
                 source
                 'reserved
                 #,@(map (lambda (f)
-                          (datum->syntax #'source
+                          (sys-datum->syntax #'source
                           `(cons ',(car f)
                                  (lambda ,(get-vars (cdar f))
                                    ,(cadr f)))))
@@ -214,8 +221,10 @@
               (eval (exp-dispatch
                      expander
                      env)
-                    (environment '(except (rnrs) syntax->datum)
-                                 '(sc expand)))))))
+                    (environment '(except (rnrs) syntax->datum
+                                          identifier? datum->syntax)
+                                 '(sc expand)
+                                 '(sc syntax-core)))))))
     
     (let-values (((macro* expr*) (partition define-syntax? body)))
       (let* ((compiled (map make-macro macro*)))

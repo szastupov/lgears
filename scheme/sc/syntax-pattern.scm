@@ -91,12 +91,23 @@
            (cons xpr vars))
           (else vars)))
 
+  (define (bind-null-ellipsis pat vars)
+    (if (and (pair? pat)
+             (pair? (car pat)))
+        (fold-left (lambda (prev x)
+                     (bind-null-ellipsis x prev))
+                   vars (car pat))
+        (cons `(,pat ()) vars)))
+                            
+
   (define (bind-ellipsis-named xpr pat vars)
-    (if (pair? (car pat))
-        (pattern-bind-named (car xpr) (caar pat)
-                            (pattern-bind-named (cdr xpr) (cdar pat) vars))
-        (cons (cons (car pat) (car xpr)) ; FIXME (car xpr) -> xpr
-              vars)))
+    (cond ((null? xpr)
+           (bind-null-ellipsis pat vars))
+          ((pair? (car pat))
+           (pattern-bind-named
+            (car xpr) (caar pat)
+            (pattern-bind-named (cdr xpr) (cdar pat) vars)))
+          (else (cons (cons (car pat) (car xpr)) vars))))
 
   (define (pattern-bind-named xpr pat vars)
     (cond ((ellipsis-pair? pat)

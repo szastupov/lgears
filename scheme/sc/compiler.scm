@@ -260,29 +260,15 @@
                   (reverse (store-head string-store))
                   (cadar entry-point)))))
 
-  (define (parse-includes src)
-    (let loop ((prev '())
-               (cur (reverse src)))
-      (if (null? cur)
-        prev
-        (loop (let ((x (car cur)))
-                (if (and (pair? x)
-                         (eq? (car x) 'include))
-                  (append (read-source (cadr x))
-                          prev)
-                  (cons x prev)))
-              (cdr cur)))))
-
   (define (read-source file)
-    (parse-includes
-      (call-with-port
-        (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder))
-        (lambda (port)
-          (let loop ((res '())
-                     (datum (get-datum port)))
-            (if (eof-object? datum)
-              (reverse res)
-              (loop (cons datum res) (get-datum port))))))))
+    (call-with-port
+     (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder))
+     (lambda (port)
+       (let loop ((res '())
+                  (datum (get-datum port)))
+         (if (eof-object? datum)
+             (reverse res)
+             (loop (cons datum res) (get-datum port)))))))
 
   (define (compile-ilr-file in)
     (start-compile

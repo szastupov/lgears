@@ -55,15 +55,6 @@
              (begin result1 result2 ...)
              (cond clause1 clause2 ...))))))
 
-(define-syntax when
-  (lambda (x)
-    (syntax-case x ()
-      ((_ test e1 e2 ...) #'(if test (begin e1 e2 ...))))))
-
-(define-syntax unless
-  (lambda (x)
-    (syntax-case x ()
-      ((_ test e1 e2 ...) #'(if (not test) (begin e1 e2 ...))))))
 
 (define-syntax with-syntax
   (lambda (x)
@@ -75,8 +66,27 @@
       ((_ ((out in) ...) e1 e2 ...)
        (syntax (syntax-case (list in ...) ()
                  ((out ...) (begin e1 e2 ...))))))))
+(lambda (FF)
 
+(define-syntax include
+  (lambda (x)
+    (define read-file
+      (lambda (fn k)
+        (let ((p (open-input-file fn)))
+          (let f ()
+            (let ((x (read p)))
+              (if (eof-object? x)
+                  (begin (close-input-port p) '())
+                  (cons (datum->syntax k x) (f))))))))
+    (syntax-case x ()
+      ((k filename)
+       (let ((fn (syntax->datum (syntax filename))))
+         (with-syntax (((exp ...) (read-file fn (syntax k))))
+           (syntax (begin exp ...))))))))
 
-(cond ((and foo bar) 'test 'ttt)
-      ((bar? x) => (lambda (x) (cdr x)))
-      (else 'fuck))
+(include "../coreforms.scm")
+
+(unless (or a b c)
+  (display x)
+  (display y))
+)

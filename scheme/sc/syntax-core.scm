@@ -33,6 +33,8 @@
           binding-type
           binding-value
           strip
+          syntax->datum
+          datum->syntax
           syntax-error
           identifier?
           free-identifier?
@@ -59,7 +61,8 @@
           id-label
           label-binding
           )
-  (import (except (rnrs) identifier?)
+  (import (rnrs base)
+          (rnrs lists)
           (rnrs eval)
           (format)
           (define-structure)
@@ -87,6 +90,11 @@
                  x
                  (cons a d))))
           (else x)))
+
+  (define syntax->datum strip)
+
+  (define (datum->syntax tmpl x)
+    (make-syntax-object x (syntax-object-wrap tmpl)))
 
   (define (syntax-error what msg)
     (error (strip what) msg))

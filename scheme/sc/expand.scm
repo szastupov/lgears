@@ -74,7 +74,8 @@
   (define (syntax-dispatch x reserved . rules)
     (let loop ((rule rules))
       (cond ((null? rule)
-             (syntax-error x "invalid syntax, no match, variants" rules))
+             (syntax-error
+              x (format "invalid syntax, no match, variants ~a" rules)))
             ((pattern-match reserved x (caar rule))
              => (lambda (res)
                   ;(format #t "matched ~a = ~a\n" (caar rule) (strip res))
@@ -346,9 +347,11 @@
         ,(exp-dispatch src r)
         ',(strip reserved)
         ,@(map (lambda (pat acc)
-                 `(cons ',(strip pat)
-                        (lambda (vars)
-                          ,(exp-dispatch acc r))))
+                 (exp-dispatch
+                  (datum->syntax x `(cons ',(strip pat)
+                                          (lambda (vars)
+                                            ,(exp-dispatch acc r))))
+                  r))
                pat* acc*)))))
 
   (define (initial-wrap-end-env)

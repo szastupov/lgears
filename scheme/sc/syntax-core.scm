@@ -107,18 +107,23 @@
     (eq? (id-label x) (id-label y)))
 
   (define (syntax-pair? x)
-    (and (syntax-object? x)
-         (pair? (syntax-object-expr x))))
+    (or (pair? x)
+        (and (syntax-object? x)
+             (pair? (syntax-object-expr x)))))
 
+  (define (syntax-pair-access proc x)
+    (cond ((pair? x) (proc x))
+          ((syntax-object? x)
+           (extend-wrap
+            (syntax-object-wrap x)
+            (proc (syntax-object-expr x))))
+          (else (syntax-error x "expected pair or syntax-pair"))))
+  
   (define (syntax-car x)
-    (extend-wrap
-     (syntax-object-wrap x)
-     (car (syntax-object-expr x))))
+    (syntax-pair-access car x))
 
   (define (syntax-cdr x)
-    (extend-wrap
-     (syntax-object-wrap x)
-     (cdr (syntax-object-expr x))))
+    (syntax-pair-access cdr x))
 
   (define (syntax-cadr x)
     (syntax-car (syntax-cdr x)))
@@ -130,8 +135,9 @@
     (syntax-car (syntax-cddr x)))
 
   (define (syntax-null? x)
-    (and (syntax-object? x)
-         (null? (syntax-object-expr x))))
+    (or (null? x)
+        (and (syntax-object? x)
+             (null? (syntax-object-expr x)))))
 
   (define (syntax->list x)
     (if (syntax-null? x)

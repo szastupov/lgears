@@ -66,7 +66,6 @@
       ((_ ((out in) ...) e1 e2 ...)
        (syntax (syntax-case (list in ...) ()
                  ((out ...) (begin e1 e2 ...))))))))
-(lambda (FF)
 
 (define-syntax include
   (lambda (x)
@@ -84,9 +83,39 @@
          (with-syntax (((exp ...) (read-file fn (syntax k))))
            (syntax (begin exp ...))))))))
 
-(include "../coreforms.scm")
 
-(unless (or a b c)
-  (display x)
-  (display y))
-)
+(lambda (FF)
+  
+  (define-syntax syntax-rules
+    (lambda (x)
+      (define (clause y)
+        (syntax-case y ()
+          (((keyword . pattern) template)
+           (syntax ((dummy . pattern) (syntax template))))
+          (((keyword . pattern) fender template)
+           (syntax ((dummy . pattern) fender (syntax template))))
+          (_ (syntax-error x))))
+      (syntax-case x ()
+        ((_ (k ...) cl ...)
+         (with-syntax (((ccl ...) (map clause #'(cl ...)))
+                       ((kl ...) #'(k ...)))
+           (syntax (lambda (x) (syntax-case x (kl ...) ccl ...))))))))
+
+  (lambda (kk)
+    (define-syntax mand
+      (syntax-rules ()
+        ((_) #t)
+        ((_ a) a)
+        ((_ a b ...) (if a (mand b ...) #f))))
+
+    (mand 1 2 3 4))
+
+  )
+
+#|
+(let f ((a 1)
+        (b 2))
+  (cond ((null? a) b)
+        ((foo? b) => (lambda (b) (+ b a)))
+        (else 'fuck)))
+|#

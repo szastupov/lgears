@@ -1,19 +1,43 @@
-(define-syntax or
+(define-syntax with-syntax
   (lambda (x)
     (syntax-case x ()
-      ((_) #'#f)
-      ((_ a) #'a)
-      ((_ a b ...)
-       #'(let ((t a))
-           (if t t (or b ...)))))))
+      ((_ () e1 e2 ...)
+       (syntax (begin e1 e2 ...)))
+      ((_ ((out in)) e1 e2 ...)
+       (syntax (syntax-case in () (out (begin e1 e2 ...)))))
+      ((_ ((out in) ...) e1 e2 ...)
+       (syntax (syntax-case (list in ...) ()
+                 ((out ...) (begin e1 e2 ...))))))))
+
+(define-syntax syntax-rules
+  (lambda (x)
+    (define (clause y)
+      (syntax-case y ()
+        (((keyword . pattern) template)
+         (syntax ((dummy . pattern) (syntax template))))
+        (((keyword . pattern) fender template)
+         (syntax ((dummy . pattern) fender (syntax template))))
+        (_ (syntax-error x))))
+    (syntax-case x ()
+      ((_ (k ...) cl ...)
+       (with-syntax (((ccl ...) (map clause #'(cl ...)))
+                     ((kl ...) #'(k ...)))
+         (syntax (lambda (x) (syntax-case x (kl ...) ccl ...))))))))
+
+(define-syntax or
+  (syntax-rules ()
+    ((_) #f)
+    ((_ a) a)
+    ((_ a b ...)
+     (let ((t a))
+       (if t t (or b ...))))))
 
 (define-syntax and
-  (lambda (x)
-    (syntax-case x ()
-      ((_) #'#t)
-      ((_ a) #'a)
-      ((_ a b ...)
-       #'(if a (and b ...) #f)))))
+  (syntax-rules ()
+    ((_) #t)
+    ((_ a) a)
+    ((_ a b ...)
+     (if a (and b ...) #f))))
 
 (define-syntax let
   (lambda (x)
@@ -29,93 +53,36 @@
            (loop vals ...))))))
 
 (define-syntax cond
-  (lambda (x)
-    (syntax-case x (else =>)
-      ((cond (else result1 result2 ...))
-       #'(begin result1 result2 ...))
-      ((cond (test => result))
-       #'(let ((temp test))
-           (if temp (result temp))))
-      ((cond (test => result) clause1 clause2 ...)
-       #'(let ((temp test))
-           (if temp
-               (result temp)
-               (cond clause1 clause2 ...))))
-      ((cond (test)) #'test)
-      ((cond (test) clause1 clause2 ...)
-       #'(let ((temp test))
-           (if temp
-               temp
-               (cond clause1 clause2 ...))))
-      ((cond (test result1 result2 ...))
-       #'(if test (begin result1 result2 ...)))
-      ((cond (test result1 result2 ...)
-             clause1 clause2 ...)
-       #'(if test
-             (begin result1 result2 ...)
-             (cond clause1 clause2 ...))))))
+  (syntax-rules (else =>)
+    ((cond (else result1 result2 ...))
+     (begin result1 result2 ...))
+    ((cond (test => result))
+     (let ((temp test))
+       (if temp (result temp))))
+    ((cond (test => result) clause1 clause2 ...)
+     (let ((temp test))
+       (if temp
+           (result temp)
+           (cond clause1 clause2 ...))))
+    ((cond (test)) test)
+    ((cond (test) clause1 clause2 ...)
+     (let ((temp test))
+       (if temp
+           temp
+           (cond clause1 clause2 ...))))
+    ((cond (test result1 result2 ...))
+     (if test (begin result1 result2 ...)))
+    ((cond (test result1 result2 ...)
+           clause1 clause2 ...)
+     (if test
+         (begin result1 result2 ...)
+         (cond clause1 clause2 ...)))))
 
+(and 1 2 3 4)
+(or 1 2 3)
 
-(define-syntax with-syntax
-  (lambda (x)
-    (syntax-case x ()
-      ((_ () e1 e2 ...)
-       (syntax (begin e1 e2 ...)))
-      ((_ ((out in)) e1 e2 ...)
-       (syntax (syntax-case in () (out (begin e1 e2 ...)))))
-      ((_ ((out in) ...) e1 e2 ...)
-       (syntax (syntax-case (list in ...) ()
-                 ((out ...) (begin e1 e2 ...))))))))
-
-(define-syntax include
-  (lambda (x)
-    (define read-file
-      (lambda (fn k)
-        (let ((p (open-input-file fn)))
-          (let f ()
-            (let ((x (read p)))
-              (if (eof-object? x)
-                  (begin (close-input-port p) '())
-                  (cons (datum->syntax k x) (f))))))))
-    (syntax-case x ()
-      ((k filename)
-       (let ((fn (syntax->datum (syntax filename))))
-         (with-syntax (((exp ...) (read-file fn (syntax k))))
-           (syntax (begin exp ...))))))))
-
-
-(lambda (FF)
-  
-  (define-syntax syntax-rules
-    (lambda (x)
-      (define (clause y)
-        (syntax-case y ()
-          (((keyword . pattern) template)
-           (syntax ((dummy . pattern) (syntax template))))
-          (((keyword . pattern) fender template)
-           (syntax ((dummy . pattern) fender (syntax template))))
-          (_ (syntax-error x))))
-      (syntax-case x ()
-        ((_ (k ...) cl ...)
-         (with-syntax (((ccl ...) (map clause #'(cl ...)))
-                       ((kl ...) #'(k ...)))
-           (syntax (lambda (x) (syntax-case x (kl ...) ccl ...))))))))
-
-  (lambda (kk)
-    (define-syntax mand
-      (syntax-rules ()
-        ((_) #t)
-        ((_ a) a)
-        ((_ a b ...) (if a (mand b ...) #f))))
-
-    (mand 1 2 3 4))
-
-  )
-
-#|
 (let f ((a 1)
         (b 2))
   (cond ((null? a) b)
         ((foo? b) => (lambda (b) (+ b a)))
         (else 'fuck)))
-|#

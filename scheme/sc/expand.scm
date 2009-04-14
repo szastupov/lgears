@@ -207,69 +207,77 @@
                       (cons x y)))
                '() body))
 
+  (define (make-macro macro env)
+    (syntax-match
+     macro ()
+     ((define-syntax name expander)
+      (cons name
+            (eval (exp-dispatch
+                   expander
+                   env)
+                  (environment '(except (rnrs) syntax->datum
+                                        syntax-case
+                                        syntax-rules
+                                        identifier? datum->syntax)
+                               '(sc expand)
+                               '(sc syntax-core)))))))
+
+  (define (compile-i body env macro*)
+    (if (null? macro*)
+        (values (syntax->list body) env)
+        (let* ((compiled (make-macro (car macro*) env))
+               (label (make-label))
+               (subst (make-subst (syntax-object-expr
+                                   (car compiled))
+                                  (wrap-marks
+                                   (syntax-object-wrap
+                                    (car compiled)))
+                                  label))
+               (binding (make-binding 'macro (cdr compiled))))
+          (compile-i (extend-wrap (list subst) body)
+                     (extend-env label binding env)
+                     (if (null? (cdr macro*))
+                         '()
+                         (map (lambda (x)
+                                (extend-wrap (list subst) x))
+                              (cdr macro*)))))))
+
   (define (extend-syntax env body)
     (define (define-syntax? x)
-        (and (syntax-pair? x)
-             (eq? (syntax-object-expr (syntax-car x))
-                  'define-syntax)))
-    
-    (define (make-macro macro)
-      (syntax-match
-       macro ()
-       ((define-syntax name expander)
-        (list (strip name)
-              name
-              (eval (exp-dispatch
-                     expander
-                     env)
-                    (environment '(except (rnrs) syntax->datum
-                                          identifier? datum->syntax)
-                                 '(sc expand)
-                                 '(sc syntax-core)))))))
-    
-    (let-values (((macro* expr*) (partition define-syntax? body)))
-      (let* ((compiled (map make-macro macro*)))
-        (values
-         expr*
-          (map (lambda (macro)
-                 (cons (car macro)
-                        (syntax-object-wrap (cadr macro))))
-               compiled)
-          (map (lambda (macro)
-                 (make-binding 'macro (caddr macro)))
-               compiled)))))
+      (and (syntax-pair? x)
+           (eq? (syntax-object-expr (syntax-car x))
+                'define-syntax)))    
+    (let-values (((macro body) (partition define-syntax? body)))
+      (compile-i body env macro)))
 
   (define (exp-lambda x env)
     (define (expand-lambda varlist new-vars body)
-      (let-values (((body macro-subst macro-bindindings)
-                          (extend-syntax env (splice-begin body))))
+      (let-values (((body env)
+                    (extend-syntax env (splice-begin body))))
         
         (let* ((defines (scan-defines body))
                (new-defines (gen-names defines))
                (env-vars (append varlist defines))
-               (lexical-bindings (map (lambda (v)
-                                        (make-binding 'lexical v))
-                                      (append new-vars new-defines)))
-               (lexical-subst (map (lambda (id)
-                                     (cons
-                                      (syntax-object-expr id)
-                                      (syntax-object-wrap id)))
-                                   env-vars))
-               (all-bindings (append macro-bindindings
-                                     lexical-bindings))
-               (all-subst (append macro-subst lexical-subst))
-               (labels (gen-labels all-bindings)))
+               (bindings (map (lambda (v)
+                                (make-binding 'lexical v))
+                              (append new-vars new-defines)))
+               (subst (map (lambda (id)
+                             (cons
+                              (syntax-object-expr id)
+                              (syntax-object-wrap id)))
+                           env-vars))
+               (labels (gen-labels bindings)))
           (exp-dispatch 
            (extend-wrap
             (map (lambda (id label)
                    (make-subst (car id)
                                (wrap-marks (cdr id))
                                label))
-                 all-subst labels)
+                 subst labels)
             body)
            (fold-left (lambda (prev l v)
                         (extend-env l v prev))
-                      env labels all-bindings)))))
+                      env labels bindings)))))
 
     (syntax-match
      x ()

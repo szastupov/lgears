@@ -25,6 +25,7 @@
           label?
           make-label
           make-subst
+          add-subst
           subst?
           subst-sym
           subst-mark*
@@ -50,7 +51,6 @@
           syntax-length
           top-marked?
           top-mark
-          self-evaluating?
           wrap-marks
           same-marks?
           extend-wrap
@@ -164,10 +164,6 @@
          (or (eq? (car wrap) top-mark)
              (top-marked? (cdr wrap)))))
   
-  (define (self-evaluating? x)
-    (not (or (pair? x)
-             (syntax-object? x))))
-
   (define (wrap-marks wrap)
     (if (null? wrap)
       '()
@@ -229,6 +225,12 @@
                            (same-marks? (subst-mark* w0) mark*))
                       (subst-label w0)
                       (search (cdr wrap) mark*))))))))
+
+  (define (add-subst obj label)
+    (make-subst
+     (syntax-object-expr obj)
+     (wrap-marks (syntax-object-wrap obj))
+     label))
 
   (define (label-binding id label r)
     (let ((a (assq label r)))

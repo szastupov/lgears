@@ -221,18 +221,14 @@
                                         identifier? datum->syntax)
                                '(sc expand)
                                '(sc syntax-core)))))))
-
+  
+  ;; Sequentional macro compilation
   (define (compile-i body env macro*)
     (if (null? macro*)
         (values (syntax->list body) env)
         (let* ((compiled (make-macro (car macro*) env))
                (label (make-label))
-               (subst (make-subst (syntax-object-expr
-                                   (car compiled))
-                                  (wrap-marks
-                                   (syntax-object-wrap
-                                    (car compiled)))
-                                  label))
+               (subst (add-subst (car compiled) label))
                (binding (make-binding 'macro (cdr compiled))))
           (compile-i (extend-wrap (list subst) body)
                      (extend-env label binding env)
@@ -258,26 +254,17 @@
         (let* ((defines (scan-defines body))
                (new-defines (gen-names defines))
                (env-vars (append varlist defines))
-               (bindings (map (lambda (v)
-                                (make-binding 'lexical v))
-                              (append new-vars new-defines)))
-               (subst (map (lambda (id)
-                             (cons
-                              (syntax-object-expr id)
-                              (syntax-object-wrap id)))
-                           env-vars))
-               (labels (gen-labels bindings)))
+               (labels (gen-labels env-vars)))
           (exp-dispatch 
            (extend-wrap
-            (map (lambda (id label)
-                   (make-subst (car id)
-                               (wrap-marks (cdr id))
-                               label))
-                 subst labels)
+            (map add-subst env-vars labels)
             body)
            (fold-left (lambda (prev l v)
-                        (extend-env l v prev))
-                      env labels bindings)))))
+                        (extend-env l
+                        (make-binding 'lexical v)
+                        prev))
+                      env labels
+                      (append new-vars new-defines))))))
 
     (syntax-match
      x ()
@@ -314,18 +301,32 @@
           ,(exp-dispatch val r)))
       ((define var)
        `(define ,(exp-dispatch var r) (void)))))
-  
+
   (define (exp-if x r)
+    (define (always-true? o)
+      (let ((dt (strip o)))
+        (and (not (pair? dt))
+             (not (symbol? dt))
+             dt)))
+    (define (always-false? o)
+      (let ((dt (strip o)))
+        (not dt)))
     (syntax-match
      x ()
      ((if a b)
-      `(if ,(exp-dispatch a r)
-           ,(exp-dispatch b r)
-           (void)))
+      (cond ((always-true? a) (exp-dispatch b r))
+            ((always-false? a) '(void))
+            (else
+             `(if ,(exp-dispatch a r)
+                  ,(exp-dispatch b r)
+                  (void)))))
      ((if a b c)
-      `(if ,(exp-dispatch a r)
-           ,(exp-dispatch b r)
-           ,(exp-dispatch c r)))))
+      (cond ((always-true? a) (exp-dispatch b r))
+            ((always-false? a) (exp-dispatch c r))
+            (else
+             `(if ,(exp-dispatch a r)
+                  ,(exp-dispatch b r)
+                  ,(exp-dispatch c r)))))))
 
   (define (exp-set! x r)
     (syntax-match

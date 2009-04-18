@@ -9,26 +9,21 @@
     (cond ((pair? (cdr pair))
            (put-char port #\space)
            (loop (cdr pair)))
-          ((null? (cdr pair))
-           #t)
+          ((null? (cdr pair)) #t)
           (else
             (put-string port " . ")
             (writer (cdr pair) port))))
   (put-char port #\)))
 
 (define (write-vector writer vec port)
-  (put-string port "#(")
-  (let loop ((pos 0))
-    (writer (vector-ref vec pos) port)
-    (if (= (+ 1 pos) (vector-length vec))
-      (put-char port #\))
-      (begin
-        (put-char port #\space)
-        (loop (+ 1 pos))))))
+  (put-char port #\#)
+  (write-pair writer (vector->list vec) port))
 
 (define (quote? obj)
   (and (pair? obj)
-       (memq (car obj) '(quote quasiquote unquote unquote-splicing))))
+       (memq (car obj)
+             '(quote quasiquote unquote unquote-splicing
+                     syntax quasisyntax unsyntax unsyntax-splicing))))
 
 (define (write-quote writer obj port)
   (put-string port
@@ -36,7 +31,11 @@
               ((quote) "'")
               ((quasiquote) "`")
               ((unquote) ",")
-              ((unquote-splicing) ",@")))
+              ((unquote-splicing) ",@")
+              ((syntax) "#'")
+              ((quasisyntax) "#`")
+              ((unsyntax) "#,")
+              ((unsyntax-splicing) "#,@")))
   (writer (cadr obj) port))
 
 (define (write-common writer obj port)
@@ -75,4 +74,4 @@
          (put-char port obj))
         (else (write-common my-display obj port))))
 
-(my-display '(a . (b . (c . (d . (e . ()))))) (current-output-port))
+(my-display '#(a #,@b) (current-output-port))

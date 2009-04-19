@@ -19,6 +19,7 @@
   (export compile-file read-source dump-ilr)
   (import (rnrs)
           (sc cps)
+          (reader)
           (format)
           (only (core) pretty-print) ; This works only for ypsilon
           (sc assembly)
@@ -259,16 +260,6 @@
                   (reverse (store-head code-store))
                   (reverse (store-head string-store))
                   (cadar entry-point)))))
-
-  (define (read-source file)
-    (call-with-port
-     (open-file-input-port file (file-options no-fail) (buffer-mode block) (native-transcoder))
-     (lambda (port)
-       (let loop ((res '())
-                  (datum (get-datum port)))
-         (if (eof-object? datum)
-             (reverse res)
-             (loop (cons datum res) (get-datum port)))))))
 
   (define (compile-ilr-file in)
     (start-compile

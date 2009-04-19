@@ -57,14 +57,32 @@
         (else
           (error 'write-common "unknown type" obj))))
 
+(define char-table
+  '((#\space . "#\\space")
+    (#\nul . "#\\nul")
+    (#\alarm . "#\\alarm")
+    (#\backspace . "#\\backspace")
+    (#\tab . "#\\tab")
+    (#\linefeed . "#\\linefeed")
+    (#\vtab . "#\\vtab")
+    (#\page . "#\\page")
+    (#\return . "#\\return")
+    (#\esc . "#\\esc")
+    (#\space . "#\\space")
+    (#\delete . "#\\delete")))
+
 (define (my-write obj port)
   (cond ((string? obj)
          (put-char port #\")
          (put-string port obj)
          (put-char port #\"))
         ((char? obj)
-         (put-string port "#\\")
-         (put-char port obj))
+         (cond ((assq obj char-table)
+                => (lambda (r)
+                     (put-string port (cdr r))))
+               (else
+                (put-string port "#\\")
+                (put-char port obj))))
         (else (write-common my-write obj port))))
 
 (define (my-display obj port)
@@ -74,4 +92,4 @@
          (put-char port obj))
         (else (write-common my-display obj port))))
 
-(my-display '#(a #,@b) (current-output-port))
+(my-write '#\space (current-output-port))

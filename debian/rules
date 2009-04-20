@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+build: build-stamp
+build-stamp:
+	dh build --before dh_auto_build
+	make PREFIX=/usr
+	dh build --after dh_auto_build
+	touch build-stamp
+
+clean:
+	dh clean
+
+install: build install-stamp
+install-stamp:
+	dh install --before dh_auto_install
+	make install DESTDIR=debian/lgears PREFIX=/usr
+	dh install --after dh_auto_install
+	touch install-stamp
+
+binary-arch: install
+	dh binary-arch
+
+binary-indep: install
+
+binary: binary-arch binary-indep
+
+.PHONY: binary binary-arch binary-indep install build clean

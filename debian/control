@@ -1,0 +1,15 @@
+Source: lgears
+Section: interpreters
+Priority: optional
+Maintainer: Stepan Zastupov <redchrom@gmail.com>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.8.1
+Vcs-Git: git://github.com/redchrom/lgears.git
+Vcs-Browser: http://github.com/redchrom/lgears
+Homepage: http://github.com/redchrom/lgears
+
+Package: lgears
+Architecture: i386 amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: R6RS Scheme implementation
+ add better description

@@ -23,6 +23,10 @@ $(foreach prog,$(targets),$(eval $(call target_template,$(prog))))
 $(targets):
 	$(LINK.o) $^ -o $@
 
+#FIXME
+install: $(targets)
+	install -D $^ $(DESTDIR)$(PREFIX)/bin/$^
+
 echo-deps:
 	@echo $(deps)
 

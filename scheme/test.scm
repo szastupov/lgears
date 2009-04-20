@@ -6,3 +6,6 @@
   (cond ((null? a) b)
         ((foo? b) => (lambda (b) (+ b a)))
         (else 'fuck)))
+
+(unless foo
+  1 2 3 4  5)

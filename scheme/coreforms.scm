@@ -1,5 +1,5 @@
 (library (coreforms)
-  (export with-syntax syntax-rules or and let cond)
+  (export with-syntax syntax-rules or and let cond when unless)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -81,6 +81,18 @@
        (if test
            (begin result1 result2 ...)
            (cond clause1 clause2 ...)))))
+
+  (define-syntax when
+    (syntax-rules ()
+      ((when test result1 result2 ...)
+       (if test
+           (begin result1 result2 ...)))))
+
+  (define-syntax unless
+    (syntax-rules ()
+      ((unless test result1 result2 ...)
+       (if (not test)
+           (begin result1 result2 ...)))))
 
   (display "!!!loaded!!\n")
 

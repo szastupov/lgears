@@ -16,18 +16,20 @@
  |#
 
 (library (sc expand)
-  (export expand expand-top sc-dispatch gen-syntax syntax-error)
+  (export expand-file sc-dispatch gen-syntax syntax-error)
   (import (rnrs eval)
           (rename (rnrs)
                   (identifier? sys-identifier?)
                   (syntax->datum sys-syntax->datum)
                   (datum->syntax sys-datum->syntax))
           (format)
+          (reader)
           (sc gen-name)
           (sc syntax-core)
           (sc syntax-pattern)
+          (sc library-manager)
           (only (core) pretty-print))
-  
+
   (define (exp-macro p x)
     (let* ((m (make-mark))
            (xm (add-mark m x)))
@@ -114,7 +116,7 @@
              => (lambda (matched)
                   (let* ((bind (pattern-bind-named
                                 matched (caar rule) '())))
-                    (format #t "bind ~a\n" (strip bind))
+                    ;(format #t "bind ~a\n" (strip bind))
                     ((cdar rule) bind))))
             (else (loop (cdr rule))))))
 
@@ -221,7 +223,7 @@
                                         identifier? datum->syntax)
                                '(sc expand)
                                '(sc syntax-core)))))))
-  
+
   ;; Sequentional macro compilation
   (define (compile-i body env macro*)
     (if (null? macro*)
@@ -229,7 +231,7 @@
         (let* ((compiled (make-macro (car macro*) env))
                (label (make-label))
                (subst (add-subst (car compiled) label))
-               (binding (make-binding 'macro (cdr compiled))))
+               (binding (macro-binding (cdr compiled))))
           (compile-i (extend-wrap (list subst) body)
                      (extend-env label binding env)
                      (if (null? (cdr macro*))
@@ -242,44 +244,46 @@
     (define (define-syntax? x)
       (and (syntax-pair? x)
            (eq? (syntax-object-expr (syntax-car x))
-                'define-syntax)))    
+                'define-syntax)))
     (let-values (((macro body) (partition define-syntax? body)))
       (compile-i body env macro)))
 
+  (define (expand-body env varlist new-vars body)
+    (let-values (((body env)
+                  (extend-syntax env (splice-begin body))))
+
+      (let* ((defines (scan-defines body))
+             (new-defines (gen-names defines))
+             (env-vars (append varlist defines))
+             (labels (gen-labels env-vars)))
+        (exp-dispatch
+         (extend-wrap
+          (map add-subst env-vars labels)
+          body)
+         (fold-left (lambda (prev l v)
+                      (extend-env l
+                                  (lexical-binding v)
+                                  prev))
+                    env labels
+                    (append new-vars new-defines))))))
+
   (define (exp-lambda x env)
     (define (expand-lambda varlist new-vars body)
-      (let-values (((body env)
-                    (extend-syntax env (splice-begin body))))
-        
-        (let* ((defines (scan-defines body))
-               (new-defines (gen-names defines))
-               (env-vars (append varlist defines))
-               (labels (gen-labels env-vars)))
-          (exp-dispatch 
-           (extend-wrap
-            (map add-subst env-vars labels)
-            body)
-           (fold-left (lambda (prev l v)
-                        (extend-env l
-                        (make-binding 'lexical v)
-                        prev))
-                      env labels
-                      (append new-vars new-defines))))))
-
+      (expand-body env varlist new-vars body))
     (syntax-match
      x ()
      ((lambda (varlist ...) body ...)
       (let ((new-vars (gen-names varlist)))
         `(lambda ,new-vars
            ,@(expand-lambda varlist new-vars body))))
-     
+
      ((lambda (v1 . rem) body ...)
       (let* ((varlist (improper->propper
                        (cons v1 (syntax->pair rem))))
              (new-vars (gen-names varlist)))
         `(lambda ,(apply cons* new-vars)
            ,@(expand-lambda varlist new-vars body))))
-     
+
      ((lambda var body ...)
       (let* ((varlist (list var))
              (new-vars (gen-names varlist)))
@@ -357,37 +361,110 @@
         ',(strip reserved)
         ,@(map (lambda (pat acc)
                  (exp-dispatch
-                  (datum->syntax x `(cons ',(strip pat)
-                                          (lambda (vars)
-                                            ,(exp-dispatch acc r))))
+                  (datum->syntax
+                   x `(cons ',(strip pat)
+                            (lambda (vars)
+                              ,(exp-dispatch acc r))))
                   r))
                pat* acc*)))))
 
-  (define (initial-wrap-end-env)
-    (define bindings
-      `((quote . ,(make-binding 'core exp-quote))
-        (lambda . ,(make-binding 'core exp-lambda))
-        (define . ,(make-binding 'core exp-define))
-        (if . ,(make-binding 'core exp-if))
-        (set! . ,(make-binding 'core exp-set!))
-        (begin . ,(make-binding 'core exp-begin))
-        (syntax . ,(make-binding 'core exp-syntax))
-        (syntax-case . ,(make-binding 'core exp-syntax-case))
-        ))
-    (let ((labels (gen-labels bindings)))
-      (values
-       `(,@(map (lambda (sym label)
-                  (make-subst sym (list top-mark) label))
-                (map car bindings)
-                labels)
-         ,top-mark)
-       (map cons labels (map cdr bindings)))))
+  (define libraries-root (library-manager-root))
 
-  (define (expand x)
-    (let-values (((wrap env) (initial-wrap-end-env)))
-      (exp-dispatch (make-syntax-object x wrap) env)))
+  (define (load-library name)
+    (let ((path (find-library-file name)))
+      (format #t "loading library ~a\n" path)
+      (expand-file path)
+      (find-library libraries-root name)))
+
+  (define (resolve-imports imports)
+    (define (resolve-import name)
+      (cond ((find-library libraries-root name)
+             => (lambda (res) res))
+            (else (load-library name))))
+    (let ((resolved (map resolve-import imports)))
+      (values
+       (fold-left (lambda (pimp cur)
+                    (fold-left (lambda (prev exprt)
+                                 (cons (make-subst
+                                        (car exprt)
+                                        (list top-mark)
+                                        (cddr exprt))
+                                       prev)) pimp cur))
+                  (list top-mark) resolved)
+       (fold-left (lambda (pimp cur)
+                    (fold-left (lambda (prev exprt)
+                                 (cons (cons (cddr exprt)
+                                             (cadr exprt))
+                                       prev)) pimp cur))
+                  '() resolved))))
 
   (define (expand-top x)
-    (expand `(lambda () ,@x)))
+    (if (not (eq? (caar x) 'import))
+        (error 'expand-top "expected import in top-level"))
+    (let-values (((wrap env) (resolve-imports (cdar x))))
+      (exp-dispatch (make-syntax-object
+                     `(lambda () ,@(cdr x))
+                     wrap)
+                    env)))
 
+  (define (expand-library x)
+    (define (get-exports)
+      (let ((res (caddr x)))
+        (if (eq? (car res) 'export)
+            (cdr res)
+            (error 'expand-library "expected export form"))))
+
+    (define (get-imports)
+      (let ((res (cadddr x)))
+        (if (eq? (car res) 'import)
+            (cdr res)
+            (error 'expand-library "expected import form"))))
+
+    (let ((name (cadr x))
+          (imports (get-imports))
+          (exports (get-exports))
+          (body (cddddr x)))
+      (let*-values (((init-wrap init-env)
+                     (resolve-imports imports))
+                    ((body env)
+                     (extend-syntax
+                      init-env
+                      (syntax->list
+                       (make-syntax-object body init-wrap)))))
+        (let ((wrap (syntax-object-wrap (car (reverse body)))))
+          (define (extract-binding exprt)
+            (let ((se (strip exprt)))
+              (cons* se
+                     (label-binding
+                      exprt
+                      (find-label se wrap)
+                      env)
+                     (make-label))))
+          (format #t "installing ~a\n" name)
+          (library-install! libraries-root
+                            name
+                            (map extract-binding exports))
+          '(void)))))
+
+  (define (expand-file file)
+    (let ((x (read-source file)))
+      (if (eq? (caar x) 'library)
+          (expand-library (car x))
+          (expand-top x))))
+
+  (library-install! libraries-root
+                    '($builtin)
+                    (map (lambda (b)
+                           (cons* (car b)
+                                  (core-binding (cdr b))
+                                  (make-label)))
+                         `((quote . ,exp-quote)
+                           (lambda . ,exp-lambda)
+                           (define . ,exp-define)
+                           (if . ,exp-if)
+                           (set! . ,exp-set!)
+                           (begin . ,exp-begin)
+                           (syntax . ,exp-syntax)
+                           (syntax-case . ,exp-syntax-case)
+                           )))
   )

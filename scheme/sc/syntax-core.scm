@@ -31,6 +31,9 @@
           subst-mark*
           subst-label
           make-binding
+          core-binding
+          macro-binding
+          lexical-binding
           binding-type
           binding-value
           strip
@@ -58,6 +61,7 @@
           add-mark
           extend-env
           id-binding
+          find-label
           id-label
           label-binding
           )
@@ -79,6 +83,15 @@
   (define make-binding cons)
   (define binding-type car)
   (define binding-value cdr)
+
+  (define (core-binding proc)
+    (make-binding 'core proc))
+
+  (define (macro-binding proc)
+    (make-binding 'macro proc))
+
+  (define (lexical-binding proc)
+    (make-binding 'lexical proc))
 
   (define (strip x)
     (cond ((syntax-object? x)
@@ -118,7 +131,7 @@
             (syntax-object-wrap x)
             (proc (syntax-object-expr x))))
           (else (syntax-error x "expected pair or syntax-pair"))))
-  
+
   (define (syntax-car x)
     (syntax-pair-access car x))
 
@@ -163,7 +176,7 @@
     (and (not (null? wrap))
          (or (eq? (car wrap) top-mark)
              (top-marked? (cdr wrap)))))
-  
+
   (define (wrap-marks wrap)
     (if (null? wrap)
       '()
@@ -211,20 +224,22 @@
                 (label-binding id label r)))
           (else #f)))
 
+  (define (find-label sym wrap)
+    (let search ((wrap wrap)
+                 (mark* (wrap-marks wrap)))
+      (if (null? wrap)
+          #f
+          (let ((w0 (car wrap)))
+            (if (mark? w0)
+                (search (cdr wrap) (cdr mark*))
+                (if (and (eq? (subst-sym w0) sym)
+                         (same-marks? (subst-mark* w0) mark*))
+                    (subst-label w0)
+                    (search (cdr wrap) mark*)))))))
+
   (define (id-label id)
-    (let ((sym (syntax-object-expr id))
-          (wrap (syntax-object-wrap id)))
-      (let search ((wrap wrap)
-                   (mark* (wrap-marks wrap)))
-        (if (null? wrap)
-            #f
-            (let ((w0 (car wrap)))
-              (if (mark? w0)
-                  (search (cdr wrap) (cdr mark*))
-                  (if (and (eq? (subst-sym w0) sym)
-                           (same-marks? (subst-mark* w0) mark*))
-                      (subst-label w0)
-                      (search (cdr wrap) mark*))))))))
+    (find-label (syntax-object-expr id)
+                (syntax-object-wrap id)))
 
   (define (add-subst obj label)
     (make-subst

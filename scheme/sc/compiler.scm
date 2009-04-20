@@ -16,7 +16,7 @@
  |#
 
 (library (sc compiler)
-  (export compile-file read-source dump-ilr)
+  (export compile-file dump-ilr)
   (import (rnrs)
           (sc cps)
           (reader)
@@ -238,8 +238,8 @@
                   (compile-assigment env (cdr node)))
                  (else
                    (compile-call env node))))
-			  ((char? node)
-			   `((PUSH_CHAR ,(char->integer node) 1)))
+              ((char? node)
+               `((PUSH_CHAR ,(char->integer node) 1)))
               ((number? node)
                `((PUSH_FIXNUM ,node 1)))
               ((string? node)
@@ -265,7 +265,7 @@
     (start-compile
      (list
       (cps-convert
-       (expand-top (read-source in))))))
+       (expand-file in)))))
 
   (define (compile-file in out)
     (assemble (compile-ilr-file in)

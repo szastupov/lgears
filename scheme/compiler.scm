@@ -5,7 +5,4 @@
           (sc expand)
           (sc cps)
           (only (core) pretty-print)) ; This works only for ypsilon
-
-  (define (expand-file file)
-    (expand-top (read-source file)))
   )

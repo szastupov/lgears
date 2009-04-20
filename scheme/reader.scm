@@ -43,7 +43,7 @@
         (memq x '(#\+ #\- #\. #\@))))
 
   (define (datum-from-port port)
-    
+
     (define (lexical-error msg . args)
       (error 'datum-from-port
              (apply format msg args)

@@ -126,11 +126,13 @@
 
   (define (syntax-pair-access proc x)
     (cond ((pair? x) (proc x))
-          ((syntax-object? x)
+          ((and (syntax-object? x)
+                (pair? (syntax-object-expr x)))
            (extend-wrap
             (syntax-object-wrap x)
             (proc (syntax-object-expr x))))
-          (else (syntax-error x "expected pair or syntax-pair"))))
+          (else
+           (syntax-error x "expected pair or syntax-pair"))))
 
   (define (syntax-car x)
     (syntax-pair-access car x))
@@ -158,7 +160,7 @@
         (cons (syntax-car x)
               (syntax->list (syntax-cdr x)))))
 
-  ;; Same as syntax->list but convert to improper list
+  ;; Same as syntax->list but may convert to improper list
   (define (syntax->pair x)
     (cond ((syntax-null? x)
           '())

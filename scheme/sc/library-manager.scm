@@ -24,8 +24,8 @@
           (rnrs records syntactic)
           (format))
 
-  (define library-path '(".." "."))
-  (define library-extensions '("ss" "scm"))
+  (define library-path '("." ".."))
+  (define library-extensions '("scm" "ss" "sls"))
 
   (define (library-manager-root)
     (make-lnode #f '()))

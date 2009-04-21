@@ -9,3 +9,6 @@
 
 (unless foo
   1 2 3 4  5)
+
+(define (foo z . n)
+  (display (+ z n)))

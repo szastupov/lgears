@@ -28,7 +28,11 @@
           (sc syntax-core)
           (sc syntax-pattern)
           (sc library-manager)
+          (sc compiler)
+          (sc cps)
           (only (core) pretty-print))
+
+  (define libraries-root (library-manager-root))
 
   (define (exp-macro p x)
     (let* ((m (make-mark))
@@ -41,9 +45,13 @@
     (p x r))
 
   (define (exp-exprs x* r)
-    (map (lambda (x)
-           (exp-dispatch x r))
-         x*))
+    (let loop ((x x*))
+      (cond ((null? x)
+             '())
+            ((pair? x)
+             (cons (exp-dispatch (car x) r)
+                   (loop (cdr x))))
+            (else (exp-dispatch x r)))))
 
   (define (exp-dispatch x r)
     (cond ((identifier? x)
@@ -62,13 +70,13 @@
                        (case (binding-type b)
                          ((macro) (exp-dispatch (exp-macro (binding-value b) x) r))
                          ((lexical)
-                          `(,(binding-value b)
-                            ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))
+                          (cons (binding-value b)
+                                (exp-exprs (syntax->pair (syntax-cdr x)) r)))
                          ((core) (exp-core (binding-value b) x r))
                          (else (syntax-error x "invalid syntax")))))
                  (else
-                  `(,(strip (syntax-car x))
-                    ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
+                  (cons (strip (syntax-car x))
+                        (exp-exprs (syntax->pair (syntax-cdr x)) r)))))
           (else
            `(,(exp-dispatch (syntax-car x) r)
              ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
@@ -292,19 +300,29 @@
 
   (define (exp-define x r)
     (syntax-match
-      x ()
-      ((define (var args ...) body ...)
-       `(define ,(exp-dispatch var r)
-          ,(exp-dispatch (extend-wrap
-                           (syntax-object-wrap x)
-                           `(lambda ,args
-                              ,@body))
-                         r)))
-      ((define var val)
-       `(define ,(exp-dispatch var r)
-          ,(exp-dispatch val r)))
-      ((define var)
-       `(define ,(exp-dispatch var r) (void)))))
+     x ()
+     ((define (var args ...) body ...)
+      `(define ,(exp-dispatch var r)
+         ,(exp-dispatch (extend-wrap
+                         (syntax-object-wrap x)
+                         `(lambda ,args
+                            ,@body))
+                        r)))
+
+     ((define (var . rem) body ...)
+      `(define ,(exp-dispatch var r)
+         ,(exp-dispatch (extend-wrap
+                         (syntax-object-wrap x)
+                         `(lambda ,rem
+                            ,@body))
+                        r)))
+
+     ((define var val)
+      `(define ,(exp-dispatch var r)
+         ,(exp-dispatch val r)))
+
+     ((define var)
+      `(define ,(exp-dispatch var r) (void)))))
 
   (define (exp-if x r)
     (define (always-true? o)
@@ -368,8 +386,6 @@
                   r))
                pat* acc*)))))
 
-  (define libraries-root (library-manager-root))
-
   (define (load-library name)
     (let ((path (find-library-file name)))
       (format #t "loading library ~a\n" path)
@@ -421,9 +437,9 @@
             (error 'expand-library "expected import form"))))
 
     (let ((name (cadr x))
-          (imports (get-imports))
           (exports (get-exports))
-          (body (cddddr x)))
+          (imports (get-imports))
+          (body (cons '(void) (cddddr x))))
       (let*-values (((init-wrap init-env)
                      (resolve-imports imports))
                     ((body env)
@@ -431,7 +447,7 @@
                       init-env
                       (syntax->list
                        (make-syntax-object body init-wrap)))))
-        (let ((wrap (syntax-object-wrap (car (reverse body)))))
+        (let ((wrap (syntax-object-wrap (car body))))
           (define (extract-binding exprt)
             (let ((se (strip exprt)))
               (cons* se
@@ -444,7 +460,7 @@
           (library-install! libraries-root
                             name
                             (map extract-binding exports))
-          '(void)))))
+          (exp-dispatch `(lambda () ,@body) env)))))
 
   (define (expand-file file)
     (let ((x (read-source file)))

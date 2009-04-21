@@ -94,6 +94,6 @@
        (if (not test)
            (begin result1 result2 ...)))))
 
-  (display "!!!loaded!!\n")
+  (display "coreforms loaded\n")
 
   )

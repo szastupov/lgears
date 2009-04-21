@@ -16,14 +16,12 @@
  |#
 
 (library (sc compiler)
-  (export compile-file dump-ilr)
+  (export start-compile)
   (import (rnrs)
-          (sc cps)
           (reader)
           (format)
           (only (core) pretty-print) ; This works only for ypsilon
-          (sc assembly)
-          (sc expand))
+          (sc assembly))
 
   (define (set-func-args! ntbl args)
     (let loop ((idx 0) (lst args))
@@ -260,18 +258,4 @@
                   (reverse (store-head code-store))
                   (reverse (store-head string-store))
                   (cadar entry-point)))))
-
-  (define (compile-ilr-file in)
-    (start-compile
-     (list
-      (cps-convert
-       (expand-file in)))))
-
-  (define (compile-file in out)
-    (assemble (compile-ilr-file in)
-              out))
-
-  (define (dump-ilr path)
-    (print-ilr (compile-ilr-file path)))
-
   )

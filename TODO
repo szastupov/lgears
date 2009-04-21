@@ -3,6 +3,5 @@ Redesign constants allocation (numbers, strings, constant lists and vectors, etc
 Store symbols as module string constants but maintaine symbol table per-thread
 Optimize lists: each pair shoud store list flag and size
 Compiler should decide where to allocate closures
-Decide how to store modules with macros
 Allocate really big ojects from mark'n'sweep heap
 Add train algorithm to GC

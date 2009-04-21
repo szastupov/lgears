@@ -1,11 +1,10 @@
 (library (base)
-  (export dummy)
+  (export + - * / = < > min max abs zero? positive? negative?
+          odd? even? not eqv? equal? list? error length for-each
+          map fold-left fold-right reverse append make-list
+          cons* find memp member memv memq vector-for-each make-vector)
   (import (coreforms)
           ($builtin))
-
-  (define-syntax dummy
-    (syntax-rules ()
-      ((_) foo)))
 
 ;; Arithmetic and numbers
   (define (+ . args)

@@ -63,7 +63,7 @@
            (convert res (cons 'vector (vector->list node)) name))
           (else node)))
 
-  ;; Functions like set! may introduce begin forms, just splice it
+  ;; Functions like convert-set may introduce begin forms, just splice it
   (define (splice-begin body)
     (define (begin? x)
       (and (pair? x)
@@ -157,13 +157,9 @@
                                      (else (gen-name))))
                              args))
                  (rlargs (reverse largs))
-                 (control (cond ((null? res)
-                                 name)
-                                ((and (pair? (car res))
-                                      (eq? (caar res) 'set!)) ;;FIXME
-                                 `(lambda (,name) ,@res))
-                                (else
-                                  `(lambda (,name) ,res))))
+                 (control (if (null? res)
+                              name
+                              `(lambda (,name) ,res)))
                  (expr `(,(car rlargs) ,control ,@(cdr rlargs))))
             ;;; Clue everything
             (fold-left (lambda (prev x n)
@@ -215,11 +211,15 @@
                       rest (reverse defines))))))
 
   (define (cps-convert source)
-    (let ((res (convert-lambda source)))
-      (list res '__exit)))
+    (case (car source)
+      ((top-level)
+       `(top-level
+         ,(cadr source)
+         (,(convert-lambda (caddr source))
+          __exit)))
+      ((library)
+       (let ((header (cadr source)))
+         `(library ,header
+            ,(convert-lambda (caddr source)))))))
 
-  ;(pretty-print (cps-convert '(
-                               ;(set! foo (lambda (x y) (x y)))
-                               ;(display foo)
-                               ;)))
   )

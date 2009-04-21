@@ -37,9 +37,7 @@
   (define (exp-macro p x)
     (let* ((m (make-mark))
            (xm (add-mark m x)))
-      (add-mark m (extend-wrap
-                   (syntax-object-wrap xm)
-                   (p xm)))))
+      (add-mark m (extend-wrap-from xm (p xm)))))
 
   (define (exp-core p x r)
     (p x r))
@@ -49,17 +47,19 @@
       (cond ((null? x)
              '())
             ((pair? x)
-             (cons (exp-dispatch (car x) r)
+             (cons (expand (car x) r)
                    (loop (cdr x))))
-            (else (exp-dispatch x r)))))
+            (else (expand x r)))))
 
-  (define (exp-dispatch x r)
+  (define (expand x r)
     (cond ((identifier? x)
            (cond ((id-binding x r)
                   => (lambda (b)
                        (case (binding-type b)
-                         ((macro) (exp-dispatch (exp-macro (binding-value b) x) r))
-                         ((lexical)(binding-value b))
+                         ((macro)
+                          (expand (exp-macro (binding-value b) x) r))
+                         ((lexical)
+                          (binding-value b))
                          (else (syntax-error x "invalid syntax")))))
                  (else (strip x))))
           ((not (syntax-pair? x))
@@ -68,18 +68,20 @@
            (cond ((id-binding (syntax-car x) r)
                   => (lambda (b)
                        (case (binding-type b)
-                         ((macro) (exp-dispatch (exp-macro (binding-value b) x) r))
+                         ((macro)
+                          (expand (exp-macro (binding-value b) x) r))
                          ((lexical)
                           (cons (binding-value b)
                                 (exp-exprs (syntax->pair (syntax-cdr x)) r)))
-                         ((core) (exp-core (binding-value b) x r))
+                         ((core)
+                          (exp-core (binding-value b) x r))
                          (else (syntax-error x "invalid syntax")))))
                  (else
                   (cons (strip (syntax-car x))
                         (exp-exprs (syntax->pair (syntax-cdr x)) r)))))
           (else
-           `(,(exp-dispatch (syntax-car x) r)
-             ,@(exp-exprs (syntax->list (syntax-cdr x)) r)))))
+           (cons (expand (syntax-car x) r)
+                 (exp-exprs (syntax->pair (syntax-cdr x)) r)))))
 
   (define (syntax-dispatch x reserved . rules)
     (let loop ((rule rules))
@@ -202,6 +204,7 @@
              (cons (car cur) (loop (cdr cur))))
             (else (list cur)))))
 
+  ;; Syntax-specifinc splice-begin (we have same for plain lists in cps)
   (define (splice-begin body)
     (define (begin? x)
       (and (syntax-pair? x)
@@ -222,7 +225,7 @@
      macro ()
      ((define-syntax name expander)
       (cons name
-            (eval (exp-dispatch
+            (eval (expand
                    expander
                    env)
                   (environment '(except (rnrs) syntax->datum
@@ -264,12 +267,12 @@
              (new-defines (gen-names defines))
              (env-vars (append varlist defines))
              (labels (gen-labels env-vars)))
-        (exp-dispatch
+        (expand
          (extend-wrap
           (map add-subst env-vars labels)
           body)
-         (fold-left (lambda (prev l v)
-                      (extend-env l
+         (fold-left (lambda (prev label v)
+                      (extend-env label
                                   (lexical-binding v)
                                   prev))
                     env labels
@@ -302,27 +305,27 @@
     (syntax-match
      x ()
      ((define (var args ...) body ...)
-      `(define ,(exp-dispatch var r)
-         ,(exp-dispatch (extend-wrap
-                         (syntax-object-wrap x)
-                         `(lambda ,args
-                            ,@body))
-                        r)))
+      `(define ,(expand var r)
+         ,(expand (extend-wrap-from
+                   x
+                   `(lambda ,args
+                      ,@body))
+                  r)))
 
      ((define (var . rem) body ...)
-      `(define ,(exp-dispatch var r)
-         ,(exp-dispatch (extend-wrap
-                         (syntax-object-wrap x)
+      `(define ,(expand var r)
+         ,(expand (extend-wrap-from
+                         x
                          `(lambda ,rem
                             ,@body))
                         r)))
 
      ((define var val)
-      `(define ,(exp-dispatch var r)
-         ,(exp-dispatch val r)))
+      `(define ,(expand var r)
+         ,(expand val r)))
 
      ((define var)
-      `(define ,(exp-dispatch var r) (void)))))
+      `(define ,(expand var r) (void)))))
 
   (define (exp-if x r)
     (define (always-true? o)
@@ -336,32 +339,28 @@
     (syntax-match
      x ()
      ((if a b)
-      (cond ((always-true? a) (exp-dispatch b r))
-            ((always-false? a) '(void))
-            (else
-             `(if ,(exp-dispatch a r)
-                  ,(exp-dispatch b r)
-                  (void)))))
+      (expand (extend-wrap-from
+               x `(if ,a ,b (void))) r))
      ((if a b c)
-      (cond ((always-true? a) (exp-dispatch b r))
-            ((always-false? a) (exp-dispatch c r))
+      (cond ((always-true? a) (expand b r))
+            ((always-false? a) (expand c r))
             (else
-             `(if ,(exp-dispatch a r)
-                  ,(exp-dispatch b r)
-                  ,(exp-dispatch c r)))))))
+             `(if ,(expand a r)
+                  ,(expand b r)
+                  ,(expand c r)))))))
 
   (define (exp-set! x r)
     (syntax-match
      x ()
      ((set! a b)
-      `(set! ,(exp-dispatch a r)
-             ,(exp-dispatch b r)))))
+      `(set! ,(expand a r)
+             ,(expand b r)))))
 
   (define (exp-begin x r)
     (syntax-match
      x ()
      ((begin e)
-      (exp-dispatch e r))
+      (expand e r))
      ((begin body ...)
       `(begin ,@(exp-exprs body r)))))
 
@@ -375,14 +374,14 @@
      x ()
      ((syntax-case src reserved (pat* acc*) ...)
       `(sc-dispatch
-        ,(exp-dispatch src r)
+        ,(expand src r)
         ',(strip reserved)
         ,@(map (lambda (pat acc)
-                 (exp-dispatch
+                 (expand
                   (datum->syntax
                    x `(cons ',(strip pat)
                             (lambda (vars)
-                              ,(exp-dispatch acc r))))
+                              ,(expand acc r))))
                   r))
                pat* acc*)))))
 
@@ -398,6 +397,8 @@
              => (lambda (res) res))
             (else (load-library name))))
     (let ((resolved (map resolve-import imports)))
+      ;; It's a bit messy because we need to merge all bindings in a
+      ;; single list
       (values
        (fold-left (lambda (pimp cur)
                     (fold-left (lambda (prev exprt)
@@ -414,14 +415,22 @@
                                        prev)) pimp cur))
                   '() resolved))))
 
+  ;; Convert import list of symbols to list of strings.
+  ;; Also remove $builtin
+  (define (make-imports imports)
+    (map symbols-list->path
+         (remove '($builtin) imports)))
+
   (define (expand-top x)
     (if (not (eq? (caar x) 'import))
         (error 'expand-top "expected import in top-level"))
     (let-values (((wrap env) (resolve-imports (cdar x))))
-      (exp-dispatch (make-syntax-object
-                     `(lambda () ,@(cdr x))
-                     wrap)
-                    env)))
+      `(top-level
+        ,(make-imports (cdar x))
+        ,(expand (make-syntax-object
+                        `(lambda () ,@(cdr x))
+                        wrap)
+                       env))))
 
   (define (expand-library x)
     (define (get-exports)
@@ -447,20 +456,32 @@
                       init-env
                       (syntax->list
                        (make-syntax-object body init-wrap)))))
-        (let ((wrap (syntax-object-wrap (car body))))
+
+        (let ((wrap (syntax-object-wrap (car body)))
+              (defines (strip (scan-defines body))))
+
           (define (extract-binding exprt)
             (let ((se (strip exprt)))
               (cons* se
-                     (label-binding
-                      exprt
-                      (find-label se wrap)
-                      env)
+                     (label-binding exprt (find-label se wrap) env)
                      (make-label))))
-          (format #t "installing ~a\n" name)
-          (library-install! libraries-root
-                            name
-                            (map extract-binding exports))
-          (exp-dispatch `(lambda () ,@body) env)))))
+
+          ;; separate exported defines and macros
+          (let-values (((defines macros)
+                        (partition (lambda (x)
+                                     (memq x defines))
+                                   exports)))
+            ;; Install exports
+            (library-install! libraries-root
+                              name
+                              (map extract-binding macros))
+            ;; Produce expanded library
+            `(library (,name
+                       ,(make-imports imports)
+                       ,defines)
+               ,(expand `(lambda ()
+                           ,@body)
+                        env)))))))
 
   (define (expand-file file)
     (let ((x (read-source file)))

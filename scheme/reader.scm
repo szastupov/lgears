@@ -156,6 +156,9 @@
               ((char=? pc #\)) '())
               ((char-whitespace? pc)
                (read-list))
+              ((char=? pc #\;)
+               (skip-comment)
+               (read-list))
               ((and (char=? pc #\.)
                     (not (char=? (peek-char port) #\.)))
                (let ((res (dispatch (read-char port))))
@@ -202,6 +205,8 @@
             ((char=? pc #\;)
              (skip-comment)
              (dispatch (read-char port)))
+            ((char=? pc #\))
+             (lexical-error "unexpecter closing parenthesis"))
             (else
              (lexical-error "invalid lexical ~a" pc))))
 

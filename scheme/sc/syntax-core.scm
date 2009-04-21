@@ -57,6 +57,7 @@
           wrap-marks
           same-marks?
           extend-wrap
+          extend-wrap-from
           join-wraps
           add-mark
           extend-env
@@ -200,6 +201,9 @@
          (syntax-object-expr x)
          (join-wraps wrap (syntax-object-wrap x)))
         (make-syntax-object x wrap)))
+
+  (define (extend-wrap-from obj x)
+    (extend-wrap (syntax-object-wrap obj) x))
 
   (define (join-wraps wrap1 wrap2)
     (cond ((null? wrap1) wrap2)

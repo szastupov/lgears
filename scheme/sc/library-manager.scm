@@ -17,7 +17,7 @@
 
 (library (sc library-manager)
   (export find-library library-install! library-manager-root
-          find-library-file)
+          find-library-file symbols-list->path)
   (import (rnrs base)
           (rnrs lists)
           (rnrs files)

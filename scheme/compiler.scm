@@ -9,9 +9,8 @@
 
   (define (compile-ilr-file in)
     (start-compile
-     (list
       (cps-convert
-       (expand-file in)))))
+       (expand-file in))))
 
   (define (compile-file in out)
     (assemble (compile-ilr-file in)

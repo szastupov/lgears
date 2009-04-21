@@ -12,3 +12,6 @@
 
 (define (foo z . n)
   (display (+ z n)))
+
+(lambda (foo bar)
+  (if foo bar))

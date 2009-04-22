@@ -256,7 +256,7 @@
         (case (car root)
           ((top-level)
            (values (cadr root)
-                   (compile-func '() '() (caddr root))))
+                   (compile-func '() '() (cddr root))))
           ((library)
            (let ((hdr (cadr root)))
              (values (cadr hdr)

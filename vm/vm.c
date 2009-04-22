@@ -132,7 +132,7 @@ static env_t* display_env(display_t *display, int idx)
 				display, display->depth);
 		return NULL;
 	}
-	
+
 	void *emem = display;
 	emem += sizeof(display_t);
 	env_t **env = emem;
@@ -278,7 +278,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				STACK_PUSH(thread->objects[op_arg].ptr);
 			NEXT();
 
-			TARGET(LOAD_SYM) 
+			TARGET(LOAD_SYM)
 				STACK_PUSH(func->module->symbols[op_arg].ptr);
 			NEXT();
 
@@ -307,7 +307,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				opcode += op_arg*2;
 			NEXT();
 
-			TARGET(LOAD_FUNC) 
+			TARGET(LOAD_FUNC)
 				STACK_PUSH(make_ptr(MODULE_FUNC(func->module, op_arg), id_func));
 			NEXT();
 
@@ -354,7 +354,7 @@ dispatch_func:
 				}
 
 				switch (fhdr->type) {
-					case func_inter: 
+					case func_inter:
 						{
 							func = ptr;
 							opcode = func->opcode;
@@ -362,7 +362,7 @@ dispatch_func:
 							set_trace_func();
 						}
 						NEXT();
-					case func_native: 
+					case func_native:
 						{
 							native_t *func = ptr;
 
@@ -563,7 +563,6 @@ static void info()
 	SIZE_INFO(closure_t);
 	SIZE_INFO(string_t);
 	SIZE_INFO(pair_t);
-	SIZE_INFO(card_t);
 }
 
 int main(int argc, char **argv)

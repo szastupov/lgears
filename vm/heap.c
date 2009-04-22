@@ -16,10 +16,11 @@
  */
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
 #include "memory.h"
 #include "heap.h"
 
-/** 
+/**
  * @file heap.c
  * @brief Heap managment inplementation
  * @author Stepan Zastupov
@@ -30,110 +31,118 @@
  */
 
 #define align_up(s, a) (((s)+((a)-1)) & ~((a)-1))
-#define card_idx(shift) (align_up(shift+1, 512)/512-1)
+#define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
 
-static void copy_heap_reset(copy_heap_t *heap)
+static void space_reset(space_t *space)
 {
-	heap->pos = heap->mem;
-	heap->free_mem = heap->size;
-	heap->cur_card = 0;
-	memset(heap->cards, 0, sizeof(heap->cards));
+	space->pos = space->mem;
+	space->free_mem = space->size;
+	space->blocks = 0;
 
-	memset(heap->mem, 0, heap->size); // Fore debug purposes
+	memset(space->mem, 0, space->size); // Fore debug purposes
 }
 
-static void copy_heap_init(copy_heap_t *heap, void *mem, int size)
+static void space_init(space_t *space, void *mem, int size)
 {
-	heap->size = size;
-	heap->mem = mem;
+	space->size = size;
+	space->mem = mem;
 
-	copy_heap_reset(heap);
+	space_reset(space);
 }
 
 /*
  * All pointers should be aligned by wordsize
  * Assume that pos is always aligned address - BHDR_SIZE
  */
-static void* copy_heap_alloc(copy_heap_t *heap, size_t size, int type_id)
+static void* space_alloc(space_t *space, size_t size, int type_id)
 {
 	size = align_up(size, 8);
 	size_t need = size+BHDR_SIZE;
 
-	if (need > heap->free_mem) {
-		LOG_DBG("out of free mem on heap (need %zd)\n", need);
+	if (need > space->free_mem) {
+		LOG_DBG("out of free mem on space (need %zd)\n", need);
 		return NULL;
 	}
 
 
-	block_hdr_t *hdr = heap->pos;
+	block_hdr_t *hdr = space->pos;
 	hdr->forward = 0;
+	hdr->generation = 0;
 	hdr->modified = 0;
 	hdr->type_id = type_id;
 	hdr->size = size;
 
-	heap->pos += BHDR_SIZE;
-	void *res = heap->pos;
-	heap->pos += hdr->size;
-
-	heap->free_mem -= need;
+	space->pos += BHDR_SIZE;
+	void *res = space->pos;
+	space->pos += hdr->size;
+	space->free_mem -= need;
+	space->blocks++;
 
 	return res;
 }
 
 
-static void* copy_heap_copy(copy_heap_t *heap, void *p, size_t size)
+static void* space_copy(space_t *space, void *p, size_t size)
 {
 	LOG_DBG("COPYING\n");
-	if (size > heap->free_mem)
+	if (size > space->free_mem)
 		FATAL("Totaly fucking out of memory (need %zd)\n", size);
 
-	int card = card_idx((heap->pos-heap->mem)+size);
-	if (card > heap->cur_card) {
-		heap->cur_card++;
-		heap->pos = heap->mem + card*512;
-	}
-
-	void *res = heap->pos;
+	void *res = space->pos;
 	memcpy(res, p, size);
-	heap->pos += size;
-	heap->free_mem -= size;
-	heap->cards[card].blocks++;
+	space->pos += size;
+	space->free_mem -= size;
+	space->blocks++;
 
 	return res;
 }
 
-static int copy_heap_own(copy_heap_t *heap, void *p)
+static int space_enough(space_t *space, size_t size)
 {
-	if (p < heap->mem || p > (heap->mem + heap->size))
-		return 0;
-	return 1;
+	return space->free_mem > size+BHDR_SIZE;
 }
 
-static int copy_heap_enough(copy_heap_t *heap, size_t size)
+static void heap_swap_survived(heap_t *heap)
 {
-	return heap->free_mem > size+BHDR_SIZE;
+	space_reset(heap->survived);
+	space_t *tmp = heap->future_survived;
+	heap->future_survived = heap->survived;
+	heap->survived = tmp;
 }
 
-void heap_swap(heap_t *heap)
+void remember(heap_t *heap, block_hdr_t *hdr)
 {
-	copy_heap_reset(heap->from);
-	copy_heap_t *tmp = heap->from;
-	heap->from = heap->to;
-	heap->to = tmp;
+	remembered_t *new = new0(remembered_t);
+	new->next = heap->remembered;
+	new->hdr = hdr;
+	heap->remembered = new;
 }
 
-/** 
+static void forget(remembered_t *cur)
+{
+	remembered_t *next;
+	while (cur) {
+		next = cur->next;
+		mem_free(cur);
+		cur = next;
+	}
+}
+
+typedef struct {
+	block_hdr_t *hdr;
+	int i;
+} scan_cont_t;
+
+/**
  * @brief Incremental scan of object references
  */
-
-static void heap_scan_card(heap_t *heap, copy_heap_t *ch,
-		int card, int only_dirty)
+static void heap_scan_references(heap_t *heap, scan_cont_t *cont)
 {
-	int i;
-	block_hdr_t *hdr = ch->mem + card*512;
-
-	for (i = 0; i < ch->cards[card].blocks; i++,
-			hdr = BHDR_SIZE + hdr->size + (void*)hdr)
+	space_t *space = heap->future_survived;
+	int i = cont->i;
+	block_hdr_t *hdr = cont->hdr;
+	for (; i < space->blocks; i++,
+			 hdr = BHDR_SIZE + hdr->size + (void*)hdr)
 	{
 		const type_t *type = &type_table[hdr->type_id];
 		LOG_DBG("Survived %s %d\n",
@@ -142,62 +151,68 @@ static void heap_scan_card(heap_t *heap, copy_heap_t *ch,
 		/*
 		 * If type provide visit function - call it
 		 */
-		if (!only_dirty || hdr->modified) {
-			if (type->visit)
-				type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
-		}
-		hdr->modified = 0; // Refresh modified flag
+		if (type->visit)
+			type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
 	}
-
-	ch->cards[card].dirty = 0;
+	cont->i = i;
+	cont->hdr = hdr;
 }
 
-static void heap_scan_references(heap_t *heap, int from_card)
+static void visit_hdr(heap_t *heap, block_hdr_t *hdr)
 {
-	int i;
-	for (i = from_card; i <= heap->to->cur_card; i++) {
-		LOG_DBG("scan_refs %d\n", i);
-		heap_scan_card(heap, heap->to, i, 0);
-	}
+	const type_t *type = &type_table[hdr->type_id];
+	if (type->visit)
+		type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
 }
 
-static void heap_scan_old(heap_t *heap, int to_card)
+static void heap_scan_remebered(heap_t *heap)
 {
-	copy_heap_t *ch = heap->to;
-	int i;
-	for (i = 0; i < to_card; i++) {
-		if (ch->cards[i].dirty) {
-			LOG_DBG("scan old %d\n", i);
-			heap_scan_card(heap, heap->to, i, 1);
-		}
+	remembered_t *cur = heap->remembered;
+	heap->remembered = NULL;
+	remembered_t *root = cur;
+	while (cur) {
+		visit_hdr(heap, cur->hdr);
+		cur = cur->next;
 	}
+	forget(root);
 }
 
 static void heap_gc(heap_t *heap)
 {
 	LOG_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
-	if (!heap->to) {
-		heap->to = &heap->heaps[heap->count];
-		copy_heap_init(heap->to, mem_alloc(heap->page_size), heap->page_size);
-		heap->count++;
-	}
-	int card_was = heap->to->cur_card;
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
+
 	heap->vm_get_roots(&heap->visitor, heap->vm);
 
-	heap_scan_old(heap, card_was);
-	heap_scan_references(heap, card_was);
+	scan_cont_t cont = {
+		.hdr = heap->future_survived->mem,
+		.i = 0
+	};
 
-	copy_heap_reset(heap->from);
+	heap_scan_references(heap, &cont);
+	while (heap->remembered) {
+		heap_scan_remebered(heap);
+		if (cont.i < heap->future_survived->blocks)
+			heap_scan_references(heap, &cont);
+	}
+
+	space_reset(&heap->fresh);
+	heap_swap_survived(heap);
 	if (heap->vm_after_gc)
 		heap->vm_after_gc(&heap->visitor, heap->vm);
+
+	gettimeofday(&tv2, NULL);
+	printf("\nGC time: %ld seconds, %ld microseconds\n",
+			tv2.tv_sec-tv1.tv_sec, tv2.tv_usec-tv1.tv_usec);
 }
 
 void* heap_alloc(heap_t *heap, int size, int type_id)
 {
-	void *res = copy_heap_alloc(heap->from, size, type_id);
+	void *res = space_alloc(&heap->fresh, size, type_id);
 	if (!res) {
 		heap_gc(heap);
-		res = copy_heap_alloc(heap->from, size, type_id);
+		res = space_alloc(&heap->fresh, size, type_id);
 		if (!res)
 			FATAL("Totaly fucking out of memory");
 	}
@@ -207,7 +222,7 @@ void* heap_alloc(heap_t *heap, int size, int type_id)
 
 void heap_require(heap_t *heap, int size)
 {
-	if (!copy_heap_enough(heap->from, size))
+	if (!space_enough(&heap->fresh, size))
 		heap_gc(heap);
 }
 
@@ -218,17 +233,9 @@ void* heap_alloc0(heap_t *heap, int size, int type_id)
 	return ptr;
 }
 
-int heap_own(heap_t *heap, void *p)
+static int in_space(space_t *space, void *p)
 {
-	int i;
-	int found = -1;
-	for (i = 0; i < heap->count; i++)
-		if (copy_heap_own(&heap->heaps[i], p)) {
-			found = i;
-			break;
-		}
-
-	return found;
+	return (p >= space->mem) && (p < space->mem+space->size);
 }
 
 static void heap_mark(visitor_t *visitor, obj_t *obj)
@@ -240,22 +247,13 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	ptr_t ptr = { .ptr = obj->ptr };
 	void *p = PTR_GET(ptr);
-
-
-	/*
-	 * TODO:
-	 * determine destination heap
-	 * In case pointer belong to destination:
-	 *	If destination heap is full - move objects to next heap
-	 *	If destination isn't full - skip
-	 * In case pointer belong to 0-heap move object to destination
-	 */
-
-	int idx = heap_own(heap, p);
-	if (idx == -1) {
+	if (p < heap->mem || p > heap->mem+heap->mem_size)
 		FATAL("Trying to mark %p which doesn't belong to this heap\n", p);
-	} else if (idx == heap->count-1) {
-		LOG_DBG("%p belong to destination space, skip...\n", p);
+
+	if (in_space(&heap->old, p)
+		|| in_space(heap->future_survived, p))
+	{
+		LOG_DBG("%p is already copied\n", p);
 		return;
 	}
 
@@ -276,58 +274,61 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	/*
 	 * Copy object to the second heap and update pointer
 	 */
-	void *new_pos = copy_heap_copy(heap->to, p, hdr->size+BHDR_SIZE);
+	size_t ts = hdr->size+BHDR_SIZE;
+	void *new_pos;
+	if (hdr->generation == 3) {
+		LOG_DBG("Got old object\n");
+		new_pos = space_copy(&heap->old, p, ts);
+		remember(heap, new_pos);
+	} else
+		new_pos = space_copy(heap->future_survived, p, hdr->size+BHDR_SIZE);
 
 	hdr->forward = 1;
 	*forward = new_pos + BHDR_SIZE;
-	//	LOG_DBG("Forward set to %p\n", *forward);
 
 	hdr = new_pos;
 	hdr->forward = 0;
+	hdr->generation++;
 	new_pos += BHDR_SIZE;
 	PTR_SET(ptr, new_pos);
 	obj->ptr = ptr.ptr;
 }
 
-void heap_mark_modified(heap_t *heap, void *ptr)
-{
-	int idx = heap_own(heap, ptr);
-	if (idx == -1)
-		FATAL("Trying to modify pointer %p which doesn't belong to any heap\n", ptr);
-
-	copy_heap_t *ch = &heap->heaps[idx];
-	unsigned long shift = ptr-ch->mem;
-	int i = card_idx(shift);
-	LOG_DBG("mark card %d\n", i);
-	HTYPE(ptr)->modified = 1;
-	ch->cards[i].dirty = 1;
-}
+/* TODO: tune it */
+#define FRESH_SIZE 8192
+#define SURVIVED_SIZE 4096
+#define OLD_SIZE 16384
 
 void heap_init(heap_t *heap, visitor_fun vm_get_roots,
 		visitor_fun vm_after_gc, void *vm)
 {
-	heap->from = &heap->heaps[0];
-	heap->count = 1;
-	heap->to = NULL;
+	heap->mem_size = FRESH_SIZE+SURVIVED_SIZE*2+OLD_SIZE;
+	heap->mem = mem_alloc(heap->mem_size);
 
-	static int sc_page_size = 0;
-	if (!sc_page_size)
-		sc_page_size = sysconf(_SC_PAGE_SIZE);
+	void *memp = heap->mem;
 
-	heap->page_size = sc_page_size;
+#define INIT_SPACE(space, size)					\
+	space_init(space, memp, size);				\
+	memp += size;
 
-	copy_heap_init(heap->from, mem_alloc(heap->page_size), sc_page_size);
+	heap->survived = &heap->survived_spaces[0];
+	heap->future_survived = &heap->survived_spaces[1];
+
+	INIT_SPACE(&heap->fresh, FRESH_SIZE);
+	INIT_SPACE(&heap->survived_spaces[0], SURVIVED_SIZE);
+	INIT_SPACE(&heap->survived_spaces[1], SURVIVED_SIZE);
+	INIT_SPACE(&heap->old, OLD_SIZE);
 
 	heap->visitor.visit = heap_mark;
 	heap->visitor.user_data = heap;
 	heap->vm_get_roots = vm_get_roots;
 	heap->vm_after_gc = vm_after_gc;
 	heap->vm = vm;
+	heap->remembered = NULL;
 }
 
 void heap_destroy(heap_t *heap)
 {
-	int i;
-	for (i = 0; i < heap->count; i++)
-		mem_free(heap->heaps[i].mem);
+	mem_free(heap->mem);
+	forget(heap->remembered);
 }

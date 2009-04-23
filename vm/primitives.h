@@ -19,6 +19,7 @@
 #include "native.h"
 #include "vector.h"
 #include "string.h"
+#include "bytevector.h"
 
 void ns_install_primitives(hash_table_t *tbl);
 
@@ -29,6 +30,8 @@ typedef struct {
 void pair_repr(void *ptr);
 void pair_visit(visitor_t *vs, void *data);
 void* _list(heap_t *heap, obj_t *argv, int argc);
+
+#define IS_PAIR(obj) IS_TYPE(obj, t_pair)
 
 typedef struct {
 	obj_t func;

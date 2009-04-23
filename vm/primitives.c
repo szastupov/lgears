@@ -16,6 +16,7 @@
  */
 #include "primitives.h"
 #include "fixnum.h"
+#include "fd.h"
 
 void pair_visit(visitor_t *vs, void *data)
 {
@@ -199,14 +200,14 @@ void ns_install_native(hash_table_t *tbl,
 
 static int char_to_integer(vm_thread_t *thread, obj_t *chr)
 {
-	SAFE_ASSERT(chr->tag == id_char);
+	SAFE_ASSERT(IS_CHAR(*chr));
 	RESULT_FIXNUM(CHAR(*chr));
 }
 MAKE_NATIVE_UNARY(char_to_integer);
 
 static int integer_to_char(vm_thread_t *thread, obj_t *i)
 {
-	SAFE_ASSERT(i->tag == id_fixnum);
+	SAFE_ASSERT(IS_FIXNUM(*i));
 	RESULT_CHAR(FIXNUM(*i));
 }
 MAKE_NATIVE_UNARY(integer_to_char);
@@ -241,25 +242,25 @@ MAKE_NATIVE_UNARY(is_null);
 
 static int is_pair(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_TYPE(*obj, t_pair));
+	RESULT_BOOL(IS_PAIR(*obj));
 }
 MAKE_NATIVE_UNARY(is_pair);
 
 static int is_symbol(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(obj->tag == id_symbol);
+	RESULT_BOOL(IS_SYMBOL(*obj));
 }
 MAKE_NATIVE_UNARY(is_symbol);
 
 static int is_char(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(obj->tag == id_char);
+	RESULT_BOOL(IS_CHAR(*obj));
 }
 MAKE_NATIVE_UNARY(is_char);
 
 static int is_number(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(obj->tag == id_fixnum);
+	RESULT_BOOL(IS_FIXNUM(*obj));
 }
 MAKE_NATIVE_UNARY(is_number);
 
@@ -290,4 +291,6 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_fixnum(tbl);
 	ns_install_vector(tbl);
 	ns_install_string(tbl);
+	ns_install_bytevector(tbl);
+	ns_install_fd(tbl);
 }

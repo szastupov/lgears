@@ -224,3 +224,24 @@ int string_equal(const void *v1, const void *v2)
 {
 	return strcmp((const char*)v1, (const char*)v2) == 0;
 }
+
+unsigned int_hash(const void *src)
+{
+	return *(const unsigned*)src;
+}
+
+
+int int_equal(const void *v1, const void *v2)
+{
+	return *(const unsigned*)v1 == *(const unsigned*)v2;
+}
+
+unsigned direct_hash(const void *src)
+{
+	return (unsigned long)src;
+}
+
+int direct_equal(const void *v1, const void *v2)
+{
+	return v1 == v2;
+}

@@ -86,6 +86,11 @@ DEFINE_CONST(cfalse, 2);
 DEFINE_CONST(cvoid, 3);
 
 #define CIF(a) ((a) ? ctrue : cfalse)
+#define IS_PTR(obj) ((obj).tag == id_ptr)
+#define IS_FIXNUM(obj) ((obj).tag == id_fixnum)
+#define IS_CHAR(obj) ((obj).tag == id_char)
+#define IS_SYMBOL(obj) ((obj).tag == id_symbol)
+#define IS_CONST(obj) ((obj).tag == id_const)
 #define IS_FALSE(obj) ((obj).ptr == cfalse.ptr)
 #define IS_TRUE(obj) ((obj).ptr == ctrue.ptr)
 #define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
@@ -170,6 +175,14 @@ typedef struct {
  * @brief Type table
  */
 extern const type_t type_table[];
-enum { t_env, t_closure, t_cont, t_display, t_pair, t_string, t_vector };
+enum { t_env,
+	   t_closure,
+	   t_cont,
+	   t_display,
+	   t_pair,
+	   t_string,
+	   t_vector,
+	   t_bytevector
+};
 
 #endif /* TYPES_H */

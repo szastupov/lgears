@@ -66,7 +66,7 @@ MAKE_NATIVE_VARIADIC(vector, 0);
 
 static int make_vector(vm_thread_t *thread, obj_t *count, obj_t *fill)
 {
-	SAFE_ASSERT(count->tag == id_fixnum);
+	SAFE_ASSERT(IS_FIXNUM(*count));
 
 	vector_t *vec = vector_new(&thread->heap, FIXNUM(*count));
 	int i;
@@ -79,7 +79,7 @@ MAKE_NATIVE_BINARY(make_vector);
 
 static int vector_length(vm_thread_t *thread, obj_t *obj)
 {
-	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
+	SAFE_ASSERT(IS_VECTOR(*obj));
 	vector_t *vec = PTR(*obj);
 
 	RESULT_FIXNUM(vec->size);
@@ -88,13 +88,13 @@ MAKE_NATIVE_UNARY(vector_length);
 
 static int is_vector(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_TYPE(*obj, t_vector));
+	RESULT_BOOL(IS_VECTOR(*obj));
 }
 MAKE_NATIVE_UNARY(is_vector);
 
 static int vector_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 {
-	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
+	SAFE_ASSERT(IS_VECTOR(*obj));
 	vector_t *vec = PTR(*obj);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(vec->size > pos);
@@ -108,8 +108,8 @@ MAKE_NATIVE_TERNARY(vector_set);
 
 static int vector_ref(vm_thread_t *thread, obj_t *obj, obj_t *opos)
 {
-	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
-	SAFE_ASSERT(opos->tag == id_fixnum);
+	SAFE_ASSERT(IS_VECTOR(*obj));
+	SAFE_ASSERT(IS_FIXNUM(*opos));
 	vector_t *vec = PTR(*obj);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(vec->size > pos);
@@ -120,7 +120,7 @@ MAKE_NATIVE_BINARY(vector_ref);
 
 static int vector_to_list(vm_thread_t *thread, obj_t *obj)
 {
-	SAFE_ASSERT(IS_TYPE(*obj, t_vector));
+	SAFE_ASSERT(IS_VECTOR(*obj));
 	vector_t *vec = PTR(*obj);
 	void *res = _list(&thread->heap, vec->objects, vec->size);
 	RESULT_PTR(res);

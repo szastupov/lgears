@@ -17,6 +17,7 @@
 #ifndef HEAP_H
 #define HEAP_H
 #include "types.h"
+#include "hash.h"
 
 /**
  * @file heap.h
@@ -69,7 +70,7 @@ typedef struct remembered_s {
  * @brief Heap interface
  */
 typedef struct {
-	visitor_t visitor;			/**< VM visitor */
+	visitor_t visitor;
 	void *mem;
 	size_t mem_size;
 	space_t fresh;
@@ -77,10 +78,13 @@ typedef struct {
 	space_t *survived;
 	space_t *future_survived;
 	space_t old;
-	visitor_fun vm_get_roots;	/**< Callback to procedure which mark root objects */
+	visitor_fun vm_get_roots;
 	visitor_fun vm_after_gc;
-	remembered_t *remembered;
-	void *vm;					/**< VM pointer */
+	remembered_t *rem_head;
+	remembered_t *rem_tail;
+	unsigned full_gc:1;
+	hash_table_t *old_map;
+	void *vm;
 } heap_t;
 
 /**

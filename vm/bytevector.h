@@ -14,18 +14,18 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#ifndef VECTOR_H
-#define VECTOR_H 
+#ifndef BYTEVECTOR_H
+#define BYTEVECTOR_H
 
 typedef struct {
-	obj_t *objects;
+	unsigned char *data;
 	int size;
-} vector_t;
+} bytevector_t;
 
-#define IS_VECTOR(obj) IS_TYPE(obj, t_vector)
+#define IS_BYTEVECTOR(obj) IS_TYPE(obj, t_bytevector)
 
-void vector_repr(void *ptr);
-void vector_visit(visitor_t *vs, void *data);
-void ns_install_vector(hash_table_t *tbl);
+void bv_repr(void *ptr);
+void bv_visit(visitor_t *vs, void *data);
+void ns_install_bytevector(hash_table_t *tbl);
 
-#endif /* VECTOR_H */
+#endif

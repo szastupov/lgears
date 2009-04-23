@@ -46,4 +46,10 @@ void hash_table_insert(hash_table_t *tbl, void *key, void *val);
 unsigned string_hash(const void *src);
 int string_equal(const void *v1, const void *v2);
 
+unsigned int_hash(const void *src);
+int int_equal(const void *v1, const void *v2);
+
+unsigned direct_hash(const void *src);
+int direct_equal(const void *v1, const void *v2);
+
 #endif /* HASH_H */

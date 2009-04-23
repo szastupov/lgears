@@ -38,6 +38,7 @@ const type_t type_table[] = {
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
 	{ .name = "string", .visit = string_visit, .repr = string_repr },
 	{ .name = "vector", .visit = vector_visit, .repr = vector_repr },
+	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
 };
 
 hash_table_t ns_global;

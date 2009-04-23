@@ -24,21 +24,28 @@
  * @file heap.c
  * @brief Heap managment inplementation
  * @author Stepan Zastupov
- *
- * This is the implementation of Cheney's Algorithm
- * Note, that old memory overwrited on forwarding,
- * it may be changed in future
  */
 
 #define align_up(s, a) (((s)+((a)-1)) & ~((a)-1))
 #define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
+
+/* TODO: tune it */
+#define FRESH_SIZE 8192
+#define SURVIVED_SIZE 4096
+#define OLD_SIZE 16384
+
+#define HEAP_DBG printf
 
 static void space_reset(space_t *space)
 {
 	space->pos = space->mem;
 	space->free_mem = space->size;
 	space->blocks = 0;
+}
 
+static void space_reset0(space_t *space)
+{
+	space_reset(space);
 	memset(space->mem, 0, space->size); // Fore debug purposes
 }
 
@@ -47,7 +54,7 @@ static void space_init(space_t *space, void *mem, int size)
 	space->size = size;
 	space->mem = mem;
 
-	space_reset(space);
+	space_reset0(space);
 }
 
 /*
@@ -60,7 +67,7 @@ static void* space_alloc(space_t *space, size_t size, int type_id)
 	size_t need = size+BHDR_SIZE;
 
 	if (need > space->free_mem) {
-		LOG_DBG("out of free mem on space (need %zd)\n", need);
+		HEAP_DBG("out of free mem on space (need %zd)\n", need);
 		return NULL;
 	}
 
@@ -81,20 +88,30 @@ static void* space_alloc(space_t *space, size_t size, int type_id)
 	return res;
 }
 
+typedef void (*put_func)(void *dest, const void *src, size_t n);
 
-static void* space_copy(space_t *space, void *p, size_t size)
+static void* space_put(space_t *space, void *p, size_t size, put_func put)
 {
-	LOG_DBG("COPYING\n");
 	if (size > space->free_mem)
 		FATAL("Totaly fucking out of memory (need %zd)\n", size);
 
 	void *res = space->pos;
-	memcpy(res, p, size);
+	put(res, p, size);
 	space->pos += size;
 	space->free_mem -= size;
 	space->blocks++;
 
 	return res;
+}
+
+static void* space_copy(space_t *space, void *p, size_t size)
+{
+	return space_put(space, p, size, (put_func)memcpy);
+}
+
+static void* space_move(space_t *space, void *p, size_t size)
+{
+	return space_put(space, p, size, (put_func)memmove);
 }
 
 static int space_enough(space_t *space, size_t size)
@@ -104,18 +121,28 @@ static int space_enough(space_t *space, size_t size)
 
 static void heap_swap_survived(heap_t *heap)
 {
-	space_reset(heap->survived);
+	space_reset0(heap->survived);
 	space_t *tmp = heap->future_survived;
 	heap->future_survived = heap->survived;
 	heap->survived = tmp;
 }
 
+static void link_remembered(remembered_t **head,
+							remembered_t **tail,
+							remembered_t *new)
+{
+	if (*tail)
+		(*tail)->next = new;
+	*tail = new;
+	if (!*head)
+		*head = new;
+}
+
 void remember(heap_t *heap, block_hdr_t *hdr)
 {
 	remembered_t *new = new0(remembered_t);
-	new->next = heap->remembered;
 	new->hdr = hdr;
-	heap->remembered = new;
+	link_remembered(&heap->rem_head, &heap->rem_tail, new);
 }
 
 static void forget(remembered_t *cur)
@@ -133,6 +160,13 @@ typedef struct {
 	int i;
 } scan_cont_t;
 
+static void visit_hdr(heap_t *heap, block_hdr_t *hdr)
+{
+	const type_t *type = &type_table[hdr->type_id];
+	if (type->visit)
+		type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
+}
+
 /**
  * @brief Incremental scan of object references
  */
@@ -144,45 +178,70 @@ static void heap_scan_references(heap_t *heap, scan_cont_t *cont)
 	for (; i < space->blocks; i++,
 			 hdr = BHDR_SIZE + hdr->size + (void*)hdr)
 	{
-		const type_t *type = &type_table[hdr->type_id];
-		LOG_DBG("Survived %s %d\n",
-				type_table[hdr->type_id].name, i);
-
-		/*
-		 * If type provide visit function - call it
-		 */
-		if (type->visit)
-			type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
+		visit_hdr(heap, hdr);
 	}
 	cont->i = i;
 	cont->hdr = hdr;
 }
 
-static void visit_hdr(heap_t *heap, block_hdr_t *hdr)
-{
-	const type_t *type = &type_table[hdr->type_id];
-	if (type->visit)
-		type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
-}
-
 static void heap_scan_remebered(heap_t *heap)
 {
-	remembered_t *cur = heap->remembered;
-	heap->remembered = NULL;
-	remembered_t *root = cur;
+	remembered_t *cur = heap->rem_head;
 	while (cur) {
 		visit_hdr(heap, cur->hdr);
 		cur = cur->next;
 	}
-	forget(root);
+	forget(heap->rem_head);
+	heap->rem_head = NULL;
+	heap->rem_tail = NULL;
 }
 
-static void heap_gc(heap_t *heap)
+static void heap_gc_old(heap_t *heap)
 {
-	LOG_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
-	struct timeval tv1, tv2;
-	gettimeofday(&tv1, NULL);
+	int i, live_count, dead_count;
+	space_t *space = &heap->old;
+	remembered_t *live_head = NULL;
+	remembered_t *live_tail = NULL;
+	live_count = dead_count = 0;
 
+	block_hdr_t *hdr = space->mem;
+	for (i = 0; i < space->blocks;
+		 i++, hdr = BHDR_SIZE + hdr->size + (void*)hdr)
+	{
+		if (hdr->modified) {
+			remembered_t *new = new0(remembered_t);
+			new->hdr = hdr;
+			link_remembered(&live_head, &live_tail, new);
+			live_count++;
+		} else
+			dead_count++;
+	}
+	space_reset(space);
+	
+	remembered_t *cur = live_head;
+	hash_table_t *tbl = new0(hash_table_t);
+	hash_table_init(tbl, direct_hash, direct_equal);
+	void *new_pos;
+	while (cur) {
+		cur->hdr->modified = 0;
+		new_pos = space_move(space, cur->hdr, BHDR_SIZE+cur->hdr->size);
+		//printf("moved %p -> %p\n", cur->hdr, new_pos);
+		hash_table_insert(tbl, cur->hdr, new_pos);
+		remember(heap, new_pos); /* Schedule it for rescan, because
+								  * old objects may contains pointers
+								  * to collected memory too */
+		cur = cur->next;
+	}
+	heap->old_map = tbl;
+
+	forget(live_head);
+
+	printf("live %d, dead %d, free old space %zd\n",
+		   live_count, dead_count, space->free_mem);
+}
+
+static void heap_gc_main(heap_t *heap)
+{
 	heap->vm_get_roots(&heap->visitor, heap->vm);
 
 	scan_cont_t cont = {
@@ -191,16 +250,36 @@ static void heap_gc(heap_t *heap)
 	};
 
 	heap_scan_references(heap, &cont);
-	while (heap->remembered) {
+	while (heap->rem_head) {
 		heap_scan_remebered(heap);
 		if (cont.i < heap->future_survived->blocks)
 			heap_scan_references(heap, &cont);
 	}
+}
 
-	space_reset(&heap->fresh);
+static void heap_gc(heap_t *heap)
+{
+	HEAP_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
+
+	heap_gc_main(heap);
+
+	if (heap->full_gc) {
+		heap_gc_old(heap);
+		heap->full_gc = 0;
+		heap_gc_main(heap);
+		hash_table_destroy(heap->old_map);
+		heap->old_map = NULL;
+	}
+	
+	space_reset0(&heap->fresh);
 	heap_swap_survived(heap);
 	if (heap->vm_after_gc)
 		heap->vm_after_gc(&heap->visitor, heap->vm);
+
+	if (heap->old.free_mem < SURVIVED_SIZE)
+		heap->full_gc = 1;		/* Tell to perform full gc next time */
 
 	gettimeofday(&tv2, NULL);
 	printf("\nGC time: %ld seconds, %ld microseconds\n",
@@ -216,7 +295,6 @@ void* heap_alloc(heap_t *heap, int size, int type_id)
 		if (!res)
 			FATAL("Totaly fucking out of memory");
 	}
-	LOG_DBG("allocated %d:%p\n", size, res);
 	return res;
 }
 
@@ -241,6 +319,7 @@ static int in_space(space_t *space, void *p)
 static void heap_mark(visitor_t *visitor, obj_t *obj)
 {
 	heap_t *heap = visitor->user_data;
+	block_hdr_t *hdr;
 
 	if (!obj->ptr || obj->tag != id_ptr)
 		return;
@@ -250,22 +329,40 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	if (p < heap->mem || p > heap->mem+heap->mem_size)
 		FATAL("Trying to mark %p which doesn't belong to this heap\n", p);
 
-	if (in_space(&heap->old, p)
-		|| in_space(heap->future_survived, p))
-	{
-		LOG_DBG("%p is already copied\n", p);
+	if (in_space(heap->future_survived, p)) {
+		//HEAP_DBG("%p is already copied to survived\n", p);
+		return;
+	}
+
+	if (in_space(&heap->old, p)) {
+		hdr = HTYPE(p);
+		if (heap->full_gc && !hdr->modified) {
+			//HEAP_DBG("remembering old %p\n", p);
+			hdr->modified = 1;
+			remember(heap, hdr);
+		} else if (heap->old_map) {
+			void *res = hash_table_lookup(heap->old_map, hdr);
+			if (res) {
+				p = res+BHDR_SIZE;
+				//HEAP_DBG("Forwarding old to %p\n", res);
+				PTR_SET(ptr, p);
+				obj->ptr = ptr.ptr;
+			} else {
+				//HEAP_DBG("%p not in map\n", hdr);
+			}
+		}
 		return;
 	}
 
 	void **forward = p;
 	p -= BHDR_SIZE;
-	block_hdr_t *hdr = p;
+	hdr = p;
 
 	/*
 	 * Use forward pointer if object already moved
 	 */
 	if (hdr->forward) {
-		LOG_DBG("Forwarding to %p\n", *forward);
+		//HEAP_DBG("Forwarding to %p\n", *forward);
 		PTR_SET(ptr, *forward);
 		obj->ptr = ptr.ptr;
 		return;
@@ -277,11 +374,18 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	size_t ts = hdr->size+BHDR_SIZE;
 	void *new_pos;
 	if (hdr->generation == 3) {
-		LOG_DBG("Got old object\n");
+		if (heap->full_gc) {
+			//HEAP_DBG("postpoinig\n");
+			remember(heap, hdr);
+			return; //Postpone copying
+		}
+		//HEAP_DBG("Got old object\n");
 		new_pos = space_copy(&heap->old, p, ts);
 		remember(heap, new_pos);
-	} else
-		new_pos = space_copy(heap->future_survived, p, hdr->size+BHDR_SIZE);
+	} else {
+		//HEAP_DBG("copying to survived\n");
+		new_pos = space_copy(heap->future_survived, p, ts);
+	}
 
 	hdr->forward = 1;
 	*forward = new_pos + BHDR_SIZE;
@@ -293,11 +397,6 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	PTR_SET(ptr, new_pos);
 	obj->ptr = ptr.ptr;
 }
-
-/* TODO: tune it */
-#define FRESH_SIZE 8192
-#define SURVIVED_SIZE 4096
-#define OLD_SIZE 16384
 
 void heap_init(heap_t *heap, visitor_fun vm_get_roots,
 		visitor_fun vm_after_gc, void *vm)
@@ -324,11 +423,10 @@ void heap_init(heap_t *heap, visitor_fun vm_get_roots,
 	heap->vm_get_roots = vm_get_roots;
 	heap->vm_after_gc = vm_after_gc;
 	heap->vm = vm;
-	heap->remembered = NULL;
 }
 
 void heap_destroy(heap_t *heap)
 {
 	mem_free(heap->mem);
-	forget(heap->remembered);
+	forget(heap->rem_head);
 }

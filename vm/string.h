@@ -23,6 +23,8 @@ typedef struct {
 	unsigned copy:1;
 } string_t;
 
+#define IS_STRING(obj) IS_TYPE(obj, t_string)
+
 void* _string(heap_t *heap, char *str, int copy);
 void string_repr(void *ptr);
 void string_visit(visitor_t *vs, void *data);

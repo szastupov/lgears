@@ -16,102 +16,84 @@
  */
 #ifndef HEAP_H
 #define HEAP_H
-#include "types.h"
-#include "hash.h"
 
-/**
- * @file heap.h
- * @brief Heap manager defination
- * @author Stepan Zastupov
- */
+/* Abstract allocator interface */
+typedef struct allocator_s {
+	void* (*alloc)(struct allocator_s*, size_t, int);
+	int id;
+} allocator_t;
 
-/**
- * @brief Header attached to each object on heap
- */
+/* Header attached to each object on heap */
 typedef struct {
-	unsigned size;		/**< Size of block (with padding if need) */
-	unsigned type_id:4;	/**< Type id @see type_table */
-	unsigned forward:1;	/**< Indicate that pointer should be forwarded */
-	unsigned generation:2;	/**< Generation */
-	unsigned modified:1;
+	unsigned size;		/* Size of block (with padding if need) */
+	unsigned type_id:4;	/* Type id @see type_table */
+	unsigned forward:1;	/* Indicate that pointer should be forwarded */
+	unsigned generation:2;	/* Generation */
+	unsigned remembered:1;	/* Indicate that object is remembered */
 } block_hdr_t;
 
 #define BHDR_SIZE sizeof(block_hdr_t)
 #define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
 #define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
-#define IS_TYPE(obj, tid) \
-	((obj).tag == id_ptr && HTYPE_TAG(PTR(obj)) == tid)
+#define IS_TYPE(obj, tid)							\
+	(((obj).tag == id_ptr || ((obj).tag == id_ptr))	\
+	 && (HTYPE_TAG(PTR(obj)) == tid))
 
 #define IS_OLD(hp, ptr) ((void*)ptr >= (hp)->old.mem)
 
-#define MARK_MODIFIED(hp, ptr)						\
-	if (!HTYPE(ptr)->modified && IS_OLD(hp, ptr)) {	\
-		remember(hp, HTYPE(ptr));					\
-		LOG_DBG("marked as modified");				\
+#define MARK_MODIFIED(hp, ptr)							\
+	if (!HTYPE(ptr)->remembered && IS_OLD(hp, ptr)) {	\
+		heap_remember(hp, HTYPE(ptr));					\
+		HTYPE(ptr)->remembered  = 1;					\
+		LOG_DBG("marked as modified");					\
 	}
 
-/**
- * @brief Copying heap
- */
+/* Heap space */
 typedef struct {
-	void *mem;		/**< Memory */
-	void *pos;		/**< Current position */
-	size_t size;		/**< Total size of space */
-	size_t free_mem;	/**< Free memory */
-	int blocks;
+	void *mem;		/* Memory */
+	void *pos;		/* Current position */
+	size_t size;		/* Total size of space */
+	size_t free_mem;	/* Free memory */
+	int blocks;			/* Allocated blocks */
 } space_t;
 
+/* Node in remembered set */
 typedef struct remembered_s {
-	block_hdr_t *hdr;
-	struct remembered_s *next;
+	block_hdr_t *hdr;			/* Pointer on object */
+	struct remembered_s *next;	/* Next remembered */
 } remembered_t;
 
-/**
- * @brief Heap interface
- */
 typedef struct {
-	visitor_t visitor;
-	void *mem;
-	size_t mem_size;
-	space_t fresh;
-	space_t survived_spaces[2];
+	remembered_t *head, *tail;
+} remembered_set_t;
+
+/* Main heap interface */
+typedef struct {
+	visitor_t visitor;			/* Visitor */
+	void *mem;					/* Memory allocated for the heap */
+	size_t mem_size;			/* Size of memory */
+	space_t fresh;				/* Space for fresh objects  */
+	space_t survived_spaces[2];	/* Spaces for survived objects */
 	space_t *survived;
 	space_t *future_survived;
-	space_t old;
-	visitor_fun vm_get_roots;
-	visitor_fun vm_after_gc;
-	remembered_t *rem_head;
-	remembered_t *rem_tail;
-	unsigned full_gc:1;
-	hash_table_t *old_map;
-	void *vm;
+	space_t old;				/* Old generation */
+	remembered_set_t remembered_set;
+	unsigned full_gc:1;			/* Full gc flag */
+	hash_table_t *old_map;		/* Map used to update pointers to OLD objects */
+	void *thread;
+	allocator_t allocator;		/* Provide allocator interface */
 } heap_t;
 
-/**
- * @brief Init heap manager
- */
-void heap_init(heap_t *heap, visitor_fun vm_get_roots,
-		visitor_fun vm_after_gc, void *vm);
-
-/**
- * @brief Destroy heap
- *
- * @param heap
- */
+void heap_init(heap_t *heap, void *thread);
 void heap_destroy(heap_t *heap);
-
-/**
- * @brief Alloc memory form heap
- *
- * @param heap
- * @param size
- *
- * @return ponter to allocated memory
- */
 void* heap_alloc(heap_t *heap, int size, int type_id);
 void* heap_alloc0(heap_t *heap, int size, int type_id);
 void heap_require(heap_t *heap, int size);
-void heap_mark_modified(heap_t *heap, void *ptr);
-void remember(heap_t *heap, block_hdr_t *hdr);
+void heap_remember(heap_t *heap, block_hdr_t *hdr);
+
+static inline void* allocator_alloc(allocator_t *al, size_t size, int type_id)
+{
+	return al->alloc(al, size, type_id);
+}
 
 #endif /* HEAP_H */

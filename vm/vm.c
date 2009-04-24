@@ -20,10 +20,11 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <errno.h>
+#include <locale.h>
 
 #include "opcodes.h"
-#include "primitives.h"
 #include "vm.h"
+#include "primitives.h"
 #include "module.h"
 
 static void env_visit(visitor_t *vs, void *data);
@@ -279,19 +280,12 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				STACK_PUSH(thread->objects[op_arg].ptr);
 			NEXT();
 
-			TARGET(LOAD_SYM)
-				STACK_PUSH(func->module->symbols[op_arg].ptr);
-			NEXT();
-
-			TARGET(LOAD_STRING) {
-				void *str = _string(&thread->heap,
-						func->module->strings[op_arg], 0);
-				STACK_PUSH(str);
-			}
-			NEXT();
-
 			TARGET(LOAD_IMPORT)
 				STACK_PUSH(func->module->imports[op_arg].ptr);
+			NEXT();
+
+			TARGET(LOAD_CONST)
+				STACK_PUSH(func->module->consts[op_arg].ptr);
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
@@ -437,21 +431,7 @@ dispatch_func:
 				STACK_PUSH(CIF(op_arg).ptr);
 			NEXT();
 
-			TARGET(PUSH_FIXNUM) {
-				fixnum_t n;
-				FIXNUM_INIT(n, op_arg);
-				STACK_PUSH(n.ptr);
-			}
-			NEXT();
-
-			TARGET(PUSH_CHAR) {
-				char_t c;
-				CHAR_INIT(c, op_arg);
-				STACK_PUSH(c.ptr);
-			}
-			NEXT();
-
-			TARGET(LOAD_CONST)
+			TARGET(PUSH_NULL)
 				STACK_PUSH(cnull.ptr);
 			NEXT();
 		}
@@ -472,9 +452,8 @@ void* make_symbol(hash_table_t *tbl, const char *str)
 	return make_ptr(res, id_symbol);
 }
 
-static void vm_get_roots(visitor_t *visitor, void *self)
+void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 {
-	vm_thread_t *thread = self;
 	int i;
 
 	if (thread->env)
@@ -490,9 +469,8 @@ static void vm_get_roots(visitor_t *visitor, void *self)
 	mark_display(&thread->display, visitor);
 }
 
-static void vm_after_gc(visitor_t *visitor, void *self)
+void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)
 {
-	vm_thread_t *thread = self;
 	if (thread->env)
 		thread->objects = thread->env->objects;
 }
@@ -501,7 +479,7 @@ static void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
 
-	heap_init(&thread->heap, vm_get_roots, vm_after_gc, thread);
+	heap_init(&thread->heap, thread);
 
 	thread->ssize = 4096;
 	thread->opstack = mem_alloc(thread->ssize);
@@ -568,6 +546,7 @@ static void info()
 
 int main(int argc, char **argv)
 {
+	setlocale(LC_ALL, "");
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s /path/to/assembly\n", argv[0]);
 		exit(1);

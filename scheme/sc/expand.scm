@@ -428,9 +428,9 @@
       `(top-level
         ,(make-imports (cdar x))
         ,(expand (make-syntax-object
-                        `(lambda () ,@(cdr x))
-                        wrap)
-                       env))))
+                  `(lambda () ,@(cdr x))
+                  wrap)
+                 env))))
 
   (define (expand-library x)
     (define (get-exports)
@@ -448,7 +448,7 @@
     (let ((name (cadr x))
           (exports (get-exports))
           (imports (get-imports))
-          (body (cons '(void) (cddddr x))))
+          (body (append (cddddr x) '((void)))))
       (let*-values (((init-wrap init-env)
                      (resolve-imports imports))
                     ((body env)

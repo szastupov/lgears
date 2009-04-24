@@ -15,12 +15,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef VM_H
-#define VM_H 
+#define VM_H
 #include <stdint.h>
+#include "hash.h"
 #include "memory.h"
 #include "types.h"
 #include "heap.h"
-#include "hash.h"
 
 extern hash_table_t ns_global;
 extern hash_table_t sym_table;
@@ -48,14 +48,25 @@ typedef struct {
 	const char **dbg_table;
 } func_t;
 
+typedef struct linked_mem_s {
+	struct linked_mem_s *next;
+	block_hdr_t hdr;
+} linked_mem_t;
+
+/* Simple allocator for constants */
+typedef struct {
+	allocator_t al;
+	linked_mem_t *mem;
+} const_allocator_t;
+
 struct module_s {
 	char *code;
 	func_t *functions;
 	int entry_point;
 	int fun_count;
-	obj_t *symbols;
 	obj_t *imports;
-	char **strings;
+	obj_t *consts;
+	const_allocator_t allocator;
 };
 
 typedef struct {
@@ -87,7 +98,7 @@ typedef struct {
 	int ssize;			/**< Size of stack */
 	obj_t *opstack;		/**< Operands stack */
 	int op_stack_idx;	/**< Stack index */
-	obj_t *objects;	
+	obj_t *objects;
 	env_t *env;
 	display_t *display;
 	obj_t *bindmap;
@@ -100,5 +111,7 @@ typedef struct {
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
 
 void* make_symbol(hash_table_t *tbl, const char *str);
+void thread_after_gc(visitor_t *visitor, vm_thread_t *thread);
+void thread_get_roots(visitor_t *visitor, vm_thread_t *thread);
 
 #endif /* VM_H */

@@ -21,6 +21,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "vm.h"
+#include "opcodes.h"
+#include "string.h"
 
 struct func_hdr_s {
 	uint16_t env_size;
@@ -36,8 +38,7 @@ struct func_hdr_s {
 
 struct module_hdr_s {
 	uint32_t import_size;
-	uint32_t symbols_size;
-	uint32_t strings_size;
+	uint32_t consts_size;
 	uint16_t fun_count;
 	uint16_t entry_point;
 } __attribute__((__packed__));
@@ -74,6 +75,33 @@ int mapfile(const char *path, map_t *map)
 	return ret;
 }
 
+static void* const_allocator_alloc(allocator_t *al,
+								   size_t size,
+								   int type_id)
+{
+	const_allocator_t *cal = container_of(al, const_allocator_t, al);
+	void *ptr = mem_alloc(sizeof(linked_mem_t)+size);
+	linked_mem_t *new = ptr;
+	memset(&new->hdr, 0, sizeof(new->hdr));
+	new->hdr.size = size;
+	new->hdr.type_id = type_id;
+	new->next = cal->mem;
+	cal->mem = new;
+
+	return ptr+sizeof(linked_mem_t);
+}
+
+static void const_allocator_clean(const_allocator_t *al)
+{
+	linked_mem_t *cur, *next;
+	cur = al->mem;
+	while (cur) {
+		next = cur->next;
+		mem_free(cur);
+		cur = next;
+	}
+}
+
 typedef struct {
 	const char *buf;
 	const char *cur;
@@ -100,47 +128,112 @@ const char* string_iter_next(string_iter_t *itr)
 	}
 }
 
+typedef struct {
+	const uint8_t *code;
+	size_t code_size;
+} code_t;
 
-static module_t* module_parse(const uint8_t *code, size_t code_size)
+#define CODE_ASSERT(code, sz) ASSERT((code)->code_size >= sz)
+
+static uint8_t code_read8(code_t *code)
 {
-	module_t *mod = new0(module_t);
-	int codecpy(void *dest, size_t size)
-	{
-		if (size > code_size)
-			return -1;
-		memcpy(dest, code, size);
-		code += size;
-		code_size -= size;
+	CODE_ASSERT(code, 1);
+	code->code_size--;
+	return *(code->code++);
+}
 
-		return 0;
-	}
+static int64_t code_read64(code_t *code)
+{
+	CODE_ASSERT(code, sizeof(int64_t));
+	code->code_size -= sizeof(int64_t);
+	int64_t res = *(int64_t*)code->code;
+	code->code += sizeof(int64_t);
 
-	const void* code_assign(size_t size)
-	{
-		if (size > code_size)
-			return NULL;
-		const void *res = code;
-		code += size;
-		code_size -= size;
+	return res;
+}
 
-		return res;
-	}
+static uint16_t code_read16(code_t *code)
+{
+	CODE_ASSERT(code, sizeof(uint16_t));
+	code->code_size -= sizeof(uint16_t);
+	uint16_t res = *(uint16_t*)code->code;
+	code->code += sizeof(uint16_t);
 
-	void populate_sym_table(const char *str, int size)
-	{
-		int i;
-		int count = *(str++);
-		mod->symbols = mem_calloc(count, sizeof(obj_t));
+	return res;
+}
 
-		string_iter_t itr;
-		string_iter_init(&itr, str, size);
-		for (i = 0; i < count; i++) {
-			const char *s = string_iter_next(&itr);
-			void *sym = make_symbol(&sym_table, s);
-			mod->symbols[i].ptr = sym;
-			LOG_DBG("Created symbol for '%s' = %p\n", s, sym);
+static const void* code_read_bytes(code_t *code, size_t size)
+{
+	CODE_ASSERT(code, size);
+	code->code_size -= size;
+	const uint8_t *res = code->code;
+	code->code += size;
+
+	return res;
+}
+
+static const char* code_read_string(code_t *code)
+{
+	int len = code_read8(code);
+	CODE_ASSERT(code, len);
+	code->code_size -= len;
+	const char *res = (const char*)code->code;
+	code->code += len;
+
+	return res;
+}
+
+static void load_consts(module_t *mod, code_t *code)
+{
+	int ccount = code_read8(code);
+	mod->consts = mem_alloc(ccount*sizeof(obj_t));
+	int loaded = 0;
+#define PUSH_CONST(p) mod->consts[loaded++].ptr = p
+
+	while (loaded < ccount) {
+		int type = code_read8(code);
+		switch (type) {
+		case OT_FIXNUM: {
+			fixnum_t n;
+			int64_t val = code_read64(code);
+			FIXNUM_INIT(n, val);
+			PUSH_CONST(n.ptr);
+			break;
+		}
+		case OT_CHARACTER: {
+			char_t c;
+			uint16_t val = code_read16(code);
+			CHAR_INIT(c, val);
+			PUSH_CONST(c.ptr);
+			break;
+		}
+		case OT_SYMBOL: {
+			const char *str = code_read_string(code);
+			void *sym = make_symbol(&sym_table, str);
+			PUSH_CONST(sym);
+			break;
+		}
+		case OT_STRING: {
+			const char *str = code_read_string(code);
+			PUSH_CONST(_string(&mod->allocator.al,
+							   (char*)str, 1));
+			break;
+		}
+		default:
+			FATAL("unhandled const type: %s\n", object_type_name(type));
 		}
 	}
+}
+
+static module_t* module_parse(const uint8_t *code_src, size_t code_size)
+{
+	code_t code = {
+		.code = code_src,
+		.code_size = code_size
+	};
+	module_t *mod = new0(module_t);
+	mod->allocator.al.alloc = const_allocator_alloc;
+	mod->allocator.al.id = id_const_ptr;
 
 	void load_imports(const char *str, int size)
 	{
@@ -160,23 +253,8 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 		}
 	}
 
-	void load_strings(const char *str, int size)
-	{
-		int i;
-		int count = *(str++);
-		mod->strings = mem_calloc(count, sizeof(char*));
-
-		string_iter_t itr;
-		string_iter_init(&itr, str, size);
-		for (i = 0; i < count; i++) {
-			const char *string = string_iter_next(&itr);
-			LOG_DBG("loaded string '%s'\n", string);
-			mod->strings[i] = strdup(string);
-		}
-	}
-
 	/* Read module header */
-	const struct module_hdr_s *mhdr = code_assign(MODULE_HDR_OFFSET);
+	const struct module_hdr_s *mhdr = code_read_bytes(&code, MODULE_HDR_OFFSET);
 
 	/* Allocate functions storage */
 	mod->functions = mem_calloc(mhdr->fun_count, sizeof(func_t));
@@ -184,19 +262,21 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 	mod->entry_point = mhdr->entry_point;
 
 
-	const char *import = code_assign(mhdr->import_size);
+	const char *import = code_read_bytes(&code, mhdr->import_size);
 	load_imports(import, mhdr->import_size);
 
-	const char *symbols = code_assign(mhdr->symbols_size);
-	populate_sym_table(symbols, mhdr->symbols_size);
-
-	const char *strings = code_assign(mhdr->strings_size);
-	load_strings(strings, mhdr->strings_size);
+	{
+		code_t consts = {
+			.code = code_read_bytes(&code, mhdr->consts_size),
+			.code_size = mhdr->consts_size
+		};
+		load_consts(mod, &consts);
+	}
 
 	int count;
 	const struct func_hdr_s *hdr;
 	for (count = 0; count < mhdr->fun_count; count++) {
-		hdr = code_assign(FUN_HDR_SIZE);
+		hdr = code_read_bytes(&code, FUN_HDR_SIZE);
 		func_t *func = &mod->functions[count];
 		func->hdr.swallow = hdr->swallow;
 		func->hdr.type = func_inter;
@@ -215,11 +295,11 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 			const uint16_t *cur;
 
 			int bind_size = hdr->bcount * 4;
-			const uint16_t *bindings = code_assign(bind_size);
+			const uint16_t *bindings = code_read_bytes(&code, bind_size);
 			func->bindings = mem_calloc(hdr->bcount, sizeof(bind_t));
 
 			int bindmap_size = hdr->bmcount * 2;
-			const uint16_t *bindmap = code_assign(bindmap_size);
+			const uint16_t *bindmap = code_read_bytes(&code, bindmap_size);
 			func->bindmap = mem_calloc(bindmap_size, sizeof(int));
 			cur = bindmap;
 			for (i = 0; i < hdr->bmcount; i++) {
@@ -237,8 +317,9 @@ static module_t* module_parse(const uint8_t *code, size_t code_size)
 
 		int opcode_size = hdr->op_count * 4;
 		func->opcode = mem_alloc(opcode_size);
-		if (codecpy(func->opcode, opcode_size) != 0)
-			FATAL("Failed to read opcode");
+		memcpy(func->opcode,
+			   code_read_bytes(&code, opcode_size),
+			   opcode_size);
 		func->module = mod;
 	}
 
@@ -304,8 +385,8 @@ void module_free(module_t *module)
 		}
 	}
 	mem_free(module->functions);
-	mem_free(module->symbols);
 	mem_free(module->imports);
-	mem_free(module->strings);
+	mem_free(module->consts);
+	const_allocator_clean(&module->allocator);
 	mem_free(module);
 }

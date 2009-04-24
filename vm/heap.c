@@ -18,16 +18,10 @@
 #include <errno.h>
 #include <sys/time.h>
 #include "memory.h"
-#include "heap.h"
-
-/**
- * @file heap.c
- * @brief Heap managment inplementation
- * @author Stepan Zastupov
- */
+#include "vm.h"
 
 #define align_up(s, a) (((s)+((a)-1)) & ~((a)-1))
-#define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
+//#define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
 
 /* TODO: tune it */
 #define FRESH_SIZE 8192
@@ -75,7 +69,7 @@ static void* space_alloc(space_t *space, size_t size, int type_id)
 	block_hdr_t *hdr = space->pos;
 	hdr->forward = 0;
 	hdr->generation = 0;
-	hdr->modified = 0;
+	hdr->remembered = 0;
 	hdr->type_id = type_id;
 	hdr->size = size;
 
@@ -127,32 +121,34 @@ static void heap_swap_survived(heap_t *heap)
 	heap->survived = tmp;
 }
 
-static void link_remembered(remembered_t **head,
-							remembered_t **tail,
-							remembered_t *new)
+static void append_remembered(remembered_set_t *rs,
+							  remembered_t *new)
 {
-	if (*tail)
-		(*tail)->next = new;
-	*tail = new;
-	if (!*head)
-		*head = new;
+	if (rs->tail)
+		rs->tail->next = new;
+	rs->tail = new;
+	if (!rs->head)
+		rs->head = new;
 }
 
-void remember(heap_t *heap, block_hdr_t *hdr)
+void heap_remember(heap_t *heap, block_hdr_t *hdr)
 {
 	remembered_t *new = new0(remembered_t);
 	new->hdr = hdr;
-	link_remembered(&heap->rem_head, &heap->rem_tail, new);
+	append_remembered(&heap->remembered_set, new);
 }
 
-static void forget(remembered_t *cur)
+static void forget(remembered_set_t *rs)
 {
+	remembered_t *cur = rs->head;
 	remembered_t *next;
 	while (cur) {
 		next = cur->next;
 		mem_free(cur);
 		cur = next;
 	}
+	rs->head = NULL;
+	rs->tail = NULL;
 }
 
 typedef struct {
@@ -167,9 +163,6 @@ static void visit_hdr(heap_t *heap, block_hdr_t *hdr)
 		type->visit(&heap->visitor, BHDR_SIZE + (void*)hdr);
 }
 
-/**
- * @brief Incremental scan of object references
- */
 static void heap_scan_references(heap_t *heap, scan_cont_t *cont)
 {
 	space_t *space = heap->future_survived;
@@ -186,55 +179,57 @@ static void heap_scan_references(heap_t *heap, scan_cont_t *cont)
 
 static void heap_scan_remebered(heap_t *heap)
 {
-	remembered_t *cur = heap->rem_head;
+	remembered_t *cur = heap->remembered_set.head;
 	while (cur) {
 		visit_hdr(heap, cur->hdr);
 		cur = cur->next;
 	}
-	forget(heap->rem_head);
-	heap->rem_head = NULL;
-	heap->rem_tail = NULL;
+	forget(&heap->remembered_set);
 }
 
+/*
+ * 1. Collect all reached objects
+ * 2. Reset the old space
+ * 3. Move obects to the begining of the old space, creating mappings
+ */
 static void heap_gc_old(heap_t *heap)
 {
 	int i, live_count, dead_count;
 	space_t *space = &heap->old;
-	remembered_t *live_head = NULL;
-	remembered_t *live_tail = NULL;
+	remembered_set_t live_set = {0};
 	live_count = dead_count = 0;
 
 	block_hdr_t *hdr = space->mem;
 	for (i = 0; i < space->blocks;
 		 i++, hdr = BHDR_SIZE + hdr->size + (void*)hdr)
 	{
-		if (hdr->modified) {
+		if (hdr->remembered) {
 			remembered_t *new = new0(remembered_t);
 			new->hdr = hdr;
-			link_remembered(&live_head, &live_tail, new);
+			append_remembered(&live_set, new);
 			live_count++;
 		} else
 			dead_count++;
 	}
 	space_reset(space);
-	
-	remembered_t *cur = live_head;
+
+	remembered_t *cur = live_set.head;
 	hash_table_t *tbl = new0(hash_table_t);
 	hash_table_init(tbl, direct_hash, direct_equal);
 	void *new_pos;
 	while (cur) {
-		cur->hdr->modified = 0;
+		cur->hdr->remembered = 0;
 		new_pos = space_move(space, cur->hdr, BHDR_SIZE+cur->hdr->size);
 		//printf("moved %p -> %p\n", cur->hdr, new_pos);
 		hash_table_insert(tbl, cur->hdr, new_pos);
-		remember(heap, new_pos); /* Schedule it for rescan, because
-								  * old objects may contains pointers
-								  * to collected memory too */
+		heap_remember(heap, new_pos); /* Schedule it for rescan, because
+									   * old objects may contains pointers
+									   * to collected memory too */
 		cur = cur->next;
 	}
 	heap->old_map = tbl;
 
-	forget(live_head);
+	forget(&live_set);
 
 	printf("live %d, dead %d, free old space %zd\n",
 		   live_count, dead_count, space->free_mem);
@@ -242,7 +237,7 @@ static void heap_gc_old(heap_t *heap)
 
 static void heap_gc_main(heap_t *heap)
 {
-	heap->vm_get_roots(&heap->visitor, heap->vm);
+	thread_get_roots(&heap->visitor, heap->thread);
 
 	scan_cont_t cont = {
 		.hdr = heap->future_survived->mem,
@@ -250,7 +245,7 @@ static void heap_gc_main(heap_t *heap)
 	};
 
 	heap_scan_references(heap, &cont);
-	while (heap->rem_head) {
+	while (heap->remembered_set.head) {
 		heap_scan_remebered(heap);
 		if (cont.i < heap->future_survived->blocks)
 			heap_scan_references(heap, &cont);
@@ -266,17 +261,19 @@ static void heap_gc(heap_t *heap)
 	heap_gc_main(heap);
 
 	if (heap->full_gc) {
+		HEAP_DBG("Full GC\n");
 		heap_gc_old(heap);
 		heap->full_gc = 0;
 		heap_gc_main(heap);
+		// TODO dont allocate table each time
 		hash_table_destroy(heap->old_map);
+		mem_free(heap->old_map);
 		heap->old_map = NULL;
 	}
-	
+
 	space_reset0(&heap->fresh);
 	heap_swap_survived(heap);
-	if (heap->vm_after_gc)
-		heap->vm_after_gc(&heap->visitor, heap->vm);
+	thread_after_gc(&heap->visitor, heap->thread);
 
 	if (heap->old.free_mem < SURVIVED_SIZE)
 		heap->full_gc = 1;		/* Tell to perform full gc next time */
@@ -336,11 +333,12 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 
 	if (in_space(&heap->old, p)) {
 		hdr = HTYPE(p);
-		if (heap->full_gc && !hdr->modified) {
-			//HEAP_DBG("remembering old %p\n", p);
-			hdr->modified = 1;
-			remember(heap, hdr);
+		if (heap->full_gc && !hdr->remembered) {
+			/* Mark old object as reached */
+			hdr->remembered = 1;
+			heap_remember(heap, hdr);
 		} else if (heap->old_map) {
+			/* Update pointer on old object */
 			void *res = hash_table_lookup(heap->old_map, hdr);
 			if (res) {
 				p = res+BHDR_SIZE;
@@ -376,12 +374,12 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	if (hdr->generation == 3) {
 		if (heap->full_gc) {
 			//HEAP_DBG("postpoinig\n");
-			remember(heap, hdr);
+			heap_remember(heap, hdr);
 			return; //Postpone copying
 		}
 		//HEAP_DBG("Got old object\n");
 		new_pos = space_copy(&heap->old, p, ts);
-		remember(heap, new_pos);
+		heap_remember(heap, new_pos);
 	} else {
 		//HEAP_DBG("copying to survived\n");
 		new_pos = space_copy(heap->future_survived, p, ts);
@@ -398,8 +396,13 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	obj->ptr = ptr.ptr;
 }
 
-void heap_init(heap_t *heap, visitor_fun vm_get_roots,
-		visitor_fun vm_after_gc, void *vm)
+static void* heap_allocator_alloc(allocator_t *al, size_t size, int type_id)
+{
+	heap_t *heap = container_of(al, heap_t, allocator);
+	return heap_alloc(heap, size, type_id);
+}
+
+void heap_init(heap_t *heap, void *thread)
 {
 	heap->mem_size = FRESH_SIZE+SURVIVED_SIZE*2+OLD_SIZE;
 	heap->mem = mem_alloc(heap->mem_size);
@@ -420,13 +423,13 @@ void heap_init(heap_t *heap, visitor_fun vm_get_roots,
 
 	heap->visitor.visit = heap_mark;
 	heap->visitor.user_data = heap;
-	heap->vm_get_roots = vm_get_roots;
-	heap->vm_after_gc = vm_after_gc;
-	heap->vm = vm;
+	heap->thread = thread;
+	heap->allocator.alloc = heap_allocator_alloc;
+	heap->allocator.id = id_ptr;
 }
 
 void heap_destroy(heap_t *heap)
 {
 	mem_free(heap->mem);
-	forget(heap->rem_head);
+	forget(&heap->remembered_set);
 }

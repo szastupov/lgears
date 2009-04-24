@@ -30,14 +30,14 @@ void string_visit(visitor_t *vs, void *data)
 		str->str = data+sizeof(string_t);
 }
 
-void* _string(heap_t *heap, char *str, int copy)
+void* _string(allocator_t *al, char *str, int copy)
 {
 	int hsize = sizeof(string_t);
 	int ssize = strlen(str)+1;
 	if (copy)
 		hsize += ssize;
 
-	void *mem = heap_alloc(heap, hsize, t_string);
+	void *mem = allocator_alloc(al, hsize, t_string);
 	string_t *string = mem;
 	string->size = ssize;
 	if (copy) {
@@ -49,7 +49,7 @@ void* _string(heap_t *heap, char *str, int copy)
 		string->str = str;
 	}
 
-	return make_ptr(string, id_ptr);
+	return make_ptr(string, al->id);
 }
 
 static int string_concat(vm_thread_t *thread, obj_t *oa, obj_t *ob)
@@ -80,7 +80,7 @@ static int symbol_to_string(vm_thread_t *thread, obj_t *sym)
 	SAFE_ASSERT(IS_SYMBOL(*sym));
 	char *str = PTR(*sym);
 
-	RESULT_PTR(_string(&thread->heap, str, 0));
+	RESULT_PTR(_string(&thread->heap.allocator, str, 0));
 }
 MAKE_NATIVE_UNARY(symbol_to_string);
 

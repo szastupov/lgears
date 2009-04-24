@@ -45,6 +45,7 @@ typedef union {
  */
 enum {
 	id_ptr,		/**< Pointer on a heap-allocated object */
+	id_const_ptr,				/* Pinter on constant object */
 	id_fixnum,	/**< Integer */
 	id_char,	/**< Character */
 	id_func,	/**< Function pointer */

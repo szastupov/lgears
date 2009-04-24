@@ -15,7 +15,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef NATIVE_H
-#define NATIVE_H 
+#define NATIVE_H
 #include "vm.h"
 
 enum { RC_OK, RC_ERROR, RC_EXIT };

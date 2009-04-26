@@ -4,7 +4,7 @@
           (sc expand)
           (sc cps)
           (sc compiler)
-          (sc assembly)
+          (sc fasl)
           (only (core) pretty-print)) ; This works only for ypsilon
 
   (define (compile-ilr-file in)

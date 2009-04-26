@@ -440,13 +440,13 @@ dispatch_func:
 
 static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void* make_symbol(hash_table_t *tbl, const char *str)
+void* make_symbol(const char *str)
 {
 	pthread_mutex_lock(&symbol_mutex);
-	void *res = hash_table_lookup(tbl, str);
+	void *res = hash_table_lookup(&sym_table, str);
 	if (!res) {
 		res = strdup(str);
-		hash_table_insert(tbl, res, res);
+		hash_table_insert(&sym_table, res, res);
 	}
 	pthread_mutex_unlock(&symbol_mutex);
 	return make_ptr(res, id_symbol);

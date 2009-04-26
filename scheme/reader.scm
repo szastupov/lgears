@@ -11,7 +11,7 @@
   (define (delimeter? x)
     (or (eof-object? x)
         (char-whitespace? x)
-        (memq x '(#\( #\) #\[ #\] #\" #\# #\;))))
+        (memv x '(#\( #\) #\[ #\] #\" #\# #\;))))
 
   (define (in-range? x y c)
     (and (char<=? x c)
@@ -19,6 +19,10 @@
 
   (define (digit? x)
     (in-range? #\0 #\9 x))
+
+  (define (number-start? x)
+    (or (digit? x)
+        (memv x '(#\+ #\-))))
 
   (define (hex-digit? x)
     (or (digit? x)
@@ -30,17 +34,31 @@
         (in-range? #\A #\Z x)))
 
   (define (quote? x)
-    (memq x '(#\' #\` #\,)))
+    (memv x '(#\' #\` #\,)))
 
   (define (initial-char? x)
-    (memq x '(#\! #\$ #\% #\& #\* #\/ #\: #\<
+    (memv x '(#\! #\$ #\% #\& #\* #\/ #\: #\<
               #\= #\> #\? #\^ #\_ #\~)))
 
   (define (identifier-char? x)
     (or (letter? x)
         (digit? x)
         (initial-char? x)
-        (memq x '(#\+ #\- #\. #\@))))
+        (memv x '(#\+ #\- #\. #\@))))
+
+  (define (parse-escape chr)
+    (case chr
+      ((#\a) #\alarm)
+      ((#\b) #\backspace)
+      ((#\t) #\tab)
+      ((#\n) #\newline)
+      ((#\v) #\vtab)
+      ((#\f) #\page)
+      ((#\r) #\return)
+      ((#\" #\\) chr)
+      ;;add \x
+      (else (error 'parse-escape
+                   (format "Ivalid escape character ~a" chr)))))
 
   (define (datum-from-port port)
 
@@ -69,7 +87,7 @@
         ((#\+ #\-)
          (delimeter? (peek-char port)))
         ((#\.)
-         (char=? (peek-char port) #\.))
+         (eqv? (peek-char port) #\.))
         (else #f)))
 
     (define (read-peculiar pc)
@@ -77,8 +95,8 @@
         ((#\+) '+)
         ((#\-) '-)
         ((#\.)
-         (if (and (char=? (read-char port) #\.)
-                  (char=? (read-char port) #\.))
+         (if (and (eqv? (read-char port) #\.)
+                  (eqv? (read-char port) #\.))
              '...
              (lexical-error "misplaced dot")))
         (else (lexical-error "wtf?"))))
@@ -89,14 +107,17 @@
          (let ((char (read-char port)))
            (cond ((eof-object? char)
                   (lexical-error "unexpected eof while reading string"))
-                 ((char=? char #\") '())
+                 ((eqv? char #\") '())
+                 ((eqv? char #\\)
+                  (cons (parse-escape (read-char port))
+                        (loop)))
                  (else
                   (cons char (loop))))))))
 
     (define (skip-comment)
       (let ((c (read-char port)))
         (unless (or (eof-object? c)
-                    (char=? c #\newline))
+                    (eqv? c #\newline))
           (skip-comment))))
 
     (define (read-number-impl start radix)
@@ -132,12 +153,17 @@
                'usyntax-splicing)
              'unsyntax))))
 
+    (define (read-character chr)
+      (if (delimeter? (peek-char port))
+          chr
+          (lexical-error "expected delimeter")))
+
     (define (read-sharped)
       (let ((c (read-char port)))
         (case c
           ((#\t #\T) #t)
           ((#\f #\F) #f)
-          ((#\\) (read-char port))
+          ((#\\) (read-character (read-char port)))
           ((#\b #\B) (read-number 2))
           ((#\o #\O) (read-number 8))
           ((#\d #\D) (read-number 10))
@@ -153,16 +179,16 @@
       (let ((pc (read-char port)))
         (cond ((eof-object? pc)
                (lexical-error "unexpected eof while reading list"))
-              ((char=? pc #\)) '())
+              ((eqv? pc #\)) '())
               ((char-whitespace? pc)
                (read-list))
-              ((char=? pc #\;)
+              ((eqv? pc #\;)
                (skip-comment)
                (read-list))
-              ((and (char=? pc #\.)
-                    (not (char=? (peek-char port) #\.)))
+              ((and (eqv? pc #\.)
+                    (not (eqv? (peek-char port) #\.)))
                (let ((res (dispatch (read-char port))))
-                 (if (char=? (read-char port) #\))
+                 (if (eqv? (read-char port) #\))
                      res
                      (lexical-error "unexpected data after dot"))))
               (else (cons (dispatch pc)
@@ -187,25 +213,25 @@
              (eof-object))
             ((char-whitespace? pc)
              (dispatch (read-char port)))
-            ((digit? pc)
+            ((number-start? pc)
              (read-number pc 10))
             ((or (letter? pc)
                  (initial-char? pc))
              (read-symol pc))
             ((peculiar? pc)
              (read-peculiar pc))
-            ((char=? pc #\")
+            ((eqv? pc #\")
              (read-string))
-            ((char=? pc #\#)
+            ((eqv? pc #\#)
              (read-sharped))
             ((quote? pc)
              (read-quote pc))
-            ((char=? pc #\()
+            ((eqv? pc #\()
              (read-list))
-            ((char=? pc #\;)
+            ((eqv? pc #\;)
              (skip-comment)
              (dispatch (read-char port)))
-            ((char=? pc #\))
+            ((eqv? pc #\))
              (lexical-error "unexpecter closing parenthesis"))
             (else
              (lexical-error "invalid lexical ~a" pc))))

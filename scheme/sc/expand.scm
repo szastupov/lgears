@@ -24,12 +24,14 @@
                   (datum->syntax sys-datum->syntax))
           (format)
           (reader)
+          (config)
           (sc gen-name)
           (sc syntax-core)
           (sc syntax-pattern)
           (sc library-manager)
           (sc compiler)
           (sc cps)
+          (sc fasl)
           (only (core) pretty-print))
 
   (define libraries-root (library-manager-root))
@@ -388,7 +390,11 @@
   (define (load-library name)
     (let ((path (find-library-file name)))
       (format #t "loading library ~a\n" path)
-      (expand-file path)
+      (let ((expanded  (expand-file path)))
+        (assemble
+         (start-compile
+          (cps-convert expanded))
+         (format "~a/~a.o" cache-path path)))
       (find-library libraries-root name)))
 
   (define (resolve-imports imports)

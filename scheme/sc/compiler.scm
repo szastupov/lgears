@@ -21,7 +21,7 @@
 		  (reader)
 		  (format)
 		  (only (core) pretty-print) ; This works only for ypsilon
-		  (sc assembly))
+		  (sc fasl))
 
   (define (set-func-args! ntbl args)
 	(let loop ((idx 0) (lst args))
@@ -156,6 +156,14 @@
 	  (append (proc (car lst))
 			  (map-append proc (cdr lst)))))
 
+  (define (datum->string dt)
+    (cond ((string? dt) dt)
+          ((symbol? dt) (symbol->string dt))
+          ((char? dt) (string dt))
+          ((number? dt) (number->string dt))
+          ((boolean? dt) (if dt "#t" "#f"))
+          (else (error 'datum->string "unknown datum" dt))))
+
   (define (start-compile root)
 	(let ((undefs (make-sym-table))
 		  (code-store (make-store))
@@ -194,19 +202,19 @@
 			   (compiled (compile-body env body))
 			   (idx (store-push! code-store
 								 (make-func compiled env))))
-		  `((LOAD_CLOSURE ,idx 1))))
+		  `((LOAD_CLOSURE ,idx))))
 		  ;(if (null? (env-bindings env))
-			;`((LOAD_FUNC ,idx 1))
-			;`((LOAD_CLOSURE ,idx 1)))))
+			;`((LOAD_FUNC ,idx))
+			;`((LOAD_CLOSURE ,idx)))))
 
 	  (define (compile-if env node)
 		(let ((pred (compile env (car node)))
 			  (then-clause (compile env (cadr node)))
 			  (else-clause (compile env (caddr node))))
 		  `(,@pred
-			 (JUMP_IF_FALSE ,(+ (length then-clause) 1) 1)
+			 (JUMP_IF_FALSE ,(+ (length then-clause) 1))
 			 ,@then-clause
-			 (JUMP_FORWARD ,(length else-clause) 0)
+			 (JUMP_FORWARD ,(length else-clause))
 			 ,@else-clause)))
 
 	  (define (compile-call env node)
@@ -216,7 +224,7 @@
 								   (compile env x))
 								 (cdr node))))
 		  `(,@args ,@func
-				   (FUNC_CALL ,argc ,(- argc)))))
+				   (FUNC_CALL ,argc))))
 
 	  (define (compile-assigment env node)
 		(let* ((name (car node))
@@ -225,8 +233,10 @@
 			(error 'compile-assigment "undefined variable" name)
 			`(,@(compile env (cadr node))
 			   ,@(if (eq? (car slot) 'LOCAL)
-				   `((SET_LOCAL ,(cdr slot), -1 ,name))
-				   `((SET_BIND ,(cdr slot) -1 ,name)))))))
+				   `((SET_LOCAL ,(cdr slot)
+                                ,(datum->string name)))
+				   `((SET_BIND ,(cdr slot)
+                               ,(datum->string name))))))))
 
 	  (define (compile env node)
 		(cond ((pair? node)
@@ -237,8 +247,9 @@
 				  (compile-if env (cdr node)))
 				 ((quote)
 				  (if (null? (cadr node))
-					`((PUSH_NULL 0 1))
-					`((LOAD_CONST ,(make-const (cadr node)) 1 ,(cadr node)))))
+					`((PUSH_NULL 0))
+					`((LOAD_CONST ,(make-const (cadr node))
+                                  ,(datum->string (cadr node))))))
 				 ((set!)
 				  (compile-assigment env (cdr node)))
 				 (else
@@ -246,16 +257,21 @@
 			  ((or (char? node)
 				   (number? node)
 				   (string? node))
-			   `((LOAD_CONST ,(make-const node) 1)))
+			   `((LOAD_CONST ,(make-const node)
+                             ,(datum->string node))))
 			  ((boolean? node)
-			   `((PUSH_BOOL ,(if node 1 0) 1)))
+			   `((PUSH_BOOL ,(if node 1 0)
+                            ,(datum->string node))))
 			  (else
 				(let ((res (env-lookup env node)))
 				  (if res
 					(if (eq? (car res) 'LOCAL)
-					  `((LOAD_LOCAL ,(cdr res) 1 ,node))
-					  `((LOAD_BIND ,(cdr res) 1 ,node)))
-					`((LOAD_IMPORT ,(sym-table-insert undefs node) 1 ,node)))))))
+					  `((LOAD_LOCAL ,(cdr res)
+                                    ,(datum->string node)))
+					  `((LOAD_BIND ,(cdr res)
+                                   ,(datum->string node))))
+					`((LOAD_IMPORT ,(sym-table-insert undefs node)
+                                   ,(datum->string node))))))))
 
 	  (define (dispatch-input)
 		(case (car root)

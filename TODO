@@ -1,6 +1,3 @@
-Fix GC generations
-Redesign constants allocation (numbers, strings, constant lists and vectors, etc..)
-Store symbols as module string constants but maintaine symbol table per-thread
 Optimize lists: each pair shoud store list flag and size
 Compiler should decide where to allocate closures
 Allocate really big ojects from mark'n'sweep heap

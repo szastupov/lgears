@@ -23,7 +23,6 @@
 #include "heap.h"
 
 extern hash_table_t ns_global;
-extern hash_table_t sym_table;
 
 typedef struct {
 	short up, idx;
@@ -32,7 +31,6 @@ typedef struct {
 typedef struct module_s module_t;
 typedef struct {
 	func_hdr_t hdr;
-	int stack_size;
 	short env_size;
 	int op_count;
 	short heap_env;
@@ -60,7 +58,6 @@ typedef struct {
 } const_allocator_t;
 
 struct module_s {
-	char *code;
 	func_t *functions;
 	int entry_point;
 	int fun_count;
@@ -110,7 +107,7 @@ typedef struct {
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
 
-void* make_symbol(hash_table_t *tbl, const char *str);
+void* make_symbol(const char *str);
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread);
 void thread_get_roots(visitor_t *visitor, vm_thread_t *thread);
 

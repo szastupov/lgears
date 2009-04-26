@@ -19,12 +19,11 @@
 
 (import (rnrs)
         (compiler)
-        (format))
+        (format)
+        (config))
 
 (define (full-compile file)
-  (let ((assm (string-append "compiled/" file ".o")))
-    (if (not (file-exists? "compiled"))
-      (create-directory "compiled"))
+  (let ((assm (format "~a/~a.o" cache-path file)))
     (compile-file file assm)))
 
 (let* ((argv (command-line))

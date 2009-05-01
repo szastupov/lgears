@@ -123,12 +123,9 @@
 			  (map-append proc (cdr lst)))))
 
   (define (datum->string dt)
-	(cond ((string? dt) dt)
-		  ((symbol? dt) (symbol->string dt))
-		  ((char? dt) (string dt))
-		  ((number? dt) (number->string dt))
-		  ((boolean? dt) (if dt "#t" "#f"))
-		  (else (error 'datum->string "unknown datum" dt))))
+    (call-with-string-output-port
+     (lambda (port)
+       (write dt port))))
 
   (define (start-compile root)
 	(let ((code-store (make-store))

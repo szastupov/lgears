@@ -35,8 +35,8 @@ typedef struct {
 #define BHDR_SIZE sizeof(block_hdr_t)
 #define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
 #define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
-#define IS_TYPE(obj, tid)							\
-	(((obj).tag == id_ptr || ((obj).tag == id_ptr))	\
+#define IS_TYPE(obj, tid)									\
+	(((obj).tag == id_const_ptr || ((obj).tag == id_ptr))	\
 	 && (HTYPE_TAG(PTR(obj)) == tid))
 
 #define IS_OLD(hp, ptr) ((void*)ptr >= (hp)->old.mem)

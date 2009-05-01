@@ -1,5 +1,5 @@
 (library (coreforms)
-  (export with-syntax syntax-rules or and let cond when unless)
+  (export with-syntax syntax-rules or and let cond when unless dummy)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -93,6 +93,17 @@
 	  ((unless test result1 result2 ...)
 	   (if (not test)
 		   (begin result1 result2 ...)))))
+
+  (define-syntax caar
+    (syntax-rules ()
+      ((_ a) (car (car a)))))
+
+  (define-syntax cdar
+    (syntax-rules ()
+      ((_ a) (cdr (car a)))))
+
+  (define (dummy x)
+    (display x))
 
   (display "coreforms loaded")
 

@@ -23,7 +23,7 @@
         (config))
 
 (define (full-compile file)
-  (let ((assm (format "~a/~a.o" cache-path file)))
+  (let ((assm (format "~a/~a.o" (get-cache-path) file)))
     (compile-file file assm)))
 
 (let* ((argv (command-line))

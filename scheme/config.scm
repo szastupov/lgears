@@ -1,6 +1,12 @@
 (library (config)
-  (export cache-path)
-  (import (rnrs base))
+  (export get-cache-path)
+  (import (rnrs base)
+          (only (core) getenv))
 
-  (define cache-path "/home/redchrom/.cache/lgears")
+  (define (get-cache-path)
+    (cond ((getenv "LGEARS_CACHE")
+           => (lambda (p) p))
+          (else
+           (string-append (getenv "HOME") "/.cache/lgears"))))
+
   )

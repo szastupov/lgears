@@ -27,6 +27,8 @@
 #include "primitives.h"
 #include "module.h"
 
+#define MODULE_FUNC(module, idx) &(module)->functions[idx]
+
 static void env_visit(visitor_t *vs, void *data);
 static void display_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
@@ -42,8 +44,10 @@ const type_t type_table[] = {
 	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
 };
 
-hash_table_t ns_global;
 hash_table_t sym_table;
+hash_table_t builtin;
+
+char *cache_path;
 
 static void env_visit(visitor_t *vs, void *data)
 {
@@ -60,7 +64,6 @@ static env_t* env_new(heap_t *heap, int size)
 	env_t *env = mem;
 	env->objects = mem+sizeof(env_t);
 	env->size = size;
-	LOG_DBG("New env %p\n", env);
 
 	return env;
 }
@@ -156,6 +159,27 @@ static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 	return make_ptr(closure, id_ptr);
 }
 
+static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
+{
+	SAFE_ASSERT(IS_SYMBOL(argv[1]));
+
+	char *path = alloca(256);
+	snprintf(path, 256, "%s/%s.scm.o", cache_path, (char*)PTR(argv[1]));
+	LOG_DBG("Loading lib %s ...\n", path);
+	module_t *mod = module_load(path);
+
+	func_t *func = MODULE_FUNC(mod, mod->entry_point);
+	void *enter = make_ptr(func, id_func);
+
+	STACK_PUSH(argv[0].ptr);	/* Push continuation */
+	thread->tramp.argc = 1;
+	thread->tramp.func.ptr = enter;
+
+	return RC_OK;
+}
+MAKE_NATIVE(load_library, -1, 1, 0);
+
+
 static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
 	thread->func = func;
@@ -232,7 +256,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 			trace_func = trace_opcode;
 	}
 
-#define MODULE_FUNC(module, idx) &(module)->functions[idx]
 #define THREAD_ERROR(msg...) { \
 	LOG_ERR(msg); \
 	fprintf(stderr, "\tshutting down the thread...\n"); \
@@ -278,10 +301,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
 				STACK_PUSH(thread->objects[op_arg].ptr);
-			NEXT();
-
-			TARGET(LOAD_IMPORT)
-				STACK_PUSH(func->module->imports[op_arg].ptr);
 			NEXT();
 
 			TARGET(LOAD_CONST)
@@ -515,15 +534,23 @@ void vm_eval_module(module_t *mod)
 
 void vm_init()
 {
-	hash_table_init(&ns_global, string_hash, string_equal);
-	ns_install_primitives(&ns_global);
+	hash_table_init(&builtin, string_hash, string_equal);
+	ns_install_primitives(&builtin);
+	ns_install_native(&builtin, "load-library", &load_library_nt);
+
 	hash_table_init(&sym_table, string_hash, string_equal);
 	sym_table.destroy_key = free;
+
+	cache_path = getenv("LGEARS_CACHE");
+	if (!cache_path) {
+		cache_path = mem_alloc(256);
+		snprintf(cache_path, 256, "%s/.cache/lgears", getenv("HOME"));
+	}
 }
 
 void vm_cleanup()
 {
-	hash_table_destroy(&ns_global);
+	hash_table_destroy(&builtin);
 	hash_table_destroy(&sym_table);
 }
 

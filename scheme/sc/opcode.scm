@@ -31,7 +31,6 @@
       (LOAD_CONST . "Load object from module constant area")
       (PUSH_BOOL . "Push boolean value")
       (PUSH_NULL . "Load built-in constant")
-      (LOAD_IMPORT . "Load object from module import table")
       (JUMP_IF_FALSE . "Jump if false")
       (JUMP_IF_TRUE . "Jump if true")
       (JUMP_FORWARD . "Jump forward")
@@ -43,7 +42,8 @@
     '((OT_FIXNUM . "Fixed number")
       (OT_CHARACTER . "Character")
       (OT_STRING . "String")
-      (OT_SYMBOL . "Symbol")))
+      (OT_SYMBOL . "Symbol")
+      (OT_STATIC . "Static variable")))
   
   (define (oplist-for-each func)
     (fold-left (lambda (idx op)

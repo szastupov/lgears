@@ -12,18 +12,18 @@
 #define LOAD_CONST	0x4	/* Load object from module constant area */
 #define PUSH_BOOL	0x5	/* Push boolean value */
 #define PUSH_NULL	0x6	/* Load built-in constant */
-#define LOAD_IMPORT	0x7	/* Load object from module import table */
-#define JUMP_IF_FALSE	0x8	/* Jump if false */
-#define JUMP_IF_TRUE	0x9	/* Jump if true */
-#define JUMP_FORWARD	0xa	/* Jump forward */
-#define FUNC_CALL	0xb	/* Call function */
-#define SET_LOCAL	0xc	/* Assign new value to local binding */
-#define SET_BIND	0xd	/* Asign new value to non-local binding */
+#define JUMP_IF_FALSE	0x7	/* Jump if false */
+#define JUMP_IF_TRUE	0x8	/* Jump if true */
+#define JUMP_FORWARD	0x9	/* Jump forward */
+#define FUNC_CALL	0xa	/* Call function */
+#define SET_LOCAL	0xb	/* Assign new value to local binding */
+#define SET_BIND	0xc	/* Asign new value to non-local binding */
 
 #define OT_FIXNUM	0x0	/* Fixed number */
 #define OT_CHARACTER	0x1	/* Character */
 #define OT_STRING	0x2	/* String */
 #define OT_SYMBOL	0x3	/* Symbol */
+#define OT_STATIC	0x4	/* Static variable */
 
 static inline const char* opcode_name(int code)
 {
@@ -35,7 +35,6 @@ static inline const char* opcode_name(int code)
 		OP_CASE(LOAD_CONST);
 		OP_CASE(PUSH_BOOL);
 		OP_CASE(PUSH_NULL);
-		OP_CASE(LOAD_IMPORT);
 		OP_CASE(JUMP_IF_FALSE);
 		OP_CASE(JUMP_IF_TRUE);
 		OP_CASE(JUMP_FORWARD);
@@ -53,6 +52,7 @@ static inline const char* object_type_name(int code)
 		OP_CASE(OT_CHARACTER);
 		OP_CASE(OT_STRING);
 		OP_CASE(OT_SYMBOL);
+		OP_CASE(OT_STATIC);
 	}
 	return "unknown";
 }

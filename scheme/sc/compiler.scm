@@ -23,6 +23,11 @@
 		  (only (core) pretty-print) ; This works only for ypsilon
 		  (sc fasl))
 
+  (define (init-static vars)
+	(map (lambda (x)
+		   (cons x (make-static (symbol->string x))))
+		 vars))
+
   (define (set-func-args! ntbl args)
 	(let loop ((idx 0) (lst args))
 	  (cond
@@ -94,49 +99,8 @@
 	  (reverse (env-bindings env))
 	  (reverse (env-bindmap env))))
 
-  (define (env-lookup env name)
-	(let loop ((step 0)
-			   (cur-env env))
-	  (if (null? cur-env)
-		#f
-		(let ((res (hashtable-ref (env-tbl cur-env) name #f)))
-		  (if res
-			(if (zero? step)
-			  `(LOCAL . ,res)
-			  (begin
-				(env-onheap-set! cur-env #t)
-				`(BINDING . ,(env-bind env step res))))
-			(loop (+ step 1) (env-parent cur-env)))))))
-
-  (define-record-type sym-table
-	(fields table (mutable count))
-	(protocol
-	  (lambda (new)
-		(lambda () (new (make-eq-hashtable) 0)))))
-
-  (define (sym-table-insert stbl sym)
-	(let* ((tbl (sym-table-table stbl))
-		   (res (hashtable-ref tbl sym #f)))
-	  (if res
-		res
-		(begin
-		  (set! res (sym-table-count stbl))
-		  (hashtable-set! tbl sym res)
-		  (sym-table-count-set! stbl (+ res 1))
-		  res))))
-
-  ;; Return list of keys sorted by value (index)
-  ;;
-  ;; As order of returned hash values is not specified, we have
-  ;; to guaranty that everything is ok.
-  (define (symtable->list stbl)
-	(let-values (((keys vals) (hashtable-entries (sym-table-table stbl))))
-	  (map (lambda (x)
-			 (symbol->string (car x)))
-		   (list-sort (lambda (x y) (< (cdr x) (cdr y)))
-					  (map cons
-						   (vector->list keys)
-						   (vector->list vals))))))
+  (define (env-ref env name)
+	(hashtable-ref (env-tbl env) name #f))
 
   (define-record-type store
 	(fields (mutable head) (mutable count))
@@ -157,16 +121,15 @@
 			  (map-append proc (cdr lst)))))
 
   (define (datum->string dt)
-    (cond ((string? dt) dt)
-          ((symbol? dt) (symbol->string dt))
-          ((char? dt) (string dt))
-          ((number? dt) (number->string dt))
-          ((boolean? dt) (if dt "#t" "#f"))
-          (else (error 'datum->string "unknown datum" dt))))
+	(cond ((string? dt) dt)
+		  ((symbol? dt) (symbol->string dt))
+		  ((char? dt) (string dt))
+		  ((number? dt) (number->string dt))
+		  ((boolean? dt) (if dt "#t" "#f"))
+		  (else (error 'datum->string "unknown datum" dt))))
 
   (define (start-compile root)
-	(let ((undefs (make-sym-table))
-		  (code-store (make-store))
+	(let ((code-store (make-store))
 		  (consts '()))
 
 	  (define (make-const datum)
@@ -177,6 +140,24 @@
 				 (set! consts (cons (cons datum idx)
 									consts))
 				 idx))))
+
+	  (define (env-lookup env name)
+		(let loop ((step 0)
+				   (cur-env env))
+		  (if (null? cur-env)
+			  (cond ((assq name static-variables)
+					 => (lambda (res)
+						  `(STATIC . ,(make-const (cdr res)))))
+					(else
+					 (error 'env-lookup "undefined" name)))
+			  (let ((res (env-ref cur-env name)))
+				(if res
+					(if (zero? step)
+						`(LOCAL . ,res)
+						(begin
+						  (env-onheap-set! cur-env #t)
+						  `(BIND . ,(env-bind env step res))))
+					(loop (+ step 1) (env-parent cur-env)))))))
 
 	  (define (split-extend node)
 		(if (and (pair? (car node))
@@ -230,13 +211,16 @@
 		(let* ((name (car node))
 			   (slot (env-lookup env name)))
 		  (if (not slot)
-			(error 'compile-assigment "undefined variable" name)
-			`(,@(compile env (cadr node))
-			   ,@(if (eq? (car slot) 'LOCAL)
-				   `((SET_LOCAL ,(cdr slot)
-                                ,(datum->string name)))
-				   `((SET_BIND ,(cdr slot)
-                               ,(datum->string name))))))))
+			  (error 'compile-assigment "undefined variable" name)
+			  `(,@(compile env (cadr node))
+				,(case (car slot)
+				   ((LOCAL)
+					`(SET_LOCAL ,(cdr slot)
+								,(datum->string name)))
+				   ((BIND)
+					`(SET_BIND ,(cdr slot)
+							   ,(datum->string name)))
+				   (else (error 'compile-assigment "invalid set")))))))
 
 	  (define (compile env node)
 		(cond ((pair? node)
@@ -249,7 +233,7 @@
 				  (if (null? (cadr node))
 					`((PUSH_NULL 0))
 					`((LOAD_CONST ,(make-const (cadr node))
-                                  ,(datum->string (cadr node))))))
+								  ,(datum->string (cadr node))))))
 				 ((set!)
 				  (compile-assigment env (cdr node)))
 				 (else
@@ -258,36 +242,38 @@
 				   (number? node)
 				   (string? node))
 			   `((LOAD_CONST ,(make-const node)
-                             ,(datum->string node))))
+							 ,(datum->string node))))
 			  ((boolean? node)
 			   `((PUSH_BOOL ,(if node 1 0)
-                            ,(datum->string node))))
+							,(datum->string node))))
 			  (else
 				(let ((res (env-lookup env node)))
-				  (if res
-					(if (eq? (car res) 'LOCAL)
+				  (case (car res)
+					((LOCAL)
 					  `((LOAD_LOCAL ,(cdr res)
-                                    ,(datum->string node)))
+									,(datum->string node))))
+					((BIND)
 					  `((LOAD_BIND ,(cdr res)
-                                   ,(datum->string node))))
-					`((LOAD_IMPORT ,(sym-table-insert undefs node)
-                                   ,(datum->string node))))))))
+								   ,(datum->string node))))
+					((STATIC)
+					 `((LOAD_CONST ,(cdr res)
+								   ,(datum->string node))))
+					(else
+					 (error 'compile "unknown" res)))))))
 
 	  (define (dispatch-input)
 		(case (car root)
 		  ((top-level)
-		   (values (cadr root)
-				   (compile-func '() '() (cddr root))))
+		   (compile-func '() '() (cdr root)))
 		  ((library)
-		   (let ((hdr (cadr root)))
-			 (values (cadr hdr)
-					 (compile '() (cddr root)))))
+		   (compile '() (cdr root)))
 		  (else (error 'dispatch-input "wtf?"))))
 
-	  (let-values (((imports entry-point) (dispatch-input)))
-		(make-ilr (symtable->list undefs)
-				  (map car (reverse consts))
+	  (let ((entry-point (dispatch-input)))
+		(make-ilr (map car (reverse consts))
 				  (reverse (store-head code-store))
-				  (cadar entry-point)
-				  imports))))
+				  (cadar entry-point)))))
+
+  (define static-variables
+	(init-static '(display void __exit eq? null? list car cdr cons load-library)))
   )

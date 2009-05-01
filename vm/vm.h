@@ -22,7 +22,8 @@
 #include "types.h"
 #include "heap.h"
 
-extern hash_table_t ns_global;
+extern hash_table_t builtin;
+extern char *cache_path;
 
 typedef struct {
 	short up, idx;
@@ -57,11 +58,11 @@ typedef struct {
 	linked_mem_t *mem;
 } const_allocator_t;
 
+/* Module representation */
 struct module_s {
 	func_t *functions;
 	int entry_point;
 	int fun_count;
-	obj_t *imports;
 	obj_t *consts;
 	const_allocator_t allocator;
 };

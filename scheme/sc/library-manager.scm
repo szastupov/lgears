@@ -17,7 +17,7 @@
 
 (library (sc library-manager)
   (export find-library library-install! library-manager-root
-          find-library-file symbols-list->path)
+          find-library-file libname->path libname->symbol)
   (import (rnrs base)
           (rnrs lists)
           (rnrs files)
@@ -78,17 +78,24 @@
                     (lnode-childs-set! node (create-path name lib)))
                    (else (error 'library-install! "wtf?")))))))
 
-  (define (symbols-list->path name)
+  (define (libname->string name sep)
     (fold-left (lambda (prev cur)
-                 (string-append prev "/" (symbol->string cur)))
+                 (string-append prev sep (symbol->string cur)))
                (symbol->string (car name)) (cdr name)))
+
+  (define (libname->path name)
+    (libname->string name "/"))
+
+  (define (libname->symbol name)
+    (string->symbol
+     (libname->string name ".")))
 
   (define (try-file lp path ext)
     (let ((cn (string-append lp "/" path "." ext)))
       (if (file-exists? cn) cn #f)))
 
   (define (find-library-file name)
-    (let ((path (symbols-list->path name)))
+    (let ((path (libname->path name)))
       (call/cc
        (lambda (return)
          (for-each

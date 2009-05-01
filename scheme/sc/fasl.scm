@@ -17,25 +17,27 @@
 
 (library (sc fasl)
   (export assemble
-          make-ilr make-i-func print-ilr)
+          make-ilr make-i-func make-static
+          i-func-code-set! i-func-code print-ilr)
   (import (rnrs)
           (sc opcode)
           (cpacked)
           (debug)
           (format))
 
+  (define-record-type static
+    (fields name))
+
   (define-record-type ilr
-    (fields undefs consts code
-            entry-point imports))
+    (fields consts code
+            entry-point))
 
   (define-record-type i-func
-    (fields code size argc swallow
+    (fields (mutable code) size argc swallow
             heap? depth bindings bindmap))
 
   (define-cpacked
     header
-    (u32 imports-size)
-    (u32 undefs-size)
     (u32 consts-size)
     (u16 fun-count)
     (u16 entry-point))
@@ -54,13 +56,11 @@
 
   (define (print-ilr res)
     (display "ILR: \n")
-    (format #t "Undefs: ~a\n" (ilr-undefs res))
-    (format #t "Imports: ~s\n" (ilr-imports res))
-    (format #t "Consts: ~a\n" (ilr-consts res))
+    (format #t "Consts: ~s\n" (ilr-consts res))
     (format #t "Entry point: ~a\n" (ilr-entry-point res))
     (display "Code: \n")
     (for-each (lambda (x)
-                (format #t "~a\n" (i-func-code x)))
+                (format #t "~s\n" (i-func-code x)))
               (ilr-code res)))
 
   (define (write-func-hdr mem . args)
@@ -128,16 +128,6 @@
       (bytevector-u16-native-set! bv 0 n)
       bv))
 
-  (define (write-strings port strings)
-    (let ((oldpos (port-position port)))
-      (put-u8 port (length strings))
-      (for-each (lambda (x)
-                  (let ((utf8 (string->utf8 x)))
-                    (put-bytevector port utf8)
-                    (put-u8 port 0)))
-                strings)
-      (- (port-position port) oldpos)))
-
   (define (number->s64bv n)
     (let ((bv (make-bytevector 8)))
       (bytevector-s64-native-set! bv 0 n)
@@ -179,6 +169,9 @@
                ((string? obj)
                 (put-type 'OT_STRING)
                 (put-bytevector port (string->cbv obj)))
+               ((static? obj)
+                (put-type 'OT_STATIC)
+                (put-bytevector port (string->cbv (static-name obj))))
                (else (error 'write-consts "unknown" obj))))
        consts)
       (- (port-position port) oldpos)))
@@ -201,8 +194,6 @@
       (set-port-position! asm-port (header-size))
       (let* ((header
               (make-header
-               (write-strings asm-port (ilr-imports root))
-               (write-strings asm-port (ilr-undefs root))
                (write-consts asm-port (ilr-consts root))
                (length (ilr-code root))
                (ilr-entry-point root))))

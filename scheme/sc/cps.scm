@@ -82,25 +82,26 @@
   (define (convert-lambda node)
     (convert-func (cadr node) (cddr node)))
 
-  (define (convert-set res node name)
+  (define (convert-set prefix res node name)
     (define (set-body val)
-      `(begin
-         (set! ,(car node) ,val)
-         ,(if (null? res)
-              `(void ,name)
-              res)))
-    (let ((value (cadr node)))
-      (cond ((self-eval? value)
-             (set-body value))
-            ((inlinable? value)
-             (set-body (convert-lambda value)))
-            (else
-             (let ((setter (gen-name))
-                   (nv (gen-name)))
-               `((lambda (,setter)
-                   ,(convert '() value setter))
-                 (lambda (,nv)
-                   ,(set-body nv))))))))
+      `((,prefix ,(car node) ,val)
+        ,@(if (null? res)
+              `((void ,name))
+              (splice-begin (list res)))))
+      (let ((value (cadr node)))
+        (cond ((self-eval? value)
+               `(begin
+                  ,@(set-body value)))
+              ((inlinable? value)
+               `(begin
+                  ,@(set-body (convert-lambda value))))
+              (else
+               (let ((setter (gen-name))
+                     (nv (gen-name)))
+                 `((lambda (,setter)
+                     ,(convert '() value setter))
+                   (lambda (,nv)
+                     ,@(set-body nv))))))))
 
   (define (convert res node name)
     (if (self-eval? node)
@@ -136,8 +137,8 @@
         ((begin)
          (convert-seq res (cdr node) name))
 
-        ((set!)
-         (convert-set res (cdr node) name))
+        ((set! set-global!)
+         (convert-set (car node) res (cdr node) name))
 
         ((define)
          (syntax-violation 'convert "misplaced defination" node))
@@ -159,7 +160,8 @@
                  (rlargs (reverse largs))
                  (control (if (null? res)
                               name
-                              `(lambda (,name) ,res)))
+                              `(lambda (,name)
+                                 ,@(splice-begin (list res)))))
                  (expr `(,(car rlargs) ,control ,@(cdr rlargs))))
             ;;; Clue everything
             (fold-left (lambda (prev x n)
@@ -207,19 +209,16 @@
           ,(fold-left (lambda (prev x)
                         (if (null? (cddr x))
                             prev
-                            (convert-set prev (cdr x) (gen-name))))
+                            (convert-set 'set! prev (cdr x) (gen-name))))
                       rest (reverse defines))))))
 
   (define (cps-convert source)
     (case (car source)
       ((top-level)
        `(top-level
-         ,(cadr source)
-         (,(convert-lambda (caddr source))
-          __exit)))
+         ,@(convert-body (cdr source) '__exit)))
       ((library)
-       (let ((header (cadr source)))
-         `(library ,header
-            ,(convert-lambda (caddr source)))))))
+       `(library
+            ,(convert-lambda (cadr source))))))
 
   )

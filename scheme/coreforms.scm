@@ -1,5 +1,6 @@
 (library (coreforms)
-  (export with-syntax syntax-rules or and let cond when unless dummy)
+  (export with-syntax syntax-rules or and let cond when unless dummy
+          caar cdar)
   (import ($builtin))
 
   (define-syntax with-syntax

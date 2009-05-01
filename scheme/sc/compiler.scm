@@ -274,5 +274,15 @@
 				  (cadar entry-point)))))
 
   (define static-variables
-	(init-static '(display void __exit eq? null? list car cdr cons load-library)))
+	(init-static '(display __exit call/cc apply cons list $make-list
+                           car cdr void char->integer integer->char
+                           eq? procedure? boolean? null? char? number?
+                           pair? symbol? $+ $- $* $/ mod $= $< $>
+                           fxior vector vector? vector-length
+                           vector-set! vector-ref vector->list
+                           $make-vector symbol->string string-ref
+                           string-length string? string=?
+                           string-concat make-bytevector bytevector?
+                           bytevector-u8-set! fd-open fd-close fd-seek
+                           fd-write load-library)))
   )

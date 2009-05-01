@@ -1,5 +1,5 @@
 (import ($builtin)
-        (coreforms))
+        (base))
 
 ;(define (range from to)
   ;(let loop ((cur to)
@@ -15,10 +15,4 @@
       ;(display (range 1 150))
       ;(loop ($+ n 1)))))
 
-(display 'ok)
-(display "\n")
-(display 10000)
-(display "\n")
-(display #\п)
-(display "\nbla\n")
-(dummy "foooooo!\n")
+(display (fold-left * '(1 2 3 4)))

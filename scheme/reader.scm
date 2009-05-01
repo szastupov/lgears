@@ -139,6 +139,12 @@
                     (eqv? c #\newline))
           (skip-comment))))
 
+    (define (skip-block-comment)
+      (let ((c (read-char port)))
+        (unless (and (eqv? c #\|)
+                     (eqv? (read-char port) #\#))
+          (skip-block-comment))))
+
     (define (read-number-impl start radix)
       (let ((pred? (if (= radix 16)
                        hex-digit?
@@ -191,6 +197,9 @@
            (list (syntax-type c)
                  (dispatch (read-char port))))
           ((#\() (list->vector (read-list)))
+          ((#\|)
+           (skip-block-comment)
+           (dispatch (read-char port)))
           (else
            (lexical-error "invalid lexical syntax #~a" c)))))
 

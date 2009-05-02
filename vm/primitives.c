@@ -70,7 +70,7 @@ void* _list(heap_t *heap, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
 
-	heap_require(heap, sizeof(pair_t)*(argc));
+	heap_require_blocks(heap, sizeof(pair_t), argc);
 	int i;
 	for (i = argc-1; i >= 0; i--)
 		res.ptr = _cons(heap, &argv[i], &res);
@@ -91,7 +91,7 @@ static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	int size = FIXNUM(*count);
 	obj_t res = cnull.obj;
 
-	heap_require(&thread->heap, sizeof(pair_t)*size);
+	heap_require_blocks(&thread->heap, sizeof(pair_t), size);
 	int i;
 	for (i = 0; i < size; i++)
 		res.ptr = _cons(&thread->heap, fill, &res);

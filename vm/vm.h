@@ -83,6 +83,7 @@ typedef struct display_s {
 
 typedef struct {
 	display_t *display;
+	obj_t *bindmap;
 	func_t *func;
 } closure_t;
 
@@ -103,6 +104,7 @@ typedef struct {
 	display_t *display;
 	obj_t *bindmap;
 	func_t *func;
+	closure_t *closure;
 
 	trampoline_t tramp;
 } vm_thread_t;

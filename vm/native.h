@@ -82,14 +82,15 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 #define RESULT_BOOL(b)							\
 	RESULT_OBJ(CIF(b).obj);
 
-/** 
- * @brief Terminate thread if assertion failed
- * 
- * @param e condition
- */
-#define SAFE_ASSERT(e) if (!(e)) {						\
-		fprintf(stderr, "Assertion failed %s\n", #e);	\
-		return RC_ERROR;								\
+#if FATAL_SAFE_ASSERT
+#define FAIL_ASSERT FATAL
+#else
+#define FAIL_ASSERT(msg...) fprintf(stderr, msg);
+#endif
+
+#define SAFE_ASSERT(e) if (!(e)) {					\
+		FAIL_ASSERT("Assertion failed %s\n", #e);	\
+		return RC_ERROR;							\
 	}
 
 #define RESULT_ERROR(msg...) {					\

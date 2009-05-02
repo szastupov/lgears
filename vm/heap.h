@@ -25,22 +25,6 @@ typedef struct allocator_s {
 	int id;
 } allocator_t;
 
-/* Header attached to each object on heap */
-typedef struct {
-	unsigned size;		/* Size of block (with padding if need) */
-	unsigned type_id:4;	/* Type id @see type_table */
-	unsigned forward:1;	/* Indicate that pointer should be forwarded */
-	unsigned generation:2;	/* Generation */
-	unsigned remembered:1;	/* Indicate that object is remembered */
-} block_hdr_t;
-
-#define BHDR_SIZE sizeof(block_hdr_t)
-#define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
-#define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
-#define IS_TYPE(obj, tid)									\
-	(((obj).tag == id_const_ptr || ((obj).tag == id_ptr))	\
-	 && (HTYPE_TAG(PTR(obj)) == tid))
-
 #define IS_OLD(hp, ptr) ((void*)ptr >= (hp)->old.mem)
 
 #define MARK_MODIFIED(hp, ptr)							\
@@ -91,6 +75,7 @@ void heap_destroy(heap_t *heap);
 void* heap_alloc(heap_t *heap, int size, int type_id);
 void* heap_alloc0(heap_t *heap, int size, int type_id);
 void heap_require(heap_t *heap, int size);
+void heap_require_blocks(heap_t *heap, int size, int count);
 void heap_remember(heap_t *heap, block_hdr_t *hdr);
 
 static inline void* allocator_alloc(allocator_t *al, size_t size, int type_id)

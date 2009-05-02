@@ -65,7 +65,7 @@ enum {
 		obj_t obj;								\
 	} name;
 
-/** 
+/**
  * @brief constant
  */
 typedef union {
@@ -121,17 +121,13 @@ DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 #define SYMBOL_INIT(i, v) { (i).tag = id_symbol; PTR_SET(i, v); }
 #define SYMBOL_TO_CHARP(o) (const char*)PTR(o)
 
-/** 
- * @brief function types
- */
+/* Function types */
 typedef enum {
 	func_inter,	/**< Normal interpreted function */
 	func_native	/**< Native C-function */
 } func_type_t;
 
-/** 
- * @brief Common header for functions
- */
+/* Function header */
 typedef struct {
 	func_type_t type;
 	uint16_t argc;
@@ -174,18 +170,35 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
-/** 
+/**
  * @brief Type table
  */
 extern const type_t type_table[];
-enum { t_env,
-	   t_closure,
-	   t_cont,
-	   t_display,
-	   t_pair,
-	   t_string,
-	   t_vector,
-	   t_bytevector
+enum {
+	t_env,
+	t_closure,
+	t_cont,
+	t_display,
+	t_pair,
+	t_string,
+	t_vector,
+	t_bytevector
 };
+
+/* Header attached to each object on heap */
+typedef struct {
+	unsigned size;		/* Size of block (with padding if need) */
+	unsigned type_id:4;	/* Type id @see type_table */
+	unsigned forward:1;	/* Indicate that pointer should be forwarded */
+	unsigned generation:2;	/* Generation */
+	unsigned remembered:1;	/* Indicate that object is remembered */
+} block_hdr_t;
+
+#define BHDR_SIZE sizeof(block_hdr_t)
+#define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
+#define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
+#define IS_TYPE(obj, tid)									\
+	(((obj).tag == id_const_ptr || ((obj).tag == id_ptr))	\
+	 && (HTYPE_TAG(PTR(obj)) == tid))
 
 #endif /* TYPES_H */

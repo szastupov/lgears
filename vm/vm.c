@@ -146,17 +146,49 @@ static env_t* display_env(display_t *display, int idx)
 	return *env;
 }
 
+static void bindmap_visit(visitor_t *vs, obj_t *bindmap, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		vs->visit(vs, &bindmap[i]);
+}
+
 static void closure_visit(visitor_t *vs, void *data)
 {
 	closure_t *closure = data;
 	mark_display(&closure->display, vs);
+	if (closure->func->bmcount) {
+		closure->bindmap = data+sizeof(closure_t);
+		bindmap_visit(vs, closure->bindmap, closure->func->bmcount);
+	}
+}
+
+static void bindmap_init(obj_t *bindmap, display_t *display, func_t *func)
+{
+	int i;
+	for (i = 0; i < func->bmcount; i++) {
+		env_t *env = display_env(display, func->bindmap[i]-1);
+		ASSERT(env != NULL);
+		bindmap[i].ptr = make_ptr(env, id_ptr);
+	}
 }
 
 static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 {
-	closure_t *closure = heap_alloc(heap, sizeof(closure_t), t_closure);
+	size_t size = sizeof(closure_t);
+	if (func->bmcount)
+		size += func->bmcount*sizeof(obj_t);
+
+	void *mem = heap_alloc(heap, size, t_closure);
+	closure_t *closure = mem;
 	closure->func = func;
 	closure->display = *display;
+
+	if (func->bmcount) {
+		closure->bindmap = mem+sizeof(closure_t);
+		bindmap_init(closure->bindmap, *display, func);
+	} else
+		closure->bindmap = NULL;
 
 	return make_ptr(closure, id_ptr);
 }
@@ -180,7 +212,6 @@ static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 	return RC_OK;
 }
 MAKE_NATIVE(load_library, -1, 1, 0);
-
 
 static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
@@ -219,14 +250,10 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 		thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
 	}
 
-	if (func->bcount) {
+	if (func->bcount && !thread->bindmap) {
 		thread->bindmap = &thread->opstack[thread->op_stack_idx];
-		for (i = 0; i < func->bmcount; i++) {
-			env_t *env = display_env(thread->display, (func->bindmap[i]-1));
-			if (!env)
-				FATAL("null env\n");
-			STACK_PUSH(make_ptr(env, id_ptr));
-		}
+		thread->op_stack_idx += func->bmcount;
+		bindmap_init(thread->bindmap, thread->display, func);
 	}
 
 	thread->display = display_new(&thread->heap, &thread->display, &thread->env);
@@ -258,11 +285,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 			trace_func = trace_opcode;
 	}
 
-#define THREAD_ERROR(msg...) { \
-	LOG_ERR(msg); \
-	fprintf(stderr, "\tshutting down the thread...\n"); \
-	return; \
-}
+#define THREAD_ERROR(msg...) {								\
+		LOG_ERR(msg);										\
+		fprintf(stderr, "\tshutting down the thread...\n"); \
+		return;												\
+	}
 
 	LOG_DBG("entering func %d\n", module->entry_point);
 	func = MODULE_FUNC(module, module->entry_point);
@@ -337,15 +364,12 @@ dispatch_func:
 						{
 							if (IS_TYPE(fp.obj, t_closure)) {
 								closure_t *closure = PTR(fp.obj);
-								if (!closure)
-									THREAD_ERROR("wth? null closure?\n");
-
 								ptr = closure->func;
 								thread->display = closure->display;
+								thread->bindmap = closure->bindmap;
+								thread->closure = closure;
 							} else if (IS_TYPE(fp.obj, t_cont)) {
 								continuation_t *cont = PTR(fp.obj);
-								if (!cont)
-									THREAD_ERROR("wth? null continuation?\n");
 								fp.obj = cont->func;
 								op_arg--;
 								goto dispatch_func;
@@ -355,6 +379,8 @@ dispatch_func:
 						break;
 					case id_func:
 						ptr = PTR_GET(fp);
+						thread->bindmap = NULL;
+						thread->closure = NULL;
 						break;
 					default:
 						THREAD_ERROR("expected function or closure but got tag %d\n", fp.tag);
@@ -487,6 +513,13 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 		for (i = 0; i < thread->func->env_size; i++)
 			visitor->visit(visitor, &thread->objects[i]);
 
+	if (thread->closure) {
+		ptr_t ptr;
+		PTR_INIT(ptr, thread->closure);
+		visitor->visit(visitor, &ptr.obj);
+		thread->closure = PTR_GET(ptr);
+	}
+
 	mark_display(&thread->display, visitor);
 }
 
@@ -494,6 +527,8 @@ void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)
 {
 	if (thread->env)
 		thread->objects = thread->env->objects;
+	if (thread->closure)
+		thread->bindmap = thread->closure->bindmap;
 }
 
 static void vm_thread_init(vm_thread_t *thread)

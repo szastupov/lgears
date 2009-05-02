@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "config.h"
 
 #define container_of(ptr, type, member) ({							\
 			const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
@@ -36,7 +37,7 @@
 
 #define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 
-#define LOG_DBG(msg...) fprintf(stderr, msg);
+#define LOG_DBG(msg...) //fprintf(stderr, msg);
 #define LOG_ERR(msg...) {							\
 		fprintf(stderr, "%s:%d `%s': ",				\
 				__FILE__, __LINE__, __FUNCTION__);	\

@@ -27,7 +27,7 @@
 
 /* TODO: tune it */
 #define FRESH_SIZE 8192
-#define SURVIVED_SIZE 4096
+#define SURVIVED_SIZE 8192
 #define OLD_SIZE 16384
 
 #define HEAP_DBG printf
@@ -300,6 +300,13 @@ void* heap_alloc(heap_t *heap, int size, int type_id)
 void heap_require(heap_t *heap, int size)
 {
 	if (!space_enough(&heap->fresh, size))
+		heap_gc(heap);
+}
+
+void heap_require_blocks(heap_t *heap, int size, int count)
+{
+	size = align_up(size, 8)+BHDR_SIZE;
+	if (!space_enough(&heap->fresh, size*count))
 		heap_gc(heap);
 }
 

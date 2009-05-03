@@ -45,17 +45,16 @@
 	   (if a (and b ...) #f))))
 
   (define-syntax let
-	(lambda (x)
-	  (syntax-case x ()
-		((_ ((vars vals) ...) e1 e2 ...)
-		 #'((lambda (vars ...)
-			  e1 e2 ...)
-			vals ...))
-		((_ loop ((vars vals) ...) e1 e2 ...)
-		 #'(let ((loop 'unspec))
-			 (set! loop (lambda (vars ...)
-						  e1 e2 ...))
-			 (loop vals ...))))))
+    (syntax-rules ()
+      ((_ ((vars vals) ...) e1 e2 ...)
+       ((lambda (vars ...)
+          e1 e2 ...)
+        vals ...))
+      ((_ loop ((vars vals) ...) e1 e2 ...)
+       (let ((loop 'unspec))
+         (set! loop (lambda (vars ...)
+                      e1 e2 ...))
+         (loop vals ...)))))
 
   (define-syntax cond
 	(syntax-rules (else =>)

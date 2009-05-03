@@ -27,10 +27,10 @@
 		  (format)
 		  (reader)
 		  (config)
-		  (sc gen-name)
-		  (sc syntax-core)
-		  (sc syntax-pattern)
-		  (sc library-manager)
+		  (sc gen-name)                 ; Fresh name generator
+		  (sc syntax-core)              ; Core routines
+		  (sc syntax-pattern)           ; Pattern matching
+		  (sc library-manager)          ; Library managment
 		  (sc compiler)
 		  (sc cps)
 		  (sc fasl)
@@ -104,9 +104,11 @@
 	  (and (pair? x)
 		   (pair? (cdr x))
 		   (eq? (cadr x) '...)))
+    ;(format #t "vars: ~s\n" (strip vars))
 	(let rewrite ((stx stx))
 	  (cond ((ellipsis-pair? stx)
-			 (cond ((assq (car stx) vars)
+			 (cond ((and (symbol? (car stx))
+                         (assq (car stx) vars))
 					=> (lambda (res)
 						 (if (and (= (length (cdr res)) 1)
 								  (eq? (cadr res) '()))
@@ -128,8 +130,10 @@
 			  x (format "invalid syntax, no match, variants ~a" rules)))
 			((pattern-match reserved x (caar rule))
 			 => (lambda (matched)
-				  (let* ((bind (pattern-bind-named
-								matched (caar rule) '())))
+				  (let* ((bind (pattern-bind-named reserved
+                                                   matched
+                                                   (caar rule)
+                                                   '())))
 					;(format #t "bind ~a\n" (strip bind))
 					((cdar rule) bind))))
 			(else (loop (cdr rule))))))
@@ -456,7 +460,7 @@
 	(let ((name (libname->symbol name)))
 	  `((define ,name (load-library ',name))
 		,@(map (lambda (x)
-				 `(define ,x (,name ',x)))
+                 `(define ,x (,name ',x)))
 			   defines))))
 
   (define (expand-library x)

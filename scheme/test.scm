@@ -1,6 +1,7 @@
 (import ($builtin)
-        (coreforms))
+        (base))
 
+#|
 (define (range from to)
   (let loop ((cur to)
              (res '()))
@@ -14,3 +15,5 @@
     (begin
       (display (range 1 150))
       (loop ($+ n 1)))))
+|#
+(display (+ 1 2 3 4 5))

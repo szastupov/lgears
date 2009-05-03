@@ -23,7 +23,7 @@
           (rnrs lists)
           (format)
           (sc syntax-core))
-  
+
   (define (ellipsis-pair? pat)
     (and (pair? pat)
          (pair? (cdr pat))
@@ -52,7 +52,7 @@
                 (pattern-merge pat (match (syntax-car xpr) pat)
                                (match-ellipsis (syntax-cdr xpr) pat)))
                (else (return #f))))
-       
+
        (define (match xpr pat)
          (cond ((ellipsis-pair? pat)
                 (let ((elm (match-ellipsis xpr (car pat))))
@@ -79,7 +79,7 @@
                     xpr))
                ((equal? pat (syntax-object-expr xpr)) '())
                (else (return #f))))
-       
+
        (match xpr pat))))
 
   (define (pattern-bind xpr pat vars)
@@ -100,28 +100,38 @@
                      (bind-null-ellipsis x prev))
                    vars (car pat))
         (cons `(,pat ()) vars)))
-                            
 
-  (define (bind-ellipsis-named xpr pat vars)
+
+  (define (bind-ellipsis-named reserved xpr pat vars)
     (cond ((null? xpr)
            (bind-null-ellipsis pat vars))
           ((pair? (car pat))
-           (pattern-bind-named
-            (car xpr) (caar pat)
-            (pattern-bind-named (cdr xpr) (cdar pat) vars)))
+           (pattern-bind-named reserved
+                               (car xpr)
+                               (caar pat)
+                               (pattern-bind-named reserved
+                                                   (cdr xpr)
+                                                   (cdar pat)
+                                                   vars)))
           (else (cons (cons (car pat) (car xpr)) vars))))
 
-  (define (pattern-bind-named xpr pat vars)
+  (define (pattern-bind-named reserved xpr pat vars)
     (cond ((ellipsis-pair? pat)
-           (bind-ellipsis-named xpr pat vars))
+           (bind-ellipsis-named reserved xpr pat vars))
           ((pair? pat)
-           (pattern-bind-named
-            (car xpr) (car pat)
-            (pattern-bind-named (cdr xpr) (cdr pat) vars)))
+           (pattern-bind-named reserved
+                               (car xpr)
+                               (car pat)
+                               (pattern-bind-named reserved
+                                                   (cdr xpr)
+                                                   (cdr pat)
+                                                   vars)))
           ((eq? pat '_) vars)
           ((symbol? pat)
-           (cons (cons pat xpr)
-                 vars))
+           (if (memq pat reserved)
+               vars
+               (cons (cons pat xpr)
+                     vars)))
           (else vars)))
-  
+
   )

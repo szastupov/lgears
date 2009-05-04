@@ -57,6 +57,18 @@ static void* _cons(heap_t *heap, obj_t *car, obj_t *cdr)
 	pair->car = *car;
 	pair->cdr = *cdr;
 
+	if (IS_NULL(*cdr)) {
+		pair->list = 1;
+		pair->length = 1;
+	} else if (IS_PAIR(*cdr)) {
+		pair_t *prev = PTR(*cdr);
+		if (prev->list) {
+			pair->list = 1;
+			pair->length = prev->length+1;
+		}
+	} else
+		pair->list = 0;
+
 	return make_ptr(pair, id_ptr);
 }
 
@@ -84,6 +96,16 @@ static int list(vm_thread_t *thread, obj_t *argv, int argc)
 	RESULT_PTR(res);
 }
 MAKE_NATIVE_VARIADIC(list, 0);
+
+static int list_length(vm_thread_t *thread, obj_t *obj)
+{
+	SAFE_ASSERT(IS_PAIR(*obj));
+	pair_t *pair = PTR(*obj);
+	SAFE_ASSERT(pair->list);
+
+	RESULT_FIXNUM(pair->length);
+}
+MAKE_NATIVE_UNARY(list_length);
 
 static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 {
@@ -266,6 +288,16 @@ static int is_number(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(is_number);
 
+static int is_list(vm_thread_t *thread, obj_t *obj)
+{
+	if (IS_PAIR(*obj)) {
+		pair_t *pair = PTR(*obj);
+		RESULT_BOOL(pair->list);
+	}
+	RESULT_BOOL(IS_NULL(*obj));
+}
+MAKE_NATIVE_UNARY(is_list);
+
 void ns_install_primitives(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "display", &display_nt);
@@ -289,6 +321,8 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "number?", &is_number_nt);
 	ns_install_native(tbl, "pair?", &is_pair_nt);
 	ns_install_native(tbl, "symbol?", &is_symbol_nt);
+	ns_install_native(tbl, "list?", &is_list_nt);
+	ns_install_native(tbl, "length", &list_length_nt);
 
 	ns_install_fixnum(tbl);
 	ns_install_vector(tbl);

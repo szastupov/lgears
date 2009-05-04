@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses>.
  */
 #ifndef PRIMITIVES_H
-#define PRIMITIVES_H 
+#define PRIMITIVES_H
 #include "native.h"
 #include "vector.h"
 #include "string.h"
@@ -27,6 +27,12 @@ void ns_install_primitives(hash_table_t *tbl);
 
 typedef struct {
 	obj_t car, cdr;
+	/*
+	 * FIXME store next value only for list (allocate additional
+	 * memory in _cons)
+	 */
+	unsigned list:1;
+	unsigned length:31;
 } pair_t;
 
 void pair_repr(void *ptr);

@@ -18,7 +18,7 @@
  |#
 (library (base)
   (export + - * / = < > min max abs zero? positive? negative?
-          odd? even? not eqv? equal? list? error length for-each
+          odd? even? not eqv? equal? error length for-each
           map fold-left fold-right reverse append make-list
           cons* find memp member memv memq vector-for-each make-vector)
   (import (coreforms)
@@ -143,12 +143,6 @@
 
 ;; List utilites
 
-  (define (list? lst)
-    (let loop ((cur lst))
-      (cond ((null? cur) #t)
-            ((pair? cur) (loop (cdr cur)))
-            (else #f))))
-
   ;; Will be rewrited with exceptions and format
   (define (error what msg . irritians)
     (display "Error in ") (display what) (display ": ")
@@ -159,9 +153,6 @@
                 (newline))
               irritians)
     (__exit 1))
-
-  (define (length lst)
-    (fold-left (lambda (x y) (+ 1 x)) 0 lst))
 
   (define (for-each proc lst1 . lst2)
     (define (for-each-1 lst)

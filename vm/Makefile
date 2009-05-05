@@ -1,4 +1,4 @@
-CFLAGS += -Wall -g3 -DCOMPUTED_GOTO
+CFLAGS += -Wall -g3
 LDFLAGS += -pthread
 
 vm_obj = vm.o heap.o native.o primitives.o hash.o \

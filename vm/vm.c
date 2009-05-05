@@ -1,6 +1,6 @@
 /*
  * This file is part of lGears scheme system
- * Copyright (C) 2009 Stepan Zastupov
+ * Copyright (C) 2009 Stepan Zastupov <redchrom@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -264,7 +264,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	int16_t *opcode;
 	int op_code, op_arg;
 	func_t *func;
+
+#if DEBUG_TRACE_OPCODE
 	void (*trace_func)();
+#define TRACE() trace_func()
+#define SET_TRACE() set_trace_func()
 
 	void trace_opcode()
 	{
@@ -284,6 +288,10 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 		else
 			trace_func = trace_opcode;
 	}
+#else
+#define TRACE()
+#define SET_TRACE()
+#endif
 
 #define THREAD_ERROR(msg...) {								\
 		LOG_ERR(msg);										\
@@ -291,7 +299,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 		return;												\
 	}
 
-	LOG_DBG("entering func %d\n", module->entry_point);
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
@@ -299,7 +306,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	thread->objects = thread->env->objects;
 	thread->display = display_new(&thread->heap, NULL, &thread->env);
 
-	set_trace_func();
+	SET_TRACE();
 
 	/*
 	 * On dispatching speed-up:
@@ -307,18 +314,16 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	 * Inspired by http://bugs.python.org/issue4753, thanks Antoine Pitrou!
 	 */
 
-#ifdef COMPUTED_GOTO
+#if COMPUTED_GOTO
 #include "opcode_targets.h"
 #define TARGET(op) \
 	TARGET_##op: \
 	op_code = *(opcode++); \
-	op_arg = *(opcode++); \
-	trace_func();
+	op_arg = *(opcode++); TRACE();
 #define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
-#define TARGET(op) case op:\
-	trace_func();
+#define TARGET(op) case op: TRACE();
 #define NEXT() continue
 #define DISPATCH() \
 	op_code = *(opcode++); \
@@ -401,7 +406,7 @@ dispatch_func:
 							func = ptr;
 							opcode = func->opcode;
 							enter_interp(thread, func, op_arg, fp.tag);
-							set_trace_func();
+							SET_TRACE();
 						}
 						NEXT();
 					case func_native:

@@ -1,6 +1,6 @@
 /*
  * This file is part of lGears scheme system
- * Copyright (C) 2009 Stepan Zastupov
+ * Copyright (C) 2009 Stepan Zastupov <redchrom@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,8 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef MEMORY_H
-#define MEMORY_H
+#ifndef CUTIL_H
+#define CUTIL_H
 
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +37,7 @@
 
 #define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 
-#define LOG_DBG(msg...) //fprintf(stderr, msg);
+#define LOG_DBG(msg...) fprintf(stderr, msg);
 #define LOG_ERR(msg...) {							\
 		fprintf(stderr, "%s:%d `%s': ",				\
 				__FILE__, __LINE__, __FUNCTION__);	\

@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Stepan Zastupov
+/* Copyright (C) 2009 Stepan Zastupov <redchrom@gmail.com>
  * Based on GLib implementation
  * Copyright (C) 1995-1997  Peter Mattis, Spencer Kimball and Josh MacDonald
  *
@@ -23,7 +23,7 @@
  * GLib at ftp://ftp.gtk.org/pub/gtk/.
  */
 
-#include "memory.h"
+#include "cutil.h"
 #include "hash.h"
 
 #define HASH_TABLE_MIN_SIZE 11

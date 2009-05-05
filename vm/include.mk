@@ -1,3 +1,21 @@
+#
+# This file is part of lGears scheme system
+# Copyright (C) 2009 Stepan Zastupov <redchrom@gmail.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General
+# Public Licens along with this program, if not; see
+# <http://www.gnu.org/licenses>.
+#
 CFLAGS += -pipe
 
 .PHONY: clean echo-deps ctags all
@@ -16,6 +34,8 @@ deps := $(foreach o,$(targets:=_obj),$($(o):%.o=.deps/%.dep))
 define target_template
 $(1): $$($(1)_obj)
 all_objs += $$($(1)_obj)
+$(1)_install: $(1)
+	install -D $$^ $$(DESTDIR)$$(PREFIX)/bin/$$^
 endef
 
 $(foreach prog,$(targets),$(eval $(call target_template,$(prog))))
@@ -23,9 +43,8 @@ $(foreach prog,$(targets),$(eval $(call target_template,$(prog))))
 $(targets):
 	$(LINK.o) $^ -o $@
 
-#FIXME
-install: $(targets)
-	install -D $^ $(DESTDIR)$(PREFIX)/bin/$^
+install: $(targets:=_install)
+	@echo "Installed"
 
 echo-deps:
 	@echo $(deps)

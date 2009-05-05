@@ -20,26 +20,6 @@
 #include "fixnum.h"
 #include "fd.h"
 
-static int raise(vm_thread_t *thread, obj_t obj)
-{
-	STACK_PUSH(cvoid.ptr);
-	STACK_PUSH(ctrue.ptr);
-	STACK_PUSH(obj.ptr);
-	// TODO check if exception_handler is valid procedure
-	pair_t *pair = PTR(thread->exception_handler);
-	thread->tramp.func = pair->car;
-	thread->tramp.argc = 3;
-
-	return RC_OK;
-}
-
-static int raise_msg(vm_thread_t *thread, const char *msg)
-{
-	obj_t obj;
-	obj.ptr = _string(&thread->heap.allocator, (char*)msg, 1) ;
-	return raise(thread, obj);
-}
-
 void pair_visit(visitor_t *vs, void *data)
 {
 	pair_t *pair = data;
@@ -92,37 +72,6 @@ static void* _cons(heap_t *heap, obj_t *car, obj_t *cdr)
 	return make_ptr(pair, id_ptr);
 }
 
-static int default_handler(vm_thread_t *thread, obj_t *die, obj_t *obj)
-{
-	printf("Unhandled exception: ");
-	print_obj(*obj);
-	printf("\nShutting down the thread\n");
-	return RC_EXIT;
-}
-MAKE_NATIVE_BINARY(default_handler);
-
-void exception_handler_init(vm_thread_t *thread)
-{
-	ptr_t dflt;
-	FUNC_INIT(dflt, &default_handler_nt);
-	thread->exception_handler.ptr = _cons(&thread->heap,
-										  &dflt.obj,
-										  (obj_t*)&cnull.obj);
-}
-
-static int exception_handler(vm_thread_t *thread)
-{
-	RESULT_OBJ(thread->exception_handler);
-}
-MAKE_NATIVE_NULLARY(exception_handler);
-
-static int exception_handler_set(vm_thread_t *thread, obj_t *obj)
-{
-	thread->exception_handler = *obj;
-	RESULT_OBJ(cvoid.obj);
-}
-MAKE_NATIVE_UNARY(exception_handler_set);
-
 static int cons(vm_thread_t *thread, obj_t *car, obj_t *cdr)
 {
 	RESULT_PTR(_cons(&thread->heap, car, cdr));
@@ -150,12 +99,9 @@ MAKE_NATIVE_VARIADIC(list, 0);
 
 static int list_length(vm_thread_t *thread, obj_t *obj)
 {
-	if (!IS_PAIR(*obj))
-		return raise_msg(thread, "expected propper list");
-
+	SAFE_ASSERT(IS_PAIR(*obj));
 	pair_t *pair = PTR(*obj);
-	if (!pair->list)
-		return raise_msg(thread, "expected propper list");
+	SAFE_ASSERT(pair->list);
 
 	RESULT_FIXNUM(pair->length);
 }
@@ -353,9 +299,6 @@ MAKE_NATIVE_UNARY(is_list);
 
 void ns_install_primitives(hash_table_t *tbl)
 {
-	ns_install_native(tbl, "exception-handler", &exception_handler_nt);
-	ns_install_native(tbl, "exception-handler-set!", &exception_handler_set_nt);
-	
 	ns_install_native(tbl, "display", &display_nt);
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
 	ns_install_native(tbl, "call/cc", &call_cc_nt);

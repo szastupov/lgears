@@ -305,7 +305,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	thread->env = env_new(&thread->heap, func->env_size);
 	thread->objects = thread->env->objects;
 	thread->display = display_new(&thread->heap, NULL, &thread->env);
-	exception_handler_init(thread);
 
 	SET_TRACE();
 

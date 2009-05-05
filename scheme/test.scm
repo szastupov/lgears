@@ -17,31 +17,44 @@
       (loop ($+ n 1)))))
 |#
 
-(define (with-exception-handler handler thunk)
-  (let ((parent (exception-handler))
-        (die? (call/cc
-                    (lambda (return)
-                      (exception-handler-set!
-                       (cons (lambda (die? obj)
-                               (handler obj)
-                               (return die?))
-                             (exception-handler)))
-                      (thunk)))))
-    (exception-handler-set! parent)
-    (if die?
-        (__exit))))
+(define (default-exception obj)
+  (display "Unhandled excetion with: ")
+  (display obj)
+  (display "\n")
+  (__exit))
 
-(define (raise-continuable x)
-  ((car (exception-handler)) #f x))
+(define exception-handler (list default-exception))
+
+(define (with-exception-handler new thunk)
+  (let ((parent exception-handler))
+    (set! exception-handler (cons new parent))
+    (let ((res (thunk)))
+      (set! exception-handler parent)
+      res)))
 
 (define (raise x)
-  ((car (exception-handler)) #t x))
+  (let ((handlers exception-handler))
+    (set! exception-handler (cdr handlers))
+    ((car handlers) x)
+    (__exit)))
 
+(define (raise-continuable x)
+  (let ((handlers exception-handler))
+    (set! exception-handler (cdr handlers))
+    (let ((res ((car handlers) x)))
+      (set! exception-handler handlers)
+      res)))
+
+(display
 (with-exception-handler
  (lambda (obj)
    (display "Got: ") (display obj)
-   (display "\n"))
+   (display "\n")
+   40)
  (lambda ()
-   (raise-continuable '(1 2 3))))
+   (raise-continuable "foo"))))
+(display "\n")
 
-(display (exception-handler))
+;(raise-continuable 'foo)
+
+(display exception-handler)

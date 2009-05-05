@@ -284,6 +284,5 @@
                            string-length string? string=?
                            string-concat make-bytevector bytevector?
                            bytevector-u8-set! fd-open fd-close fd-seek
-                           fd-write load-library list? length
-                           exception-handler exception-handler-set!)))
+                           fd-write load-library list? length)))
   )

@@ -23,10 +23,12 @@
 static int raise(vm_thread_t *thread, obj_t obj)
 {
 	STACK_PUSH(cvoid.ptr);
+	STACK_PUSH(ctrue.ptr);
 	STACK_PUSH(obj.ptr);
+	// TODO check if exception_handler is valid procedure
 	pair_t *pair = PTR(thread->exception_handler);
 	thread->tramp.func = pair->car;
-	thread->tramp.argc = 2;
+	thread->tramp.argc = 3;
 
 	return RC_OK;
 }
@@ -90,14 +92,14 @@ static void* _cons(heap_t *heap, obj_t *car, obj_t *cdr)
 	return make_ptr(pair, id_ptr);
 }
 
-static int default_handler(vm_thread_t *thread, obj_t *obj)
+static int default_handler(vm_thread_t *thread, obj_t *die, obj_t *obj)
 {
 	printf("Unhandled exception: ");
 	print_obj(*obj);
-	printf("\nShutting down the thread");
+	printf("\nShutting down the thread\n");
 	return RC_EXIT;
 }
-MAKE_NATIVE_UNARY(default_handler);
+MAKE_NATIVE_BINARY(default_handler);
 
 void exception_handler_init(vm_thread_t *thread)
 {

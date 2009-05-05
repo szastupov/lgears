@@ -18,18 +18,24 @@
 |#
 
 (define (with-exception-handler handler thunk)
-  (let ((parent (exception-handler)))
-    (call/cc
-     (lambda (return)
-       (exception-handler-set!
-        (cons (lambda (obj)
-                (return (handler obj)))
-              (exception-handler)))
-       (thunk)))
-    (exception-handler-set! parent)))
+  (let ((parent (exception-handler))
+        (die? (call/cc
+                    (lambda (return)
+                      (exception-handler-set!
+                       (cons (lambda (die? obj)
+                               (handler obj)
+                               (return die?))
+                             (exception-handler)))
+                      (thunk)))))
+    (exception-handler-set! parent)
+    (if die?
+        (__exit))))
 
 (define (raise-continuable x)
-  ((car (exception-handler)) x))
+  ((car (exception-handler)) #f x))
+
+(define (raise x)
+  ((car (exception-handler)) #t x))
 
 (with-exception-handler
  (lambda (obj)

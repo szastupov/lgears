@@ -422,12 +422,6 @@ dispatch_func:
 									/* Terminate thread */
 									return;
 								case RC_ERROR:
-									/* C-api is only for low-level things,
-									 * so no exceptions mechanism inside VM,
-									 * check whatever you wand and throw
-									 * exceptions from scheme, otherwise -
-									 * thread will be terminated.
-									 */
 									THREAD_ERROR("%s failed\n", func->name);
 									return;
 								case RC_OK:

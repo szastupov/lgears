@@ -1,5 +1,6 @@
 (import ($builtin)
-        (coreforms))
+        (coreforms)
+        (exceptions))
 
 #|
 (define (range from to)
@@ -17,33 +18,6 @@
       (loop ($+ n 1)))))
 |#
 
-(define (default-exception obj)
-  (display "Unhandled excetion with: ")
-  (display obj)
-  (display "\n")
-  (__exit))
-
-(define exception-handler (list default-exception))
-
-(define (with-exception-handler new thunk)
-  (let ((parent exception-handler))
-    (set! exception-handler (cons new parent))
-    (let ((res (thunk)))
-      (set! exception-handler parent)
-      res)))
-
-(define (raise x)
-  (let ((handlers exception-handler))
-    (set! exception-handler (cdr handlers))
-    ((car handlers) x)
-    (__exit)))
-
-(define (raise-continuable x)
-  (let ((handlers exception-handler))
-    (set! exception-handler (cdr handlers))
-    (let ((res ((car handlers) x)))
-      (set! exception-handler handlers)
-      res)))
 
 (display
 (with-exception-handler
@@ -56,5 +30,3 @@
 (display "\n")
 
 ;(raise-continuable 'foo)
-
-(display exception-handler)

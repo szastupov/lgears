@@ -48,6 +48,7 @@ const type_t type_table[] = {
 
 hash_table_t sym_table;
 hash_table_t builtin;
+hash_table_t libraries;
 
 char *cache_path;
 
@@ -196,11 +197,16 @@ static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	SAFE_ASSERT(IS_SYMBOL(argv[1]));
+	char *libname = (char*)PTR(argv[1]);
+	module_t *mod = hash_table_lookup(&libraries, libname);
 
-	char *path = alloca(256);
-	snprintf(path, 256, "%s/%s.scm.o", cache_path, (char*)PTR(argv[1]));
-	LOG_DBG("Loading lib %s ...\n", path);
-	module_t *mod = module_load(path);
+	if (!mod) {
+		char *path = alloca(256);
+		snprintf(path, 256, "%s/%s.scm.o", cache_path, libname);
+		LOG_DBG("Loading lib %s ...\n", path);
+		mod = module_load(path);
+		hash_table_insert(&libraries, libname, mod);
+	}
 
 	func_t *func = MODULE_FUNC(mod, mod->entry_point);
 	void *enter = make_ptr(func, id_func);
@@ -576,6 +582,9 @@ void vm_init()
 
 	hash_table_init(&sym_table, string_hash, string_equal);
 	sym_table.destroy_key = free;
+
+	hash_table_init(&libraries, direct_hash, direct_equal);
+	// TODO add library desctructor
 
 	cache_path = getenv("LGEARS_CACHE");
 	if (!cache_path) {

@@ -23,6 +23,7 @@
 #include "string.h"
 #include "bytevector.h"
 
+void exception_handler_init(vm_thread_t *thread);
 void ns_install_primitives(hash_table_t *tbl);
 
 typedef struct {

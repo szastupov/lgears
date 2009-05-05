@@ -105,6 +105,7 @@ typedef struct {
 	obj_t *bindmap;
 	func_t *func;
 	closure_t *closure;
+	obj_t exception_handler;
 
 	trampoline_t tramp;
 } vm_thread_t;

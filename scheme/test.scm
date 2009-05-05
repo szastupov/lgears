@@ -16,4 +16,26 @@
       (display (range 1 150))
       (loop ($+ n 1)))))
 |#
-(display (length '(1 2 3 4 5)))
+
+(define (with-exception-handler handler thunk)
+  (let ((parent (exception-handler)))
+    (call/cc
+     (lambda (return)
+       (exception-handler-set!
+        (cons (lambda (obj)
+                (return (handler obj)))
+              (exception-handler)))
+       (thunk)))
+    (exception-handler-set! parent)))
+
+(define (raise-continuable x)
+  ((car (exception-handler)) x))
+
+(with-exception-handler
+ (lambda (obj)
+   (display "Got: ") (display obj)
+   (display "\n"))
+ (lambda ()
+   (raise-continuable '(1 2 3))))
+
+(display (exception-handler))

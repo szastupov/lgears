@@ -51,9 +51,9 @@ void pair_repr(void *ptr)
 	printf(")");
 }
 
-static void* _cons(heap_t *heap, obj_t *car, obj_t *cdr)
+void* _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 {
-	pair_t *pair = heap_alloc(heap, sizeof(pair_t), t_pair);
+	pair_t *pair = allocator_alloc(al, sizeof(pair_t), t_pair);
 	pair->car = *car;
 	pair->cdr = *cdr;
 
@@ -74,7 +74,7 @@ static void* _cons(heap_t *heap, obj_t *car, obj_t *cdr)
 
 static int cons(vm_thread_t *thread, obj_t *car, obj_t *cdr)
 {
-	RESULT_PTR(_cons(&thread->heap, car, cdr));
+	RESULT_PTR(_cons(&thread->heap.allocator, car, cdr));
 }
 MAKE_NATIVE_BINARY(cons);
 
@@ -85,7 +85,7 @@ void* _list(heap_t *heap, obj_t *argv, int argc)
 	heap_require_blocks(heap, sizeof(pair_t), argc);
 	int i;
 	for (i = argc-1; i >= 0; i--)
-		res.ptr = _cons(heap, &argv[i], &res);
+		res.ptr = _cons(&heap->allocator, &argv[i], &res);
 
 	return res.ptr;
 }
@@ -116,7 +116,7 @@ static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	heap_require_blocks(&thread->heap, sizeof(pair_t), size);
 	int i;
 	for (i = 0; i < size; i++)
-		res.ptr = _cons(&thread->heap, fill, &res);
+		res.ptr = _cons(&thread->heap.allocator, fill, &res);
 
 	RESULT_OBJ(res);
 }

@@ -24,7 +24,7 @@
 #include <errno.h>
 #include "vm.h"
 #include "opcodes.h"
-#include "string.h"
+#include "primitives.h"
 
 struct func_hdr_s {
 	uint16_t env_size;
@@ -142,6 +142,12 @@ static uint8_t code_read8(code_t *code)
 	return *(code->code++);
 }
 
+static uint8_t code_peek8(code_t *code)
+{
+	CODE_ASSERT(code, 1);
+	return *code->code;
+}
+
 static int64_t code_read64(code_t *code)
 {
 	CODE_ASSERT(code, sizeof(int64_t));
@@ -183,6 +189,60 @@ static const char* code_read_string(code_t *code)
 	return res;
 }
 
+static void* fasl_read_datum(code_t *code, allocator_t *al)
+{
+	int type = code_read8(code);
+	switch (type) {
+	case OT_FIXNUM: {
+		fixnum_t n;
+		int64_t val = code_read64(code);
+		FIXNUM_INIT(n, val);
+		return n.ptr;
+	}
+	case OT_CHARACTER: {
+		char_t c;
+		uint16_t val = code_read16(code);
+		CHAR_INIT(c, val);
+		return c.ptr;
+	}
+	case OT_SYMBOL: {
+		const char *str = code_read_string(code);
+		return make_symbol(str);
+	}
+	case OT_STRING: {
+		const char *str = code_read_string(code);
+		return _string(al, (char*)str, 1);
+	}
+	case OT_STATIC: {
+		const char *str = code_read_string(code);
+		void *res = hash_table_lookup(&builtin, str);
+		if (!res)
+			FATAL("Invalid static %s\n", str);
+		return res;
+	}
+	case OT_NULL:
+		return cnull.ptr;
+	case OT_PAIR_BEGIN: {
+		int fresh = 1;
+		obj_t res, new;
+		while (1)
+			if (code_peek8(code) == OT_PAIR_END) {
+				code_read8(code);
+				return res.ptr;
+			} else {
+				new.ptr = fasl_read_datum(code, al);
+				if (fresh) {
+					res = new;
+					fresh = 0;
+				} else
+					res.ptr = _cons(al, &new, &res);
+			}
+	}
+	default:
+		FATAL("unhandled const type: %s\n", object_type_name(type));
+	}
+}
+
 static void load_consts(module_t *mod, code_t *code)
 {
 	int ccount = code_read8(code);
@@ -191,45 +251,7 @@ static void load_consts(module_t *mod, code_t *code)
 #define PUSH_CONST(p) mod->consts[loaded++].ptr = p
 
 	while (loaded < ccount) {
-		int type = code_read8(code);
-		switch (type) {
-		case OT_FIXNUM: {
-			fixnum_t n;
-			int64_t val = code_read64(code);
-			FIXNUM_INIT(n, val);
-			PUSH_CONST(n.ptr);
-			break;
-		}
-		case OT_CHARACTER: {
-			char_t c;
-			uint16_t val = code_read16(code);
-			CHAR_INIT(c, val);
-			PUSH_CONST(c.ptr);
-			break;
-		}
-		case OT_SYMBOL: {
-			const char *str = code_read_string(code);
-			void *sym = make_symbol(str);
-			PUSH_CONST(sym);
-			break;
-		}
-		case OT_STRING: {
-			const char *str = code_read_string(code);
-			PUSH_CONST(_string(&mod->allocator.al,
-							   (char*)str, 1));
-			break;
-		}
-		case OT_STATIC: {
-			const char *str = code_read_string(code);
-			void *res = hash_table_lookup(&builtin, str);
-			if (!res)
-				FATAL("Invalid static %s\n", str);
-			PUSH_CONST(res);
-			break;
-		}
-		default:
-			FATAL("unhandled const type: %s\n", object_type_name(type));
-		}
+		PUSH_CONST(fasl_read_datum(code, &mod->allocator.al));
 	}
 }
 

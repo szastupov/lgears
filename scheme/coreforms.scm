@@ -1,6 +1,6 @@
 (library (coreforms)
   (export with-syntax syntax-rules or and let cond when unless dummy
-          caar cdar)
+          caar cdar not)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -101,6 +101,12 @@
   (define-syntax cdar
     (syntax-rules ()
       ((_ a) (cdr (car a)))))
+
+  (define-syntax not
+    (lambda (x)
+      (syntax-case x ()
+        ((not expr) #'(if expr #f #t))
+        (_ #'(lambda (x) (if x #f #t))))))
 
   (define (dummy x)
     (display x))

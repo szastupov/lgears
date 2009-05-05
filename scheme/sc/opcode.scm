@@ -45,7 +45,10 @@
       (OT_CHARACTER . "Character")
       (OT_STRING . "String")
       (OT_SYMBOL . "Symbol")
-      (OT_STATIC . "Static variable")))
+      (OT_STATIC . "Static variable")
+      (OT_PAIR_BEGIN . "Pair begin")
+      (OT_PAIR_END . "Pair end")
+      (OT_NULL . "Null object")))
   
   (define (oplist-for-each func)
     (fold-left (lambda (idx op)

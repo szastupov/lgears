@@ -1,6 +1,6 @@
 (import ($builtin)
-        (coreforms)
-        (exceptions))
+        (coreforms))
+;        (exceptions)
 
 #|
 (define (range from to)
@@ -16,7 +16,7 @@
     (begin
       (display (range 1 150))
       (loop ($+ n 1)))))
-|#
+
 
 
 (display
@@ -30,3 +30,10 @@
 (display "\n")
 
 ;(raise-continuable 'foo)
+|#
+
+(display 1)
+(display 'sym)
+(display "str")
+(display "\n")
+(display '(1 2 3 4 5 6))

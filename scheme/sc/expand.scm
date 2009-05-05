@@ -336,26 +336,27 @@
 	  `(define ,(expand var r) (void)))))
 
   (define (exp-if x r)
-	(define (always-true? o)
-	  (let ((dt (strip o)))
-		(and (not (pair? dt))
-			 (not (symbol? dt))
-			 dt)))
-	(define (always-false? o)
-	  (let ((dt (strip o)))
-		(not dt)))
+
+	(define (always-true? dt)
+      (and dt
+           (not (pair? dt))
+           (not (symbol? dt))))
+	(define (always-false? dt)
+      (not dt))
+
 	(syntax-match
 	 x ()
 	 ((if a b)
 	  (expand (extend-wrap-from
 			   x `(if ,a ,b (void))) r))
 	 ((if a b c)
-	  (cond ((always-true? a) (expand b r))
-			((always-false? a) (expand c r))
-			(else
-			 `(if ,(expand a r)
-				  ,(expand b r)
-				  ,(expand c r)))))))
+      (let ((pred (expand a r)))
+        (cond ((always-true? pred) (expand b r))
+              ((always-false? pred) (expand c r))
+              (else
+               `(if ,pred
+                    ,(expand b r)
+                    ,(expand c r))))))))
 
   (define (exp-set! x r)
 	(syntax-match

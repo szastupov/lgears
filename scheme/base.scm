@@ -18,7 +18,7 @@
  |#
 (library (base)
   (export + - * / = < > min max abs zero? positive? negative?
-          odd? even? not eqv? equal? error length for-each
+          odd? even? eqv? equal? error for-each
           map fold-left fold-right reverse append make-list
           cons* find memp member memv memq vector-for-each make-vector)
   (import (coreforms)
@@ -96,9 +96,6 @@
     (= (mod x 2) 0))
 
 ;; Predicates
-
-  (define (not x)
-    (if x #f #t))
 
   ;; In context of lgears, eqv? and eq? is same
   (define eqv? eq?)

@@ -26,44 +26,12 @@
 
   (define (self-eval? node)
     (or (not (pair? node))
-        (and (eq? (car node) 'quote)
-             (not (or (null? (cdr node))
-                      (pair? (cadr node))
-                      (vector? (cadr node)))))))
+        (and (pair? node)
+             (eq? (car node) 'quote))))
 
   (define (inlinable? node)
     (and (pair? node)
          (eq? (car node) 'lambda)))
-
-  (define (trquote qv)
-    (define (apply-pfunc x)
-      (cond ((pair? x)
-             (trquote x))
-            ((symbol? x)
-             `(quote ,x))
-            ((null? x)
-             ''())
-            (else x)))
-
-    (define (pairs->list p)
-      (if (pair? p)
-          (cons (car p) (pairs->list (cdr p)))
-          (cons p '())))
-
-    (cond ((list? qv)
-           (cons 'list (map apply-pfunc qv)))
-          ((null? qv)
-           '())
-          ((pair? qv)
-           (cons 'cons* (map apply-pfunc (pairs->list qv))))
-          (else (apply-pfunc qv))))
-
-  (define (convert-quote res node name)
-    (cond ((pair? node)
-           (convert res (trquote node) name))
-          ((vector? node)
-           (convert res (cons 'vector (vector->list node)) name))
-          (else node)))
 
   ;; Functions like convert-set may introduce begin forms, just splice it
   (define (splice-begin body)
@@ -144,9 +112,6 @@
 
         ((define)
          (syntax-violation 'convert "misplaced defination" node))
-
-        ((quote)
-         (convert-quote res (cadr node) name))
 
         ;;; Conversion of call
         ;;; We covnert both arguments and functions

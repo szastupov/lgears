@@ -3,7 +3,7 @@ LDFLAGS += -pthread
 
 vm_obj = vm.o heap.o native.o primitives.o hash.o \
 		 module.o fixnum.o vector.o string.o fd.o bytevector.o
-targets = vm
+programs = vm
 
 include include.mk
 

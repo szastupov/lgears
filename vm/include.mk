@@ -16,7 +16,10 @@
 # Public Licens along with this program, if not; see
 # <http://www.gnu.org/licenses>.
 #
+# The code is full of magic, but does work :)
+#
 CFLAGS += -pipe
+targets := $(programs) $(libraries)
 
 .PHONY: clean echo-deps ctags all
 
@@ -29,19 +32,25 @@ all: $(targets)
 		sed -i 's,\($*\)\.o[ :]*,\1.o $@ : ,g' $@;
 
 deps := $(foreach o,$(targets:=_obj),$($(o):%.o=.deps/%.dep))
--include $(deps)
 
 define target_template
-$(1): $$($(1)_obj)
-all_objs += $$($(1)_obj)
-$(1)_install: $(1)
-	install -D $$^ $$(DESTDIR)$$(PREFIX)/bin/$$^
+$(2): $$($(1)_obj)
+trash += $$($(1)_obj)
+trash += $(2)
+$(1)_install: $(2)
+	install -D $$^ $$(DESTDIR)$$(PREFIX)/$(3)/$$^
 endef
 
-$(foreach prog,$(targets),$(eval $(call target_template,$(prog))))
+$(foreach prog,$(programs),$(eval $(call target_template,$(prog),$(prog),bin)))
+$(foreach lib,$(libraries),$(eval $(call target_template,$(lib),lib$(lib).so,lib)))
 
-$(targets):
+$(programs):
 	$(LINK.o) $^ -o $@
+
+%.so:
+	$(LINK.o) -shared $^ -o $@
+
+$(libraries): $(libraries:%=lib%.so)
 
 install: $(targets:=_install)
 	@echo "Installed"
@@ -50,7 +59,7 @@ echo-deps:
 	@echo $(deps)
 
 clean:
-	rm -f $(all_objs) $(deps) $(targets) gmon.out
+	rm -f $(trash) $(deps) gmon.out
 
 ctags:
 	@ctags *.c *.h
@@ -60,3 +69,7 @@ etags:
 
 check-syntax:
 	$(CC) $(CFLAGS) -fsyntax-only $(CHK_SOURCES)
+
+ifeq ($(findstring clean, $(MAKECMDGOALS)), )
+-include $(deps)
+endif

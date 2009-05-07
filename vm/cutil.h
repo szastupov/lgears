@@ -22,18 +22,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stddef.h>
 #include "config.h"
 
 #define container_of(ptr, type, member) ({							\
 			const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 			(type *)( (char *)__mptr - offsetof(type,member) );})
-
-#if defined(__GNUC__)  && __GNUC__ >= 4
-#define offsetof(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
-#else
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
-
 
 #define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 

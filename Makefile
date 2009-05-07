@@ -1,5 +1,5 @@
-PREFIX ?= /usr/local
-PROG = lgears
+export PREFIX ?= /usr/local
+export PROG = lgears
 
 all:
 	@$(MAKE) -C vm

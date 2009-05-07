@@ -23,11 +23,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <alloca.h>
 #include "config.h"
 
 /* Simplified container_of */
+#ifndef container_of
 #define container_of(ptr, type, member)			\
 	((void*)ptr - offsetof(type, member))
+#endif
 
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)

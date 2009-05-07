@@ -19,7 +19,7 @@
 # The code is full of magic, but does work :)
 #
 CFLAGS += -pipe
-targets := $(programs) $(libraries)
+targets := $(libraries) $(programs)
 
 .PHONY: clean echo-deps ctags all
 

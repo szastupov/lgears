@@ -25,9 +25,12 @@
 #include <stddef.h>
 #include "config.h"
 
-#define container_of(ptr, type, member) ({							\
-			const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-			(type *)( (char *)__mptr - offsetof(type,member) );})
+/* Simplified container_of */
+#define container_of(ptr, type, member)			\
+	((void*)ptr - offsetof(type, member))
+
+#define likely(x)	__builtin_expect(!!(x), 1)
+#define unlikely(x)	__builtin_expect(!!(x), 0)
 
 #define ASSERT(e) if (!(e)) FATAL("Assertion failed %s\n", #e);
 

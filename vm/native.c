@@ -18,7 +18,7 @@
  */
 #include "native.h"
 
-int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc)
+int native_call(vm_thread_t *thread, native_func_t *native, obj_t *argv, int argc)
 {
 	switch (native->arity) {
 	case -1:
@@ -34,6 +34,8 @@ int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc)
 	default:
 		FATAL("wrong arity %d of %s\n", native->arity, native->name);
 	}
+
+	return -1;
 }
 
 static void print_const(obj_t obj)
@@ -66,7 +68,7 @@ static void print_ptr(obj_t obj)
 static void print_func(obj_t obj)
 {
 	void *ptr = PTR(obj);
-	native_t *native;
+	native_func_t *native;
 	func_t *interp;
 	func_hdr_t *fhdr = ptr;
 	switch (fhdr->type) {

@@ -5,6 +5,15 @@ vm_obj = vm.o heap.o native.o primitives.o hash.o \
 		 module.o fixnum.o vector.o string.o fd.o bytevector.o
 programs = vm
 
+ifdef JARI
+	JARI_LIBDIR ?= /usr/local/jos
+	CFLAGS += -fomit-frame-pointer -nostdinc -nostdlib -fno-builtin	\
+		-I$(JARI_LIBDIR)/include -DJARI
+	LDFLAGS = -nostdlib -Wl,-z,combreloc,-T,$(JARI_LIBDIR)/lib/ejo.ld \
+		-Wl,-static,-e,__entry_point
+	LIBS = -L$(JARI_LIBDIR)/lib -lpthread -lsys -lc
+endif
+
 include include.mk
 
 # FIXME

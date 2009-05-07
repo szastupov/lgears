@@ -27,9 +27,9 @@ typedef struct {
 	void *fp;
 	int arity;
 	const char *name;
-} native_t;
+} native_func_t;
 
-int native_call(vm_thread_t *thread, native_t *native, obj_t *argv, int argc);
+int native_call(vm_thread_t *thread, native_func_t *native, obj_t *argv, int argc);
 typedef int (*native_nullary)(vm_thread_t*);
 typedef int (*native_unary)(vm_thread_t*, obj_t*);
 typedef int (*native_binary)(vm_thread_t*, obj_t*, obj_t*);
@@ -37,7 +37,7 @@ typedef int (*native_ternary)(vm_thread_t*, obj_t*, obj_t*, obj_t*);
 typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 
 #define MAKE_NATIVE(func, farity, fargc, fswallow)	\
-	const native_t func##_nt = {					\
+	const native_func_t func##_nt = {					\
 		.hdr.type = func_native,					\
 		.hdr.argc = fargc+1,						\
 		.hdr.swallow = fswallow,					\
@@ -99,7 +99,7 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 	}
 
 void ns_install_native(hash_table_t *tbl,
-		char *name, const native_t *nt);
+		char *name, const native_func_t *nt);
 void print_obj(obj_t obj);
 
 #endif /* NATIVE_H */

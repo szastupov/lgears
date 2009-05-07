@@ -214,7 +214,7 @@ static int get_void(vm_thread_t *thread)
 MAKE_NATIVE_NULLARY(get_void);
 
 void ns_install_native(hash_table_t *tbl,
-		char *name, const native_t *nt)
+		char *name, const native_func_t *nt)
 {
 	ptr_t ptr;
 	FUNC_INIT(ptr, nt);

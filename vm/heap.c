@@ -16,7 +16,6 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
 #include "vm.h"

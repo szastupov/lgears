@@ -417,7 +417,7 @@ dispatch_func:
 						NEXT();
 					case func_native:
 						{
-							native_t *func = ptr;
+							native_func_t *func = ptr;
 
 							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 							thread->tramp.argc = 1;
@@ -618,7 +618,9 @@ static void info()
 
 int main(int argc, char **argv)
 {
+#ifndef JARI
 	setlocale(LC_ALL, "");
+#endif
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s /path/to/assembly\n", argv[0]);
 		exit(1);

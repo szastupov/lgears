@@ -45,10 +45,10 @@ $(foreach prog,$(programs),$(eval $(call target_template,$(prog),$(prog),bin)))
 $(foreach lib,$(libraries),$(eval $(call target_template,$(lib),lib$(lib).so,lib)))
 
 $(programs):
-	$(LINK.o) $^ -o $@
+	$(LINK.o) $^ $(LIBS) -o $@
 
 %.so:
-	$(LINK.o) -shared $^ -o $@
+	$(LINK.o) -shared $^ $(LIBS) -o $@
 
 $(libraries): $(libraries:%=lib%.so)
 

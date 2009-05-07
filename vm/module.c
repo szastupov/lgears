@@ -241,6 +241,8 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 	default:
 		FATAL("unhandled const type: %s\n", object_type_name(type));
 	}
+
+	return NULL;
 }
 
 static void load_consts(module_t *mod, code_t *code)

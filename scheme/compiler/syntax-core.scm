@@ -71,17 +71,19 @@
   (import (rnrs base)
           (rnrs lists)
           (rnrs eval)
+          (rnrs records syntactic)
           (format)
-          (define-structure)
           (compiler gen-name))
 
-  (define-structure syntax-object expr wrap)
+  (define-record-type syntax-object
+    (fields expr wrap))
 
-  (define-structure mark)
+  (define-record-type mark)
 
-  (define-structure subst sym mark* label)
+  (define-record-type subst
+    (fields sym mark* label))
 
-  (define-structure label)
+  (define-record-type label)
 
   (define make-binding cons)
   (define binding-type car)

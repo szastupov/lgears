@@ -51,9 +51,9 @@
           e1 e2 ...)
         vals ...))
       ((_ loop ((vars vals) ...) e1 e2 ...)
-       (let ((loop 'unspec))
-         (set! loop (lambda (vars ...)
-                      e1 e2 ...))
+       (let ()
+         (define loop (lambda (vars ...)
+                        e1 e2 ...))
          (loop vals ...)))))
 
   (define-syntax cond

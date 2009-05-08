@@ -17,7 +17,7 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc expand)
+(library (compiler expand)
   (export expand-file sc-dispatch gen-syntax syntax-error)
   (import (rnrs eval)
 		  (rename (rnrs)
@@ -27,13 +27,13 @@
 		  (format)
 		  (reader)
 		  (config)
-		  (sc gen-name)                 ; Fresh name generator
-		  (sc syntax-core)              ; Core routines
-		  (sc syntax-pattern)           ; Pattern matching
-		  (sc library-manager)          ; Library managment
-		  (sc compiler)
-		  (sc cps)
-		  (sc fasl)
+		  (compiler gen-name)                 ; Fresh name generator
+		  (compiler syntax-core)              ; Core routines
+		  (compiler syntax-pattern)           ; Pattern matching
+		  (compiler library-manager)          ; Library managment
+		  (compiler compiler)
+		  (compiler cps)
+		  (compiler fasl)
 		  (only (core) pretty-print))
 
   (define libraries-root (library-manager-root))
@@ -227,8 +227,8 @@
 										syntax-case
 										syntax-rules
 										identifier? datum->syntax)
-							   '(sc expand)
-							   '(sc syntax-core)))))))
+							   '(compiler expand)
+							   '(compiler syntax-core)))))))
 
   ;; Sequentional macro compilation
   (define (compile-i body env macro*)

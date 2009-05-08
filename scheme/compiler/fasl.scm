@@ -17,12 +17,12 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc fasl)
+(library (compiler fasl)
   (export assemble
           make-ilr make-i-func make-static
           i-func-code-set! i-func-code print-ilr)
   (import (rnrs)
-          (sc opcode)
+          (compiler opcode)
           (cpacked)
           (debug)
           (format))

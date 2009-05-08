@@ -17,7 +17,7 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc gen-name)
+(library (compiler gen-name)
   (export gen-name)
   (import (rnrs)
           (format))

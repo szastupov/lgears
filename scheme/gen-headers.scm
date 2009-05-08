@@ -21,7 +21,7 @@
 
 (import (rnrs)
         (format)
-        (sc opcode))
+        (compiler opcode))
 
 ;;
 ;; It's ugly, I know :\

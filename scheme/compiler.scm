@@ -20,10 +20,10 @@
 (library (compiler)
   (export compile-file expand-file cps-convert dump-ilr)
   (import (rnrs)
-          (sc expand)
-          (sc cps)
-          (sc compiler)
-          (sc fasl)
+          (compiler expand)
+          (compiler cps)
+          (compiler compiler)
+          (compiler fasl)
           (only (core) pretty-print)) ; This works only for ypsilon
 
   (define (compile-ilr-file in)

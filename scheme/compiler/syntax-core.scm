@@ -17,7 +17,7 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc syntax-core)
+(library (compiler syntax-core)
   (export syntax-object?
           make-syntax-object
           syntax-object-wrap
@@ -73,7 +73,7 @@
           (rnrs eval)
           (format)
           (define-structure)
-          (sc gen-name))
+          (compiler gen-name))
 
   (define-structure syntax-object expr wrap)
 

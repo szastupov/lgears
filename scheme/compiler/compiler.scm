@@ -17,13 +17,13 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc compiler)
+(library (compiler compiler)
   (export start-compile)
   (import (rnrs)
 		  (reader)
 		  (format)
 		  (only (core) pretty-print) ; This works only for ypsilon
-		  (sc fasl))
+		  (compiler fasl))
 
   (define (init-static vars)
 	(map (lambda (x)

@@ -17,12 +17,12 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc syntax-pattern)
+(library (compiler syntax-pattern)
   (export pattern-match pattern-bind pattern-bind-named)
   (import (rnrs base)
           (rnrs lists)
           (format)
-          (sc syntax-core))
+          (compiler syntax-core))
 
   (define (ellipsis-pair? pat)
     (and (pair? pat)

@@ -17,11 +17,11 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc cps)
+(library (compiler cps)
   (export cps-convert)
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
-          (sc gen-name)
+          (compiler gen-name)
           (format))
 
   (define (self-eval? node)

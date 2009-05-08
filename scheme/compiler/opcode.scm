@@ -17,7 +17,7 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc opcode)
+(library (compiler opcode)
   (export oplist oplist-for-each opcode object-types object-type)
   (import (rnrs))
 

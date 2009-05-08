@@ -17,7 +17,7 @@
  | <http://www.gnu.org/licenses>.
  |#
 
-(library (sc library-manager)
+(library (compiler library-manager)
   (export find-library library-install! library-manager-root
           find-library-file libname->path libname->symbol)
   (import (rnrs base)

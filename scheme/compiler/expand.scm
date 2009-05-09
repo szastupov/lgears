@@ -34,6 +34,7 @@
 		  (compiler compiler)
 		  (compiler cps)
 		  (compiler fasl)
+          (compiler optimize-defines)
 		  (only (core) pretty-print))
 
   (define libraries-root (library-manager-root))
@@ -438,9 +439,10 @@
 		(error 'expand-top "expected import in top-level"))
 	(let-values (((wrap env include) (resolve-imports (cdar x))))
 	  (let ((body (append include (cdr x))))
-		`(top-level
-		  ,@(expand-body env '() '()
-						 (make-body body wrap))))))
+        (cleanup-defines
+         (expand
+          (make-syntax-object `(lambda () ,@body) wrap)
+          env)))))
 
   (define (make-exporter name defines)
 	(if (null? defines)
@@ -507,14 +509,14 @@
 							  (cons (make-include name defines)
 									(map extract-binding macros)))
 			;; Produce expanded library
-			`(library
-				 ,(expand (make-syntax-object
-						   `(lambda ()
-							  ,@(append include
-										(strip body)
-										(make-exporter name defines)))
-						   wrap)
-						  env)))))))
+            (cleanup-defines
+             (expand (make-syntax-object
+                      `(lambda ()
+                         ,@(append include
+                                   (strip body)
+                                   (make-exporter name defines)))
+                      wrap)
+                     env)))))))
 
   (define (expand-file file)
 	(let ((x (read-source file)))

@@ -60,10 +60,8 @@ static void* space_alloc(space_t *space, size_t size, int type_id)
 	size = align_up(size, 8);
 	size_t need = size+BHDR_SIZE;
 
-	if (need > space->free_mem) {
-		HEAP_DBG("out of free mem on space (need %zd)\n", need);
+	if (need > space->free_mem)
 		return NULL;
-	}
 
 
 	block_hdr_t *hdr = space->pos;

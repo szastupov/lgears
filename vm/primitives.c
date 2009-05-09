@@ -69,7 +69,7 @@ void* _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 	} else
 		pair->list = 0;
 
-	return make_ptr(pair, id_ptr);
+	return make_ptr(pair, al->id);
 }
 
 static int cons(vm_thread_t *thread, obj_t *car, obj_t *cdr)

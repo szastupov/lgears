@@ -13,11 +13,10 @@
 #define PUSH_BOOL	0x5	/* Push boolean value */
 #define PUSH_NULL	0x6	/* Load built-in constant */
 #define JUMP_IF_FALSE	0x7	/* Jump if false */
-#define JUMP_IF_TRUE	0x8	/* Jump if true */
-#define JUMP_FORWARD	0x9	/* Jump forward */
-#define FUNC_CALL	0xa	/* Call function */
-#define SET_LOCAL	0xb	/* Assign new value to local binding */
-#define SET_BIND	0xc	/* Asign new value to non-local binding */
+#define JUMP_FORWARD	0x8	/* Jump forward */
+#define FUNC_CALL	0x9	/* Call function */
+#define SET_LOCAL	0xa	/* Assign new value to local binding */
+#define SET_BIND	0xb	/* Asign new value to non-local binding */
 
 #define OT_FIXNUM	0x0	/* Fixed number */
 #define OT_CHARACTER	0x1	/* Character */
@@ -39,7 +38,6 @@ static inline const char* opcode_name(int code)
 		OP_CASE(PUSH_BOOL);
 		OP_CASE(PUSH_NULL);
 		OP_CASE(JUMP_IF_FALSE);
-		OP_CASE(JUMP_IF_TRUE);
 		OP_CASE(JUMP_FORWARD);
 		OP_CASE(FUNC_CALL);
 		OP_CASE(SET_LOCAL);

@@ -312,6 +312,8 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	thread->objects = thread->env->objects;
 	thread->display = display_new(&thread->heap, NULL, &thread->env);
 
+	thread->objects[0].ptr = hash_table_lookup(&builtin, "__exit");
+
 	SET_TRACE();
 
 	/*
@@ -322,18 +324,18 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 #if COMPUTED_GOTO
 #include "opcode_targets.h"
-#define TARGET(op) \
-	TARGET_##op: \
-	op_code = *(opcode++); \
+#define TARGET(op)								\
+	TARGET_##op:								\
+		op_code = *(opcode++);					\
 	op_arg = *(opcode++); TRACE();
 #define NEXT() goto *opcode_targets[(int)*opcode]
 #define DISPATCH() NEXT();
 #else
 #define TARGET(op) case op: TRACE();
 #define NEXT() continue
-#define DISPATCH() \
-	op_code = *(opcode++); \
-	op_arg = *(opcode++); \
+#define DISPATCH()								\
+	op_code = *(opcode++);						\
+	op_arg = *(opcode++);						\
 	switch (op_code)
 #endif
 
@@ -349,11 +351,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 			TARGET(JUMP_IF_FALSE)
 				if (IS_FALSE(STACK_POP()))
-					opcode += op_arg*2;
-			NEXT();
-
-			TARGET(JUMP_IF_TRUE)
-				if (!IS_FALSE(STACK_POP()))
 					opcode += op_arg*2;
 			NEXT();
 

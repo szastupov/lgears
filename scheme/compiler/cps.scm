@@ -180,12 +180,6 @@
                       rest (reverse defines))))))
 
   (define (cps-convert source)
-    (case (car source)
-      ((top-level)
-       `(top-level
-         ,@(convert-body (cdr source) '__exit)))
-      ((library)
-       `(library
-            ,(convert-lambda (cadr source))))))
+    (convert-lambda source))
 
   )

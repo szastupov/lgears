@@ -260,15 +260,7 @@
 					(else
 					 (error 'compile "unknown" res)))))))
 
-	  (define (dispatch-input)
-		(case (car root)
-		  ((top-level)
-		   (compile-func '() '() (cdr root)))
-		  ((library)
-		   (compile '() (cdr root)))
-		  (else (error 'dispatch-input "wtf?"))))
-
-	  (let ((entry-point (dispatch-input)))
+	  (let ((entry-point (compile '() root)))
 		(make-ilr (map car (reverse consts))
 				  (reverse (store-head code-store))
 				  (cadar entry-point)))))

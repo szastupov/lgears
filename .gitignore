@@ -4,7 +4,5 @@
 *.swp
 tags
 TAGS
-compiler
 vm/vm
 gmon.out
-doc

@@ -111,4 +111,6 @@
   (define (dummy x)
     (display x))
 
+  (display "coreforms loaded\n")
+
   )

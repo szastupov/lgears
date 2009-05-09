@@ -34,7 +34,6 @@
       (PUSH_BOOL . "Push boolean value")
       (PUSH_NULL . "Load built-in constant")
       (JUMP_IF_FALSE . "Jump if false")
-      (JUMP_IF_TRUE . "Jump if true")
       (JUMP_FORWARD . "Jump forward")
       (FUNC_CALL . "Call function")
       (SET_LOCAL . "Assign new value to local binding")

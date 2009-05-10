@@ -451,13 +451,10 @@
 			(list ,@(map (lambda (x)
 						   `(cons ',x ,x))
 						 defines)))
-		  (lambda (imp)
-			(let loop ((cur exports))
-			  (cond ((null? cur) #f)
-					((eq? (caar cur) imp)
-					 (cdar cur))
-					(else
-					 (loop (cdr cur)))))))))
+          (let ((res (lambda (imp) (assq imp exports))))
+            (library-cache (cons (cons ',name res)
+                                 (library-cache)))
+            res))))
 
   (define (make-include name defines)
 	(let ((name (libname->symbol name)))
@@ -511,10 +508,22 @@
 			;; Produce expanded library
             (cleanup-defines
              (expand (make-syntax-object
-                      `(lambda ()
-                         ,@(append include
-                                   (strip body)
-                                   (make-exporter name defines)))
+                      (let ((name (libname->symbol name)))
+                        `(lambda ()
+                           (define (__cached? x)
+                             (let loop ((cur (library-cache)))
+                               (cond ((null? cur) #f)
+                                     ((eq? (car (car cur)) x)
+                                      (cdr (car cur)))
+                                     (else
+                                      (loop (cdr cur))))))
+                           (let ((cached (__cached? ',name)))
+                             (if cached
+                                 cached
+                                 ((lambda ()
+                                    ,@(append include
+                                              (strip body)
+                                              (make-exporter name defines))))))))
                       wrap)
                      env)))))))
 

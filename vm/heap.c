@@ -154,7 +154,7 @@ typedef struct {
 	int i;
 } scan_cont_t;
 
-static void visit_hdr(heap_t *heap, block_hdr_t *hdr)
+static inline void visit_hdr(heap_t *heap, block_hdr_t *hdr)
 {
 	const type_t *type = &type_table[hdr->type_id];
 	if (type->visit)

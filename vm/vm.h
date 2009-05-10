@@ -69,20 +69,16 @@ struct module_s {
 	const_allocator_t allocator;
 };
 
-typedef struct {
+typedef struct env_s {
+	struct env_s *prev;
 	int size;
+	int depth;
 	obj_t *objects;
 } env_t;
 #define ENV(o) ((env_t*)PTR(o))
 
-typedef struct display_s {
-	struct display_s *prev;
-	unsigned depth;
-	unsigned has_env:1;
-} display_t;
-
 typedef struct {
-	display_t *display;
+	env_t *env;
 	obj_t *bindmap;
 	func_t *func;
 } closure_t;
@@ -101,10 +97,12 @@ typedef struct {
 	int op_stack_idx;	/**< Stack index */
 	obj_t *objects;
 	env_t *env;
-	display_t *display;
 	obj_t *bindmap;
 	func_t *func;
 	closure_t *closure;
+	int heap_env;
+
+	obj_t lib_cache;
 
 	trampoline_t tramp;
 } vm_thread_t;

@@ -32,14 +32,12 @@
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
 
 static void env_visit(visitor_t *vs, void *data);
-static void display_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
 
 const type_t type_table[] = {
 	{ .name = "env", .visit = env_visit },
 	{ .name = "closure", .visit = closure_visit },
 	{ .name = "continiation", .visit = continuation_visit },
-	{ .name = "display", .visit = display_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
 	{ .name = "string", .visit = string_visit, .repr = string_repr },
 	{ .name = "vector", .visit = vector_visit, .repr = vector_repr },
@@ -52,25 +50,6 @@ hash_table_t libraries;
 
 char *cache_path;
 
-static void env_visit(visitor_t *vs, void *data)
-{
-	env_t *env = data;
-	env->objects = data+sizeof(env_t);
-	int i;
-	for (i = 0; i < env->size; i++)
-		vs->visit(vs, &env->objects[i]);
-}
-
-static env_t* env_new(heap_t *heap, int size)
-{
-	void *mem = heap_alloc0(heap, sizeof(env_t)+sizeof(obj_t)*size, t_env);
-	env_t *env = mem;
-	env->objects = mem+sizeof(env_t);
-	env->size = size;
-
-	return env;
-}
-
 static void mark_env(env_t **env, visitor_t *visitor)
 {
 	if (!*env)
@@ -81,100 +60,63 @@ static void mark_env(env_t **env, visitor_t *visitor)
 	*env = PTR_GET(ptr);
 }
 
-static void mark_display(display_t **display, visitor_t *visitor)
+static void env_visit(visitor_t *vs, void *data)
 {
-	ptr_t ptr;
-	PTR_INIT(ptr, *display);
-	visitor->visit(visitor, &ptr.obj);
-	*display = PTR_GET(ptr);
-}
-
-static void display_visit(visitor_t *vs, void *data)
-{
-	display_t *display = data;
-	if (display->has_env) {
-		void *emem = display;
-		emem += sizeof(display_t);
-		env_t **env = emem;
-		mark_env(env, vs);
-	}
-	mark_display(&display->prev, vs);
-}
-
-static display_t* display_new(heap_t *heap, display_t **prev, env_t **env)
-{
-	int dsize = sizeof(display_t);
-	if (env)
-		dsize += sizeof(env_t*);
-
-	void *mem = heap_alloc(heap, dsize, t_display);
-	display_t *display = mem;
-	if (prev) {
-		display->prev = *prev;
-		display->depth = *prev ? (*prev)->depth+1 : 0;
-	} else {
-		display->prev = NULL;
-		display->depth = 0;
-	}
-
-	if (*env) {
-		env_t **ep = mem+sizeof(display_t);
-		*ep = *env;
-		display->has_env = 1;
-	} else
-		display->has_env = 0;
-
-	return display;
-}
-
-static env_t* display_env(display_t *display, int idx)
-{
-	while (idx--) {
-		display = display->prev;
-		if (!display)
-			FATAL("Null display\n");
-	}
-
-	if (!display->has_env) {
-		LOG_ERR("display %p with depth %d doesn't has an env\n",
-				display, display->depth);
-		return NULL;
-	}
-
-	void *emem = display;
-	emem += sizeof(display_t);
-	env_t **env = emem;
-	return *env;
-}
-
-static void bindmap_visit(visitor_t *vs, obj_t *bindmap, int count)
-{
+	env_t *env = data;
+	env->objects = data+sizeof(env_t);
+	if (env->prev)
+		mark_env(&env->prev, vs);
 	int i;
-	for (i = 0; i < count; i++)
-		vs->visit(vs, &bindmap[i]);
+	for (i = 0; i < env->size; i++)
+		vs->visit(vs, &env->objects[i]);
+}
+
+static env_t* env_new(heap_t *heap, env_t **prev, int size, int depth)
+{
+	void *mem = heap_alloc0(heap, sizeof(env_t)+sizeof(obj_t)*size, t_env);
+	env_t *env = mem;
+	env->objects = mem+sizeof(env_t);
+	env->depth = depth;
+	if (prev)
+		env->prev = *prev;
+	env->size = size;
+
+	return env;
 }
 
 static void closure_visit(visitor_t *vs, void *data)
 {
 	closure_t *closure = data;
-	mark_display(&closure->display, vs);
+	mark_env(&closure->env, vs);
 	if (closure->func->bmcount) {
 		closure->bindmap = data+sizeof(closure_t);
-		bindmap_visit(vs, closure->bindmap, closure->func->bmcount);
+		int i;
+		for (i = 0; i < closure->func->bmcount; i++)
+			vs->visit(vs, &closure->bindmap[i]);
 	}
 }
 
-static void bindmap_init(obj_t *bindmap, display_t *display, func_t *func)
+env_t *env_display(env_t *env, int idx)
+{
+	while (idx != env->depth) {
+		env = env->prev;
+		if (!env)
+			FATAL("null env");
+	}
+
+	return env;
+}
+
+static void bindmap_init(obj_t *bindmap, env_t *senv, func_t *func)
 {
 	int i;
 	for (i = 0; i < func->bmcount; i++) {
-		env_t *env = display_env(display, func->bindmap[i]-1);
-		ASSERT(env != NULL);
+		env_t *env = env_display(senv, func->bindmap[i]);
 		bindmap[i].ptr = make_ptr(env, id_ptr);
 	}
 }
 
-static void* closure_new(heap_t *heap, func_t *func, display_t **display)
+static void* closure_new(heap_t *heap, func_t *func, env_t **env)
 {
 	size_t size = sizeof(closure_t);
 	if (func->bmcount)
@@ -183,11 +125,11 @@ static void* closure_new(heap_t *heap, func_t *func, display_t **display)
 	void *mem = heap_alloc(heap, size, t_closure);
 	closure_t *closure = mem;
 	closure->func = func;
-	closure->display = *display;
+	closure->env = *env;
 
 	if (func->bmcount) {
 		closure->bindmap = mem+sizeof(closure_t);
-		bindmap_init(closure->bindmap, *display, func);
+		bindmap_init(closure->bindmap, *env, func);
 	} else
 		closure->bindmap = NULL;
 
@@ -219,6 +161,17 @@ static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE(load_library, -1, 1, 0);
 
+static int library_cache(vm_thread_t *thread, obj_t *argv, int argc)
+{
+	if (argc == 2) {
+		SAFE_ASSERT(IS_PAIR(argv[1]));
+		thread->lib_cache = argv[1];
+		RESULT_OBJ(cvoid.obj);
+	} else
+		RESULT_OBJ(thread->lib_cache);
+}
+MAKE_NATIVE_VARIADIC(library_cache, 0);
+
 static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
 	thread->func = func;
@@ -238,16 +191,8 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 		}
 	}
 
-	if (tag != id_ptr && thread->display) {
-		while (func->depth-1 < thread->display->depth)
-			if (!thread->display) {
-				FATAL("WTF?\n");
-			} else
-				thread->display = thread->display->prev;
-	}
-
 	if (func->heap_env) {
-		thread->env = env_new(&thread->heap, func->env_size);
+		thread->env = env_new(&thread->heap, &thread->env, func->env_size, func->depth);
 		thread->objects = thread->env->objects;
 		if (op_arg) {
 			args = &thread->opstack[thread->op_stack_idx - op_arg];
@@ -255,17 +200,15 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 			memcpy(thread->objects, args, op_arg*sizeof(obj_t));
 		}
 	} else {
-		thread->env = NULL;
 		thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
 	}
+	thread->heap_env = func->heap_env;
 
 	if (func->bcount && !thread->bindmap) {
 		thread->bindmap = &thread->opstack[thread->op_stack_idx];
 		thread->op_stack_idx += func->bmcount;
-		bindmap_init(thread->bindmap, thread->display, func);
+		bindmap_init(thread->bindmap, thread->env, func);
 	}
-
-	thread->display = display_new(&thread->heap, &thread->display, &thread->env);
 }
 
 static void eval_thread(vm_thread_t *thread, module_t *module)
@@ -311,11 +254,12 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
-	thread->env = env_new(&thread->heap, func->env_size);
+	thread->env = env_new(&thread->heap, NULL, func->env_size, func->depth);
 	thread->objects = thread->env->objects;
-	thread->display = display_new(&thread->heap, NULL, &thread->env);
+	thread->heap_env = 1;
 
 	thread->objects[0].ptr = hash_table_lookup(&builtin, "__exit");
+	thread->lib_cache = cnull.obj;
 
 	SET_TRACE();
 
@@ -376,7 +320,7 @@ dispatch_func:
 							if (IS_TYPE(fp.obj, t_closure)) {
 								closure_t *closure = PTR(fp.obj);
 								ptr = closure->func;
-								thread->display = closure->display;
+								thread->env = closure->env;
 								thread->bindmap = closure->bindmap;
 								thread->closure = closure;
 							} else if (IS_TYPE(fp.obj, t_cont)) {
@@ -452,8 +396,7 @@ dispatch_func:
 
 			TARGET(SET_LOCAL) {
 				thread->objects[op_arg] = STACK_POP();
-				if (thread->env)
-					MARK_MODIFIED(&thread->heap, thread->env);
+				MARK_MODIFIED(&thread->heap, thread->env);
 			}
 			NEXT();
 
@@ -475,7 +418,7 @@ dispatch_func:
 			TARGET(LOAD_CLOSURE) {
 				func_t *nf = MODULE_FUNC(func->module, op_arg);
 				STACK_PUSH(closure_new(&thread->heap,
-							nf, &thread->display));
+							nf, &thread->env));
 			}
 			NEXT();
 
@@ -508,15 +451,10 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 {
 	int i;
 
-	if (thread->env)
-		mark_env(&thread->env, visitor);
+	mark_env(&thread->env, visitor);
 
 	for (i = 0; i < thread->op_stack_idx; i++)
 		visitor->visit(visitor, &thread->opstack[i]);
-
-	if (!thread->env)
-		for (i = 0; i < thread->func->env_size; i++)
-			visitor->visit(visitor, &thread->objects[i]);
 
 	if (thread->closure) {
 		ptr_t ptr;
@@ -525,12 +463,12 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 		thread->closure = PTR_GET(ptr);
 	}
 
-	mark_display(&thread->display, visitor);
+	visitor->visit(visitor, &thread->lib_cache);
 }
 
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)
 {
-	if (thread->env)
+	if (thread->heap_env)
 		thread->objects = thread->env->objects;
 	if (thread->closure)
 		thread->bindmap = thread->closure->bindmap;
@@ -579,6 +517,7 @@ void vm_init()
 	hash_table_init(&builtin, string_hash, string_equal);
 	ns_install_primitives(&builtin);
 	ns_install_native(&builtin, "load-library", &load_library_nt);
+	ns_install_native(&builtin, "library-cache", &library_cache_nt);
 
 	hash_table_init(&sym_table, string_hash, string_equal);
 	sym_table.destroy_key = free;
@@ -609,7 +548,6 @@ static void info()
 	SIZE_INFO(char_t);
 	SIZE_INFO(type_t);
 	SIZE_INFO(block_hdr_t);
-	SIZE_INFO(display_t);
 	SIZE_INFO(env_t);
 	SIZE_INFO(closure_t);
 	SIZE_INFO(string_t);

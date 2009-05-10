@@ -31,7 +31,6 @@ typedef struct allocator_s {
 	if (!HTYPE(ptr)->remembered && IS_OLD(hp, ptr)) {	\
 		heap_remember(hp, HTYPE(ptr));					\
 		HTYPE(ptr)->remembered  = 1;					\
-		LOG_DBG("marked as modified");					\
 	}
 
 /* Heap space */

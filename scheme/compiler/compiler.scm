@@ -46,11 +46,14 @@
   ;; Environment of current-compiling function
   (define-record-type env
 	(fields parent
-	  tbl (mutable size)
-	  argc swallow depth
-	  (mutable onheap)
-	  (mutable bindings)
-	  (mutable bindmap))
+            tbl
+            (mutable size)
+            argc
+            swallow
+            depth
+            (mutable onheap)
+            (mutable bindings)
+            (mutable bindmap))
 	(protocol
 	  (lambda (new)
 		(lambda (prev args)
@@ -154,7 +157,7 @@
 						`(LOCAL . ,res)
 						(begin
 						  (env-onheap-set! cur-env #t)
-						  `(BIND . ,(env-bind env step res))))
+						  `(BIND . ,(env-bind env (env-depth cur-env) res))))
 					(loop (+ step 1) (env-parent cur-env)))))))
 
 	  (define (split-extend node)
@@ -275,5 +278,5 @@
                            string-length string? string=?
                            string-concat make-bytevector bytevector?
                            bytevector-u8-set! fd-open fd-close fd-seek
-                           fd-write load-library list? length)))
+                           fd-write load-library library-cache list? length)))
   )

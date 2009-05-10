@@ -161,24 +161,19 @@ typedef struct visitor_s {
 
 typedef void (*visitor_fun)(visitor_t*, void*);
 
-/**
- * @brief Type description for heap-allocated types
- */
+/* Type description for heap-allocated types */
 typedef struct {
 	const char *name;
 	void (*repr)(void*);
 	visitor_fun visit;
 } type_t;
 
-/**
- * @brief Type table
- */
+/* Type table */
 extern const type_t type_table[];
 enum {
 	t_env,
 	t_closure,
 	t_cont,
-	t_display,
 	t_pair,
 	t_string,
 	t_vector,

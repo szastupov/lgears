@@ -147,6 +147,7 @@ MAKE_NATIVE_UNARY(display);
 
 static int vm_exit(vm_thread_t *thread)
 {
+	printf("__exit called\n");
 	return RC_EXIT;
 }
 MAKE_NATIVE_NULLARY(vm_exit);

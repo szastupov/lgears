@@ -1,19 +1,18 @@
-(library (core_arithmetic)
-  (export + - * / = < > min max abs zero? positive? odd? even?)
-  (import ($builtin)
-          (coreforms)
-          (core_sequence))
+(library (core.arithmetic)
+  (export + * - / = < > min max abs zero? positive? odd? even?)
+  (import (core.forms)
+          (core.sequence))
 
   (define (+ . args)
     (fold-left $+ 0 args))
+
+  (define (* . args)
+    (fold-left $* 1 args))
 
   (define (- init . args)
     (if (null? args)
         ($- 0 init)
         (fold-left $- init args)))
-
-  (define (* . args)
-    (fold-left $* 1 args))
 
   (define (/ init . args)
     (if (null? args)

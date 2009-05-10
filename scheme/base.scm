@@ -22,7 +22,7 @@
           ($builtin)
           (exceptions)
           (core_sequence))
-  
+
   ;; In context of lgears, eqv? and eq? is same
   (define eqv? eq?)
 
@@ -39,15 +39,15 @@
              (eqv? a b)))))
 
   (define (compare-vectors a b)
-    (if (= (vector-length a)
+    (if ($= (vector-length a)
            (vector-length b))
         (let ((len (vector-length a)))
           (let loop ((n 0))
-            (cond ((= n len)
+            (cond (($= n len)
                    #t)
                   ((eqv? (vector-ref a n)
                          (vector-ref b n))
-                   (loop (+ 1 n)))
+                   (loop ($+ 1 n)))
                   (else #f))))
         #f))
 
@@ -106,9 +106,9 @@
       (let loop ((n len)
                  (res 0))
         (if (= n 0)
-          (+ res (ref n))
-          (loop (- n 1)
-                (+ res (* (ref n)
+          ($+ res (ref n))
+          (loop ($- n 1)
+                ($+ res ($* (ref n)
                           (expt base n))))))))
 
   (define call-with-current-continuation call/cc)

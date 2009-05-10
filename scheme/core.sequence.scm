@@ -16,12 +16,11 @@
  | Public Licens along with this program, if not; see
  | <http://www.gnu.org/licenses>.
  |#
-(library (core_sequence)
+(library (core.sequence)
   (export for-each map fold-left fold-right reverse append make-list
           vector-for-each vector-map make-vector string->list
           string-for-each string-append)
-  (import ($builtin)
-          (coreforms))
+  (import (core.forms))
 
   ;; List utilites
   (define (for-each proc lst1 . lst2)

@@ -16,10 +16,9 @@
  | Public Licens along with this program, if not; see
  | <http://www.gnu.org/licenses>.
  |#
-(library (exceptions)
+(library (core.exceptions)
   (export with-exception-handler raise raise-continuable)
-  (import ($builtin)
-          (coreforms))
+  (import (core.forms))
 
   (define (default-exception obj)
     (display "Unhandled excetion with: ")

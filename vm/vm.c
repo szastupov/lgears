@@ -240,7 +240,10 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 
 	if (tag != id_ptr && thread->display) {
 		while (func->depth-1 < thread->display->depth)
-			thread->display = thread->display->prev;
+			if (!thread->display) {
+				FATAL("WTF?\n");
+			} else
+				thread->display = thread->display->prev;
 	}
 
 	if (func->heap_env) {

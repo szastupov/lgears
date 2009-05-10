@@ -24,9 +24,9 @@
 //#define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
 
 /* TODO: tune it */
-#define FRESH_SIZE 8192
-#define SURVIVED_SIZE 8192
-#define OLD_SIZE 16384
+#define FRESH_SIZE 1024*8
+#define SURVIVED_SIZE 1024*8
+#define OLD_SIZE 1024*512
 
 #define HEAP_DBG printf
 

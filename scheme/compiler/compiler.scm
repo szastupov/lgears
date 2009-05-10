@@ -22,7 +22,6 @@
   (import (rnrs)
 		  (reader)
 		  (format)
-		  (only (core) pretty-print) ; This works only for ypsilon
 		  (compiler fasl))
 
   (define (init-static vars)

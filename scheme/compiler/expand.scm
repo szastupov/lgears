@@ -34,7 +34,7 @@
 		  (compiler compiler)
 		  (compiler cps)
 		  (compiler fasl)
-          (compiler optimize-defines)
+          (compiler source-optimizer)
 		  (only (core) pretty-print))
 
   (define libraries-root (library-manager-root))
@@ -439,7 +439,7 @@
 		(error 'expand-top "expected import in top-level"))
 	(let-values (((wrap env include) (resolve-imports (cdar x))))
 	  (let ((body (append include (cdr x))))
-        (cleanup-defines
+        (optimize-source
          (expand
           (make-syntax-object `(lambda () ,@body) wrap)
           env)))))
@@ -451,7 +451,7 @@
 			(list ,@(map (lambda (x)
 						   `(cons ',x ,x))
 						 defines)))
-          (let ((res (lambda (imp) (assq imp exports))))
+          (let ((res (lambda (imp) (__assqd? imp exports))))
             (library-cache (cons (cons ',name res)
                                  (library-cache)))
             res))))
@@ -506,18 +506,18 @@
 							  (cons (make-include name defines)
 									(map extract-binding macros)))
 			;; Produce expanded library
-            (cleanup-defines
+            (optimize-source
              (expand (make-syntax-object
                       (let ((name (libname->symbol name)))
                         `(lambda ()
-                           (define (__cached? x)
-                             (let loop ((cur (library-cache)))
+                           (define (__assqd? x lst)
+                             (let loop ((cur lst))
                                (cond ((null? cur) #f)
                                      ((eq? (car (car cur)) x)
                                       (cdr (car cur)))
                                      (else
                                       (loop (cdr cur))))))
-                           (let ((cached (__cached? ',name)))
+                           (let ((cached (__assqd? ',name (library-cache))))
                              (if cached
                                  cached
                                  ((lambda ()

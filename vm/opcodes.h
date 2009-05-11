@@ -25,7 +25,7 @@
 #define OT_STATIC	0x4	/* Static variable */
 #define OT_PAIR_BEGIN	0x5	/* Pair begin */
 #define OT_PAIR_END	0x6	/* Pair end */
-#define OT_VECTOR_BEGIN	0x7	/* Vector begin */
+#define OT_VECTOR	0x7	/* Vector begin */
 #define OT_NULL	0x8	/* Null object */
 
 static inline const char* opcode_name(int code)
@@ -57,7 +57,7 @@ static inline const char* object_type_name(int code)
 		OP_CASE(OT_STATIC);
 		OP_CASE(OT_PAIR_BEGIN);
 		OP_CASE(OT_PAIR_END);
-		OP_CASE(OT_VECTOR_BEGIN);
+		OP_CASE(OT_VECTOR);
 		OP_CASE(OT_NULL);
 	}
 	return "unknown";

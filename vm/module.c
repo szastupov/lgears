@@ -238,7 +238,7 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 					res.ptr = _cons(al, &new, &res);
 			}
 	}
-	case OT_VECTOR_BEGIN: {
+	case OT_VECTOR: {
 		int size = code_read8(code);
 		vector_t *vec = vector_new(al, size);
 		int i;

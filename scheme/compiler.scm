@@ -23,8 +23,7 @@
           (compiler expand)
           (compiler cps)
           (compiler compiler)
-          (compiler fasl)
-          (only (core) pretty-print)) ; This works only for ypsilon
+          (compiler fasl))
 
   (define (compile-ilr-file in)
     (start-compile

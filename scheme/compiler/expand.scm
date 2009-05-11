@@ -92,7 +92,7 @@
 	(let loop ((rule rules))
 	  (cond ((null? rule)
 			 (syntax-error
-			  x (format "invalid syntax, no match, variants ~a" rules)))
+			  x "invalid syntax, no match"))
 			((pattern-match reserved x (caar rule))
 			 => (lambda (res)
 				  ;(format #t "matched ~a = ~a\n" (caar rule) (strip res))
@@ -128,7 +128,7 @@
 	(let loop ((rule rules))
 	  (cond ((null? rule)
 			 (syntax-error
-			  x (format "invalid syntax, no match, variants ~a" rules)))
+			  x "invalid syntax, no match"))
 			((pattern-match reserved x (caar rule))
 			 => (lambda (matched)
 				  (let* ((bind (pattern-bind-named reserved
@@ -216,20 +216,20 @@
 					  (cons x y)))
 			   '() body))
 
+  (define sys-env '((except (rnrs) syntax->datum
+                            syntax-case
+                            syntax-rules
+                            identifier? datum->syntax)
+                    (compiler expand)
+                    (compiler syntax-core)))
+
   (define (make-macro macro env)
-	(syntax-match
-	 macro ()
-	 ((define-syntax name expander)
-	  (cons name
-			(eval (expand
-				   expander
-				   env)
-				  (environment '(except (rnrs) syntax->datum
-										syntax-case
-										syntax-rules
-										identifier? datum->syntax)
-							   '(compiler expand)
-							   '(compiler syntax-core)))))))
+    (syntax-match
+     macro ()
+     ((define-syntax name expander)
+      (cons name
+            (eval (expand expander env)
+                  (apply environment sys-env))))))
 
   ;; Sequentional macro compilation
   (define (compile-i body env macro*)
@@ -397,12 +397,13 @@
 
   (define (load-library name)
 	(let ((path (find-library-file name)))
-	  (format #t "loading library ~a\n" path)
+	  (format #t ";; loading library ~a\n" path)
 	  (let ((expanded  (expand-file path)))
 		(assemble
 		 (start-compile
 		  (cps-convert expanded))
 		 (format "~a/~a.o" (get-cache-path) path)))
+      (format #t ";; loaded\n")
 	  (find-library libraries-root name)))
 
   (define (resolve-imports imports)

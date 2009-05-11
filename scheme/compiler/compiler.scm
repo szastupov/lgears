@@ -24,10 +24,69 @@
 		  (format)
 		  (compiler fasl))
 
-  (define (init-static vars)
+  ;; The table of builtin functions which also describe functions safity
+  ;; (name mutate? change-cont?)
+  (define builtins
+    '((display #f #f)
+      (__exit #f #f)
+      (call/cc #f #t)
+      (apply #f #t)
+      (cons #f #f)
+      (list #f #f)
+      ($make-list #f #f)
+      (list? #f #f)
+      (length #f #f)
+      (car #f #f)
+      (cdr #f #f)
+      (void #f #f)
+      (char->integer #f #f)
+      (integer->char #f #f)
+      (eq? #f #f)
+      (procedure? #f #f)
+      (boolean? #f #f)
+      (null? #f #f)
+      (char? #f #f)
+      (number? #f #f)
+      (pair? #f #f)
+      (symbol? #f #f)
+      ($+ #f #f)
+      ($- #f #f)
+      ($* #f #f)
+      ($/ #f #f)
+      (mod #f #f)
+      ($= #f #f)
+      ($< #f #f)
+      ($> #f #f)
+      (fxior #f #f)
+      (vector #f #f)
+      (vector? #f #f)
+      (vector-length #f #f)
+      (vector-set! #t #f)
+      (vector-ref #f #f)
+      (vector->list #f #f)
+      ($make-vector #f #f)
+      (symbol->string #f #f)
+      (string-ref #f #f)
+      (string-length #f #f)
+      (string? #f #f)
+      (string=? #f #f)
+      (string-concat #f #f)
+      (make-bytevector #f #f)
+      (bytevector? #f #f)
+      (bytevector-u8-set! #t #f)
+      (fd-open #f #f)
+      (fd-close #f #f)
+      (fd-seek #f #f)
+      (fd-write #f #f)
+      (load-library #f #t)
+      (library-cache #f #f)))
+
+  (define (init-static)
 	(map (lambda (x)
-		   (cons x (make-static (symbol->string x))))
-		 vars))
+		   (cons (car x) (make-static (symbol->string (car x)))))
+		 builtins))
+
+  (define static-variables (init-static))
 
   (define (set-func-args! ntbl args)
 	(let loop ((idx 0) (lst args))
@@ -199,14 +258,32 @@
 			 (JUMP_FORWARD ,(length else-clause))
 			 ,@else-clause)))
 
+      (define (cont-safe? var)
+        (cond ((assq var builtins)
+               => (lambda (b) (not (caddr b))))
+              (else #f)))
+
+      (define (optimize-cont? node)
+        (and (symbol? (car node))
+             (and (pair? (cadr node))
+                  (eq? (caadr node) 'lambda))
+             (cont-safe? (car node))))
+
+      (define (rewrite-cont args)
+        (cons `(LOAD_FUNC ,(cadar args))
+              (cdr args)))
+
 	  (define (compile-call env node)
 		(let* ((func (compile env (car node)))
 			   (argc (length (cdr node)))
 			   (args (map-append (lambda (x)
 								   (compile env x))
 								 (cdr node))))
-		  `(,@args ,@func
-				   (FUNC_CALL ,argc))))
+		  `(,@(if (optimize-cont? node)
+                  (rewrite-cont args)
+                  args)
+            ,@func
+            (FUNC_CALL ,argc))))
 
 	  (define (compile-assigment env node)
 		(let* ((name (car node))
@@ -266,17 +343,4 @@
 		(make-ilr (map car (reverse consts))
 				  (reverse (store-head code-store))
 				  (cadar entry-point)))))
-
-  (define static-variables
-	(init-static '(display __exit call/cc apply cons list $make-list
-                           car cdr void char->integer integer->char
-                           eq? procedure? boolean? null? char? number?
-                           pair? symbol? $+ $- $* $/ mod $= $< $>
-                           fxior vector vector? vector-length
-                           vector-set! vector-ref vector->list
-                           $make-vector symbol->string string-ref
-                           string-length string? string=?
-                           string-concat make-bytevector bytevector?
-                           bytevector-u8-set! fd-open fd-close fd-seek
-                           fd-write load-library library-cache list? length)))
   )

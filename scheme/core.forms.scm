@@ -1,6 +1,6 @@
 (library (core.forms)
   (export quote lambda define if set! begin syntax syntax-case
-          with-syntax syntax-rules or and let cond when unless not)
+          with-syntax syntax-rules or and let let* cond when unless not)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -55,6 +55,16 @@
          (define loop (lambda (vars ...)
                         e1 e2 ...))
          (loop vals ...)))))
+
+  (define-syntax let*
+    (syntax-rules ()
+      ((_ () e1 e2 ...)
+       (let () e1 e2 ...))
+      ((_ ((var1 val1) head ...)
+          body1 body2 ...)
+       (let ((var1 val1))
+         (let* (head ...)
+           body1 body2 ...)))))
 
   (define-syntax cond
 	(syntax-rules (else =>)

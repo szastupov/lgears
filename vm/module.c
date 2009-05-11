@@ -222,6 +222,8 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 	}
 	case OT_NULL:
 		return cnull.ptr;
+	case OT_BOOLEAN:
+		return CIF(code_read8(code)).ptr;
 	case OT_PAIR_BEGIN: {
 		int fresh = 1;
 		obj_t res, new;
@@ -244,7 +246,7 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 		int i;
 		for (i = 0; i < size; i++)
 			vec->objects[i].ptr = fasl_read_datum(code, al);
-		return make_ptr(vec, id_ptr);
+		return make_ptr(vec, id_const_ptr);
 	}
 	default:
 		FATAL("unhandled const type: %s\n", object_type_name(type));

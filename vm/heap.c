@@ -25,7 +25,7 @@
 
 /* TODO: tune it */
 #define FRESH_SIZE 1024*8
-#define SURVIVED_SIZE 1024*8
+#define SURVIVED_SIZE 1024*16
 #define OLD_SIZE 1024*512
 
 #define HEAP_DBG printf

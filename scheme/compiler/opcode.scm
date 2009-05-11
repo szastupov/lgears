@@ -48,6 +48,7 @@
       (OT_PAIR_BEGIN . "Pair begin")
       (OT_PAIR_END . "Pair end")
       (OT_VECTOR . "Vector begin")
+      (OT_BOOLEAN . "Boolean")
       (OT_NULL . "Null object")))
 
   (define (oplist-for-each func)

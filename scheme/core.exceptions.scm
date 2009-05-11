@@ -17,7 +17,7 @@
  | <http://www.gnu.org/licenses>.
  |#
 (library (core.exceptions)
-  (export with-exception-handler raise raise-continuable)
+  (export with-exception-handler raise raise-continuable assert)
   (import (core.forms))
 
   (define (default-exception obj)
@@ -47,5 +47,11 @@
       (let ((res ((car handlers) x)))
         (set! exception-handler handlers)
         res)))
+
+  (define-syntax assert
+    (syntax-rules ()
+      ((_ expr)
+       (if (not expr)
+           (raise 'expr)))))
 
   )

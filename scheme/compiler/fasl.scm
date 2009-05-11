@@ -189,6 +189,10 @@
              (put-type 'OT_PAIR_BEGIN)
              (for-each put-object (pair-prepare obj))
              (put-type 'OT_PAIR_END))
+            ((vector? obj)
+             (put-type 'OT_VECTOR_BEGIN)
+             (put-u8 port (vector-length obj))
+             (for-each put-object (vector->list obj)))
             (else (error 'write-consts "unknown" obj))))
 
     (let ((oldpos (port-position port)))

@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses>.
  */
 #ifndef VECTOR_H
-#define VECTOR_H 
+#define VECTOR_H
 
 typedef struct {
 	obj_t *objects;
@@ -26,6 +26,7 @@ typedef struct {
 
 #define IS_VECTOR(obj) IS_TYPE(obj, t_vector)
 
+vector_t* vector_new(allocator_t *al, int size);
 void vector_repr(void *ptr);
 void vector_visit(visitor_t *vs, void *data);
 void ns_install_vector(hash_table_t *tbl);

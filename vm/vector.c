@@ -42,10 +42,9 @@ void vector_visit(visitor_t *vs, void *data)
 		vs->visit(vs, &vec->objects[i]);
 }
 
-static vector_t* vector_new(heap_t *heap, int size)
+vector_t* vector_new(allocator_t *al, int size)
 {
-	void *mem = heap_alloc(heap,
-			sizeof(vector_t)+sizeof(obj_t)*size, t_vector);
+	void *mem = allocator_alloc(al, sizeof(vector_t)+sizeof(obj_t)*size, t_vector);
 	vector_t *vec = mem;
 	vec->objects = mem+sizeof(vector_t);
 	vec->size = size;
@@ -56,7 +55,7 @@ static vector_t* vector_new(heap_t *heap, int size)
 static int vector(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	int count = argc-1;
-	vector_t *vec = vector_new(&thread->heap, count);
+	vector_t *vec = vector_new(&thread->heap.allocator, count);
 
 	int i;
 	for (i = 0; i < count; i++)
@@ -70,7 +69,7 @@ static int make_vector(vm_thread_t *thread, obj_t *count, obj_t *fill)
 {
 	SAFE_ASSERT(IS_FIXNUM(*count));
 
-	vector_t *vec = vector_new(&thread->heap, FIXNUM(*count));
+	vector_t *vec = vector_new(&thread->heap.allocator, FIXNUM(*count));
 	int i;
 	for (i = 0; i < vec->size; i++)
 		vec->objects[i] = *fill;
@@ -97,6 +96,7 @@ MAKE_NATIVE_UNARY(is_vector);
 static int vector_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 {
 	SAFE_ASSERT(IS_VECTOR(*obj));
+	SAFE_ASSERT(obj->tag != id_const_ptr);
 	vector_t *vec = PTR(*obj);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(vec->size > pos);

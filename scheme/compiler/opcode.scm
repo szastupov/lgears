@@ -47,8 +47,9 @@
       (OT_STATIC . "Static variable")
       (OT_PAIR_BEGIN . "Pair begin")
       (OT_PAIR_END . "Pair end")
+      (OT_VECTOR_BEGIN . "Vector begin")
       (OT_NULL . "Null object")))
-  
+
   (define (oplist-for-each func)
     (fold-left (lambda (idx op)
                  (func idx op)

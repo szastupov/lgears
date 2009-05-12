@@ -19,13 +19,27 @@
 
 (library (reader)
   (export datum-from-port read-source)
-  (import (rnrs base)
-          (rnrs io ports)
-          (rnrs io simple)
-          (rnrs unicode)
-          (rnrs lists)
-          (rnrs control)
+  (import (rnrs)
           (format))
+
+  (define-record-type port-proxy
+    (fields port (mutable line) (mutable pos))
+    (protocol
+     (lambda (new)
+       (lambda (nport)
+         (new nport 1 0)))))
+
+  (define (pread pp)
+    (let ((ch (read-char (port-proxy-port pp))))
+      (if (eqv? ch #\newline)
+          (begin
+            (port-proxy-line-set! pp (+ 1 (port-proxy-line pp)))
+            (port-proxy-pos-set! pp 0))
+          (port-proxy-pos-set! pp (+ 1 (port-proxy-pos pp))))
+      ch))
+
+  (define (ppeek pp)
+    (peek-char (port-proxy-port pp)))
 
   (define (delimeter? x)
     (or (eof-object? x)
@@ -80,191 +94,195 @@
                    (format "Ivalid escape character ~a" chr)))))
 
   (define (datum-from-port port)
+    (let ((pr (make-port-proxy port)))
 
-    (define (lexical-error msg . args)
-      (error 'datum-from-port
-             (apply format msg args)
-             (port-position port)))
+      (define (lexical-error msg . args)
+        (error 'datum-from-port
+               (apply format msg args)
+               (format "~a:~a"
+                       (port-proxy-line pr)
+                       (port-proxy-pos pr))))
 
-    (define (read-symol start)
-      (string->symbol
-       (list->string
-        (cons
-         start
-         (let loop ()
-           (let ((pc (peek-char port)))
-             (cond ((delimeter? pc) '())
-                   ((identifier-char? pc)
-                    (cons (read-char port) (loop)))
-                   (else
-                    (lexical-error
-                     "invalid character '~a' for identifier"
-                     pc)))))))))
-
-    (define (peculiar? pc)
-      (case pc
-        ((#\+ #\-)
-         (delimeter? (peek-char port)))
-        ((#\.)
-         (eqv? (peek-char port) #\.))
-        (else #f)))
-
-    (define (read-peculiar pc)
-      (case pc
-        ((#\+) '+)
-        ((#\-) '-)
-        ((#\.)
-         (if (and (eqv? (read-char port) #\.)
-                  (eqv? (read-char port) #\.))
-             '...
-             (lexical-error "misplaced dot")))
-        (else (lexical-error "wtf?"))))
-
-    (define (read-string)
-      (list->string
-       (let loop ()
-         (let ((char (read-char port)))
-           (cond ((eof-object? char)
-                  (lexical-error "unexpected eof while reading string"))
-                 ((eqv? char #\") '())
-                 ((eqv? char #\\)
-                  (cons (parse-escape (read-char port))
-                        (loop)))
-                 (else
-                  (cons char (loop))))))))
-
-    (define (skip-comment)
-      (let ((c (read-char port)))
-        (unless (or (eof-object? c)
-                    (eqv? c #\newline))
-          (skip-comment))))
-
-    (define (skip-block-comment)
-      (let ((c (read-char port)))
-        (unless (and (eqv? c #\|)
-                     (eqv? (read-char port) #\#))
-          (skip-block-comment))))
-
-    (define (read-number-impl start radix)
-      (let ((pred? (if (= radix 16)
-                       hex-digit?
-                       digit?)))
-        (string->number
+      (define (read-symol start)
+        (string->symbol
          (list->string
-          (cons start
-                (let loop ()
-                  (let ((pc (peek-char port)))
-                    (cond ((delimeter? pc) '())
-                          ((pred? pc)
-                           (cons (read-char port) (loop)))
-                          (else
-                           (lexical-error
-                            "invalid characted '~a' for number" pc)))))))
-         radix)))
+          (cons
+           start
+           (let loop ()
+             (let ((pc (ppeek pr)))
+               (cond ((delimeter? pc) '())
+                     ((identifier-char? pc)
+                      (cons (pread pr) (loop)))
+                     (else
+                      (lexical-error
+                       "invalid character '~a' for identifier"
+                       pc)))))))))
 
-    (define read-number
-      (case-lambda
-        ((start radix) (read-number-impl start radix))
-        ((radix) (read-number-impl (read-char port) radix))))
+      (define (peculiar? pc)
+        (case pc
+          ((#\+ #\-)
+           (delimeter? (ppeek pr)))
+          ((#\.)
+           (eqv? (ppeek pr) #\.))
+          (else #f)))
 
-    (define (syntax-type c)
-      (case c
-        ((#\') 'syntax)
-        ((#\`) 'quasisyntax)
-        ((#\,)
-         (if (eq? (peek-char port) #\@)
-             (begin
-               (read-char port)
-               'usyntax-splicing)
-             'unsyntax))))
+      (define (read-peculiar pc)
+        (case pc
+          ((#\+) '+)
+          ((#\-) '-)
+          ((#\.)
+           (if (and (eqv? (pread pr) #\.)
+                    (eqv? (pread pr) #\.))
+               '...
+               (lexical-error "misplaced dot")))
+          (else (lexical-error "wtf?"))))
 
-    (define (read-character chr)
-      (if (delimeter? (peek-char port))
-          chr
-          (lexical-error "expected delimeter")))
+      (define (read-string)
+        (list->string
+         (let loop ()
+           (let ((char (pread pr)))
+             (cond ((eof-object? char)
+                    (lexical-error "unexpected eof while reading string"))
+                   ((eqv? char #\") '())
+                   ((eqv? char #\\)
+                    (cons (parse-escape (pread pr))
+                          (loop)))
+                   (else
+                    (cons char (loop))))))))
 
-    (define (read-sharped)
-      (let ((c (read-char port)))
+      (define (skip-comment)
+        (let ((c (pread pr)))
+          (unless (or (eof-object? c)
+                      (eqv? c #\newline))
+            (skip-comment))))
+
+
+      (define (skip-block-comment)
+        (let ((c (pread pr)))
+          (unless (and (eqv? c #\|)
+                       (eqv? (pread pr) #\#))
+            (skip-block-comment))))
+
+      (define (read-number-impl start radix)
+        (let ((pred? (if (= radix 16)
+                         hex-digit?
+                         digit?)))
+          (string->number
+           (list->string
+            (cons start
+                  (let loop ()
+                    (let ((pc (ppeek pr)))
+                      (cond ((delimeter? pc) '())
+                            ((pred? pc)
+                             (cons (pread pr) (loop)))
+                            (else
+                             (lexical-error
+                              "invalid characted '~a' for number" pc)))))))
+           radix)))
+
+      (define read-number
+        (case-lambda
+          ((start radix) (read-number-impl start radix))
+          ((radix) (read-number-impl (pread pr) radix))))
+
+      (define (syntax-type c)
         (case c
-          ((#\t #\T) #t)
-          ((#\f #\F) #f)
-          ((#\\) (read-character (read-char port)))
-          ((#\b #\B) (read-number 2))
-          ((#\o #\O) (read-number 8))
-          ((#\d #\D) (read-number 10))
-          ((#\x #\X) (read-number 16))
-          ((#\' #\` #\,)
-           (list (syntax-type c)
-                 (dispatch (read-char port))))
-          ((#\() (list->vector (read-list)))
-          ((#\|)
-           (skip-block-comment)
-           (dispatch (read-char port)))
-          (else
-           (lexical-error "invalid lexical syntax #~a" c)))))
+          ((#\') 'syntax)
+          ((#\`) 'quasisyntax)
+          ((#\,)
+           (if (eq? (ppeek pr) #\@)
+               (begin
+                 (pread pr)
+                 'usyntax-splicing)
+               'unsyntax))))
 
-    (define (read-list)
-      (let ((pc (read-char port)))
+      (define (read-character chr)
+        (if (delimeter? (ppeek pr))
+            chr
+            (lexical-error "expected delimeter")))
+
+      (define (read-sharped)
+        (let ((c (pread pr)))
+          (case c
+            ((#\t #\T) #t)
+            ((#\f #\F) #f)
+            ((#\\) (read-character (pread pr)))
+            ((#\b #\B) (read-number 2))
+            ((#\o #\O) (read-number 8))
+            ((#\d #\D) (read-number 10))
+            ((#\x #\X) (read-number 16))
+            ((#\' #\` #\,)
+             (list (syntax-type c)
+                   (dispatch (pread pr))))
+            ((#\() (list->vector (read-list)))
+            ((#\|)
+             (skip-block-comment)
+             (dispatch (pread pr)))
+            (else
+             (lexical-error "invalid lexical syntax #~a" c)))))
+
+      (define (read-list)
+        (let ((pc (pread pr)))
+          (cond ((eof-object? pc)
+                 (lexical-error "unexpected eof while reading list"))
+                ((eqv? pc #\)) '())
+                ((char-whitespace? pc)
+                 (read-list))
+                ((eqv? pc #\;)
+                 (skip-comment)
+                 (read-list))
+                ((and (eqv? pc #\.)
+                      (not (eqv? (ppeek pr) #\.)))
+                 (let ((res (dispatch (pread pr))))
+                   (if (eqv? (pread pr) #\))
+                       res
+                       (lexical-error "unexpected data after dot"))))
+                (else (cons (dispatch pc)
+                            (read-list))))))
+
+      (define (read-quote pc)
+        (define (quote-type)
+          (case pc
+            ((#\') 'quote)
+            ((#\`) 'quasiquote)
+            ((#\,)
+             (if (eq? (ppeek pr) #\@)
+                 (begin
+                   (pread pr)
+                   'unquote-splicing)
+                 'unquote))))
+        (list (quote-type)
+              (dispatch (pread pr))))
+
+      (define (dispatch pc)
         (cond ((eof-object? pc)
-               (lexical-error "unexpected eof while reading list"))
-              ((eqv? pc #\)) '())
+               (eof-object))
               ((char-whitespace? pc)
+               (dispatch (pread pr)))
+              ((or (letter? pc)
+                   (initial-char? pc))
+               (read-symol pc))
+              ((peculiar? pc)
+               (read-peculiar pc))
+              ((number-start? pc)
+               (read-number pc 10))
+              ((eqv? pc #\")
+               (read-string))
+              ((eqv? pc #\#)
+               (read-sharped))
+              ((quote? pc)
+               (read-quote pc))
+              ((eqv? pc #\()
                (read-list))
               ((eqv? pc #\;)
                (skip-comment)
-               (read-list))
-              ((and (eqv? pc #\.)
-                    (not (eqv? (peek-char port) #\.)))
-               (let ((res (dispatch (read-char port))))
-                 (if (eqv? (read-char port) #\))
-                     res
-                     (lexical-error "unexpected data after dot"))))
-              (else (cons (dispatch pc)
-                          (read-list))))))
+               (dispatch (pread pr)))
+              ((eqv? pc #\))
+               (lexical-error "unexpecter closing parenthesis"))
+              (else
+               (lexical-error "invalid lexical ~a" pc))))
 
-    (define (read-quote pc)
-      (define (quote-type)
-        (case pc
-          ((#\') 'quote)
-          ((#\`) 'quasiquote)
-          ((#\,)
-           (if (eq? (peek-char port) #\@)
-               (begin
-                 (read-char port)
-                 'unquote-splicing)
-               'unquote))))
-      (list (quote-type)
-            (dispatch (read-char port))))
-
-    (define (dispatch pc)
-      (cond ((eof-object? pc)
-             (eof-object))
-            ((char-whitespace? pc)
-             (dispatch (read-char port)))
-            ((or (letter? pc)
-                 (initial-char? pc))
-             (read-symol pc))
-            ((peculiar? pc)
-             (read-peculiar pc))
-            ((number-start? pc)
-             (read-number pc 10))
-            ((eqv? pc #\")
-             (read-string))
-            ((eqv? pc #\#)
-             (read-sharped))
-            ((quote? pc)
-             (read-quote pc))
-            ((eqv? pc #\()
-             (read-list))
-            ((eqv? pc #\;)
-             (skip-comment)
-             (dispatch (read-char port)))
-            ((eqv? pc #\))
-             (lexical-error "unexpecter closing parenthesis"))
-            (else
-             (lexical-error "invalid lexical ~a" pc))))
-
-    (dispatch (read-char port)))
+      (dispatch (pread pr))))
 
   (define (read-str buf)
     (call-with-port

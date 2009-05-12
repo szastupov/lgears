@@ -27,9 +27,7 @@ all: $(targets)
 
 .deps/%.dep: %.c
 	@mkdir -p .deps
-	@set -e; rm -f $@; \
-		$(CC) -M $(CFLAGS) $< > $@; \
-		sed -i 's,\($*\)\.o[ :]*,\1.o $@ : ,g' $@;
+	@$(CC) $(CFLAGS) -M -MF $@ $<
 
 deps := $(foreach o,$(targets:=_obj),$($(o):%.o=.deps/%.dep))
 

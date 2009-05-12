@@ -523,7 +523,7 @@ void vm_init()
 	sym_table.destroy_key = free;
 
 	hash_table_init(&libraries, direct_hash, direct_equal);
-	// TODO add library desctructor
+	libraries.destroy_val = (destroy_func)module_free;
 
 	cache_path = getenv("LGEARS_CACHE");
 	if (!cache_path) {
@@ -536,6 +536,7 @@ void vm_cleanup()
 {
 	hash_table_destroy(&builtin);
 	hash_table_destroy(&sym_table);
+	hash_table_destroy(&libraries);
 }
 
 #define SIZE_INFO(t) printf("sizeof(%s) = %zd\n", #t, sizeof(t))

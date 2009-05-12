@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses>.
  */
 #ifndef HASH_H
-#define HASH_H 
+#define HASH_H
 
 typedef unsigned (*hash_func_t)(const void*);
 typedef int (*equal_func_t)(const void*, const void*);
@@ -29,14 +29,16 @@ typedef struct hash_node_s {
 	struct hash_node_s *next;
 } hash_node_t;
 
+typedef void (*destroy_func)(void*);
+
 typedef struct {
 	int size;
 	int nnodes;
 	hash_node_t **nodes;
 	hash_func_t hash;
 	equal_func_t equal;
-	void (*destroy_key)(void*);
-	void (*destroy_val)(void*);
+	destroy_func destroy_key;
+	destroy_func destroy_val;
 } hash_table_t;
 
 void hash_table_init(hash_table_t *tbl, hash_func_t hash,

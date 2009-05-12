@@ -263,12 +263,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 	SET_TRACE();
 
-	/*
-	 * On dispatching speed-up:
-	 * http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
-	 * Inspired by http://bugs.python.org/issue4753, thanks Antoine Pitrou!
-	 */
-
 #if COMPUTED_GOTO
 #include "opcode_targets.h"
 #define TARGET(op)								\

@@ -18,7 +18,7 @@
  |#
 
 (library (compiler expand)
-  (export expand-file sc-dispatch gen-syntax syntax-error)
+  (export expand-file sc-dispatch gen-syntax syntax-error syntax-vars)
   (import (rnrs eval)
 		  (rename (rnrs)
 				  (identifier? sys-identifier?)
@@ -36,6 +36,8 @@
 		  (compiler fasl)
           (compiler source-optimizer)
 		  (only (core) pretty-print))
+
+  (define syntax-vars '())
 
   (define libraries-root (library-manager-root))
 
@@ -124,7 +126,7 @@
 				   (else stx)))
 			(else stx))))
 
-  (define (sc-dispatch x reserved . rules)
+  (define (sc-dispatch vars x reserved . rules)
 	(let loop ((rule rules))
 	  (cond ((null? rule)
 			 (syntax-error
@@ -134,7 +136,7 @@
 				  (let* ((bind (pattern-bind-named reserved
                                                    matched
                                                    (caar rule)
-                                                   '())))
+                                                   vars)))
 					;(format #t "bind ~a\n" (strip bind))
 					((cdar rule) bind))))
 			(else (loop (cdr rule))))))
@@ -216,10 +218,13 @@
 					  (cons x y)))
 			   '() body))
 
-  (define sys-env '((except (rnrs) syntax->datum
+  (define sys-env '((except (rnrs)
+                            syntax->datum
                             syntax-case
                             syntax-rules
-                            identifier? datum->syntax)
+                            identifier?
+                            datum->syntax
+                            generate-temporaries)
                     (compiler expand)
                     (compiler syntax-core)))
 
@@ -377,20 +382,21 @@
   (define (exp-syntax x r)
 	(syntax-match
 	 x ()
-	 ((syntax e) `(gen-syntax vars ',(strip e)))))
+	 ((syntax e) `(gen-syntax syntax-vars ',(strip e)))))
 
   (define (exp-syntax-case x r)
 	(syntax-match
 	 x ()
 	 ((syntax-case src reserved (pat* acc*) ...)
 	  `(sc-dispatch
+        syntax-vars
 		,(expand src r)
 		',(strip reserved)
 		,@(map (lambda (pat acc)
 				 (expand
 				  (datum->syntax
 				   x `(cons ',(strip pat)
-							(lambda (vars)
+							(lambda (syntax-vars)
 							  ,(expand acc r))))
 				  r))
 			   pat* acc*)))))

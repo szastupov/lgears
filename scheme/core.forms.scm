@@ -1,6 +1,7 @@
 (library (core.forms)
   (export quote lambda define if set! begin syntax syntax-case
-          with-syntax syntax-rules or and let let* cond when unless not)
+          with-syntax syntax-rules or and let let* cond case unquote unquote-splicing
+          when unless not)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -25,9 +26,8 @@
 		  (_ (syntax-error x))))
 	  (syntax-case x ()
 		((_ (k ...) cl ...)
-		 (with-syntax (((ccl ...) (map clause #'(cl ...)))
-					   ((kl ...) #'(k ...)))
-		   (syntax (lambda (x) (syntax-case x (kl ...) ccl ...))))))))
+		 (with-syntax (((ccl ...) (map clause #'(cl ...))))
+		   (syntax (lambda (x) (syntax-case x (k ...) ccl ...))))))))
 
   (define-syntax or
 	(syntax-rules ()
@@ -67,30 +67,52 @@
            body1 body2 ...)))))
 
   (define-syntax cond
-	(syntax-rules (else =>)
-	  ((cond (else result1 result2 ...))
-	   (begin result1 result2 ...))
-	  ((cond (test => result))
-	   (let ((temp test))
-		 (if temp (result temp))))
-	  ((cond (test => result) clause1 clause2 ...)
-	   (let ((temp test))
-		 (if temp
-			 (result temp)
-			 (cond clause1 clause2 ...))))
-	  ((cond (test)) test)
-	  ((cond (test) clause1 clause2 ...)
-	   (let ((temp test))
-		 (if temp
-			 temp
-			 (cond clause1 clause2 ...))))
-	  ((cond (test result1 result2 ...))
-	   (if test (begin result1 result2 ...)))
-	  ((cond (test result1 result2 ...)
-			 clause1 clause2 ...)
-	   (if test
-		   (begin result1 result2 ...)
-		   (cond clause1 clause2 ...)))))
+    (lambda (x)
+      (syntax-case x ()
+        ((_ m1 m2 ...)
+         (let f ((clause (syntax m1)) (clauses (syntax (m2 ...))))
+           (if (null? clauses)
+               (syntax-case clause (else =>)
+                 ((else e1 e2 ...) (syntax (begin e1 e2 ...)))
+                 ((e0) (syntax (let ((t e0)) (if t t))))
+                 ((e0 => e1) (syntax (let ((t e0)) (if t (e1 t)))))
+                 ((e0 e1 e2 ...) (syntax (if e0 (begin e1 e2 ...))))
+                 (_ (syntax-error x)))
+               (with-syntax ((rest (f (car clauses) (cdr clauses))))
+                 (syntax-case clause (else =>)
+                   ((e0) (syntax (let ((t e0)) (if t t rest))))
+                   ((e0 => e1) (syntax (let ((t e0)) (if t (e1 t) rest))))
+                   ((e0 e1 e2 ...) (syntax (if e0 (begin e1 e2 ...) rest)))
+                   (_ (syntax-error x))))))))))
+
+  (define-syntax case
+    (lambda (x)
+      (syntax-case x ()
+        ((_ e m1 m2 ...)
+         (with-syntax
+             ((body (let f ((clause (syntax m1)) (clauses (syntax (m2 ...))))
+                      (if (null? clauses)
+                          (syntax-case clause (else)
+                            ((else e1 e2 ...) (syntax (begin e1 e2 ...)))
+                            (((k ...) e1 e2 ...)
+                             (syntax (if (memv t '(k ...)) (begin e1 e2 ...))))
+                            (_ (syntax-error x)))
+                          (with-syntax ((rest (f (car clauses) (cdr clauses))))
+                            (syntax-case clause (else)
+                              (((k ...) e1 e2 ...)
+                               (syntax (if (memv t '(k ...))
+                                           (begin e1 e2 ...)
+                                           rest)))
+                              (_ (syntax-error x))))))))
+           (syntax (let ((t e)) body)))))))
+
+  (define-syntax unquote
+    (lambda (x)
+      (syntax-error x "misplaced")))
+
+  (define-syntax unquote-splicing
+    (lambda (x)
+      (syntax-error x "misplaced")))
 
   (define-syntax when
 	(syntax-rules ()

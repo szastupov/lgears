@@ -23,7 +23,7 @@
           (rnrs lists))
 
   (define primitives-operators
-    '($cons $car $cdr $- $+ $* $/ $% $< $> $= $!))
+    '($cons $car $cdr $- $+ $* $/ $% $< $> $= $! $eq?))
 
   (define (operation? node)
     (and (pair? node)
@@ -44,7 +44,6 @@
       (void #f #f)
       (char->integer #f #f)
       (integer->char #f #f)
-      (eq? #f #f)
       (procedure? #f #f)
       (boolean? #f #f)
       (null? #f #f)

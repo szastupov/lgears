@@ -191,16 +191,21 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 		}
 	}
 
+	args = &thread->opstack[thread->op_stack_idx - op_arg];
 	if (func->heap_env) {
 		thread->env = env_new(&thread->heap, &thread->env, func->env_size, func->depth);
 		thread->objects = thread->env->objects;
 		if (op_arg) {
-			args = &thread->opstack[thread->op_stack_idx - op_arg];
 			thread->op_stack_idx = 0;
 			memcpy(thread->objects, args, op_arg*sizeof(obj_t));
 		}
 	} else {
-		thread->objects = &thread->opstack[thread->op_stack_idx - op_arg];
+		if (thread->op_stack_idx > op_arg*2) {
+			thread->objects = memcpy(thread->opstack,
+									 args, op_arg*sizeof(obj_t));
+			thread->op_stack_idx = op_arg;
+		} else
+			thread->objects = args;
 	}
 	thread->heap_env = func->heap_env;
 
@@ -432,6 +437,12 @@ dispatch_func:
 				STACK_PUSH(CIF(IS_FALSE(STACK_POP())).ptr);
 			NEXT();
 
+			TARGET(OP_EQ_PTR) {
+				FETCH_AB();		/* It's ok to use fixnum */
+				STACK_PUSH(CIF(fxa.ptr == fxb.ptr).ptr);
+			}
+			NEXT();
+
 #define COMPARE_TARGET(name, op)							\
 			TARGET(OP_##name) {								\
 				FETCH_AB();									\
@@ -538,9 +549,9 @@ static void vm_thread_init(vm_thread_t *thread)
 
 	heap_init(&thread->heap, thread);
 
-	thread->ssize = 4096;
-	thread->opstack = mem_alloc(thread->ssize);
-
+	int ssize = 4096;
+	thread->opstack = mem_alloc(ssize);
+	thread->op_stack_size = ssize/sizeof(obj_t);
 }
 
 static void vm_thread_destroy(vm_thread_t *thread)

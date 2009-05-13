@@ -91,10 +91,9 @@ typedef struct {
 typedef struct {
 	heap_t heap;
 
-	/* Variables representing execution state */
-	int ssize;			/**< Size of stack */
-	obj_t *opstack;		/**< Operands stack */
-	int op_stack_idx;	/**< Stack index */
+	obj_t *opstack;
+	int op_stack_idx;
+	int op_stack_size;
 	obj_t *objects;
 	env_t *env;
 	obj_t *bindmap;
@@ -107,8 +106,28 @@ typedef struct {
 	trampoline_t tramp;
 } vm_thread_t;
 
+#if CHECK_OPSTACK
+static inline void __stack_push(vm_thread_t *thread, void *ptr)
+{
+	if (thread->op_stack_idx == thread->op_stack_size-1)
+		FATAL("stack overflow (push)\n");
+
+	thread->opstack[thread->op_stack_idx++].ptr = ptr;
+}
+
+static inline obj_t __stack_pop(vm_thread_t *thread)
+{
+	if (thread->op_stack_idx == 0)
+		FATAL("stack overflow (pop)\n");
+
+	return thread->opstack[--thread->op_stack_idx];
+}
+#define STACK_PUSH(n) __stack_push(thread, n)
+#define STACK_POP() __stack_pop(thread)
+#else
 #define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
+#endif
 
 void* make_symbol(const char *str);
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread);

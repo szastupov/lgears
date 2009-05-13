@@ -26,6 +26,7 @@ static const void* opcode_targets[] = {
 	&&TARGET_OP_LT,
 	&&TARGET_OP_GT,
 	&&TARGET_OP_EQ,
+	&&TARGET_OP_EQ_PTR,
 	&&TARGET_OP_NOT,
 };
 

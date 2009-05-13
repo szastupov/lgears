@@ -28,7 +28,8 @@
 #define OP_LT	0x14	/* < */
 #define OP_GT	0x15	/* > */
 #define OP_EQ	0x16	/* = */
-#define OP_NOT	0x17	/* ! */
+#define OP_EQ_PTR	0x17	/* eq? */
+#define OP_NOT	0x18	/* ! */
 
 #define OT_FIXNUM	0x0	/* Fixed number */
 #define OT_CHARACTER	0x1	/* Character */
@@ -67,6 +68,7 @@ static inline const char* opcode_name(int code)
 		OP_CASE(OP_LT);
 		OP_CASE(OP_GT);
 		OP_CASE(OP_EQ);
+		OP_CASE(OP_EQ_PTR);
 		OP_CASE(OP_NOT);
 	}
 	return "unknown";

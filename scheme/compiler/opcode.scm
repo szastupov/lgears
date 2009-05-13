@@ -49,6 +49,7 @@
       (OP_LT . "<")
       (OP_GT . ">")
       (OP_EQ . "=")
+      (OP_EQ_PTR . "eq?")
       (OP_NOT . "!")))
 
   (define object-types

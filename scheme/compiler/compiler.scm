@@ -38,6 +38,7 @@
       (($<) 'OP_LT)
       (($>) 'OP_GT)
       (($=) 'OP_EQ)
+      (($eq?) 'OP_EQ_PTR)
       (($!) 'OP_NOT)))
 
   (define (init-static)

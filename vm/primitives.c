@@ -71,12 +71,6 @@ void* _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 	return make_ptr(pair, al->id);
 }
 
-static int cons(vm_thread_t *thread, obj_t *car, obj_t *cdr)
-{
-	RESULT_PTR(_cons(&thread->heap.allocator, car, cdr));
-}
-MAKE_NATIVE_BINARY(cons);
-
 void* _list(heap_t *heap, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
@@ -121,22 +115,6 @@ static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 }
 MAKE_NATIVE_BINARY(make_list);
 
-static int car(vm_thread_t *thread, obj_t *obj)
-{
-	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
-	pair_t *pair = PTR(*obj);
-	RESULT_OBJ(pair->car);
-}
-MAKE_NATIVE_UNARY(car);
-
-static int cdr(vm_thread_t *thread, obj_t *obj)
-{
-	SAFE_ASSERT(IS_TYPE(*obj, t_pair));
-	pair_t *pair = PTR(*obj);
-	RESULT_OBJ(pair->cdr);
-}
-MAKE_NATIVE_UNARY(cdr);
-
 static int display(vm_thread_t *thread, obj_t *obj)
 {
 	print_obj(*obj);
@@ -146,7 +124,6 @@ MAKE_NATIVE_UNARY(display);
 
 static int vm_exit(vm_thread_t *thread)
 {
-	printf("__exit called\n");
 	return RC_EXIT;
 }
 MAKE_NATIVE_NULLARY(vm_exit);
@@ -239,12 +216,6 @@ MAKE_NATIVE_UNARY(integer_to_char);
  * Predicates
  */
 
-static int eq(vm_thread_t *thread, obj_t *a, obj_t *b)
-{
-	RESULT_BOOL(a->ptr == b->ptr);
-}
-MAKE_NATIVE_BINARY(eq);
-
 static int is_procedure(vm_thread_t *thread, obj_t *obj)
 {
 	RESULT_BOOL(IS_FUNC(*obj));
@@ -303,16 +274,12 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
 	ns_install_native(tbl, "call/cc", &call_cc_nt);
 	ns_install_native(tbl, "apply", &apply_nt);
-	ns_install_native(tbl, "cons", &cons_nt);
 	ns_install_native(tbl, "list", &list_nt);
 	ns_install_native(tbl, "$make-list", &make_list_nt);
-	ns_install_native(tbl, "car", &car_nt);
-	ns_install_native(tbl, "cdr", &cdr_nt);
 	ns_install_native(tbl, "void", &get_void_nt);
 	ns_install_native(tbl, "char->integer", &char_to_integer_nt);
 	ns_install_native(tbl, "integer->char", &integer_to_char_nt);
 
-	ns_install_native(tbl, "eq?", &eq_nt);
 	ns_install_native(tbl, "procedure?", &is_procedure_nt);
 	ns_install_native(tbl, "boolean?", &is_boolean_nt);
 	ns_install_native(tbl, "null?", &is_null_nt);

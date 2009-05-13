@@ -1,7 +1,7 @@
 (library (core.forms)
   (export quote lambda define if set! begin syntax syntax-case
           with-syntax syntax-rules or and let let* cond case unquote unquote-splicing
-          when unless not)
+          when unless not cons car cdr)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -131,6 +131,24 @@
       (syntax-case x ()
         ((not expr) #'(if expr #f #t))
         (_ #'(lambda (x) (if x #f #t))))))
+
+  (define-syntax cons
+    (lambda (x)
+      (syntax-case x ()
+        ((_ a b) #'($cons a b))
+        (_ #'(lambda (a b) ($cons a b))))))
+
+  (define-syntax car
+    (lambda (x)
+      (syntax-case x ()
+        ((_ a) #'($car a))
+        (_ #'(lambda (a) ($car a))))))
+
+  (define-syntax cdr
+    (lambda (x)
+      (syntax-case x ()
+        ((_ a) #'($cdr a))
+        (_ #'(lambda (a) ($cdr a))))))
 
   (display "coreforms loaded\n")
 

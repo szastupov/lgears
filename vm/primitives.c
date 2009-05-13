@@ -17,7 +17,6 @@
  * <http://www.gnu.org/licenses>.
  */
 #include "primitives.h"
-#include "fixnum.h"
 #include "fd.h"
 
 void pair_visit(visitor_t *vs, void *data)
@@ -324,7 +323,6 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "list?", &is_list_nt);
 	ns_install_native(tbl, "length", &list_length_nt);
 
-	ns_install_fixnum(tbl);
 	ns_install_vector(tbl);
 	ns_install_string(tbl);
 	ns_install_bytevector(tbl);

@@ -217,6 +217,10 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	int op_code, op_arg;
 	func_t *func;
 
+	fixnum_t fxa, fxb, fxc;
+	fxc.tag = id_fixnum;
+#define FETCH_AB() fxb.obj = STACK_POP(); fxa.obj = STACK_POP();
+
 #if DEBUG_TRACE_OPCODE
 	void (*trace_func)();
 #define TRACE() trace_func()
@@ -422,6 +426,66 @@ dispatch_func:
 
 			TARGET(PUSH_NULL)
 				STACK_PUSH(cnull.ptr);
+			NEXT();
+
+			TARGET(OP_NOT)
+				STACK_PUSH(CIF(IS_FALSE(STACK_POP())).ptr);
+			NEXT();
+
+#define COMPARE_TARGET(name, op)							\
+			TARGET(OP_##name) {								\
+				FETCH_AB();									\
+				STACK_PUSH(CIF(fxa.val op fxb.val).ptr);	\
+			}												\
+			NEXT();
+
+			COMPARE_TARGET(EQ, ==);
+
+			COMPARE_TARGET(GT, >);
+
+			COMPARE_TARGET(LT, <);
+
+#define ARITHMETIC_TARGET(name, op)				\
+			TARGET(OP_##name) {					\
+				FETCH_AB();						\
+				fxc.val = fxa.val op fxb.val;	\
+				STACK_PUSH(fxc.ptr);			\
+			}									\
+			NEXT();
+
+			ARITHMETIC_TARGET(MOD, %);
+
+			ARITHMETIC_TARGET(DIV, /);
+
+			ARITHMETIC_TARGET(MUL, *);
+
+			ARITHMETIC_TARGET(ADD, +);
+
+			ARITHMETIC_TARGET(SUB, -);
+
+			TARGET(OP_CONS) {
+				obj_t b = STACK_POP();
+				obj_t a = STACK_POP();
+				STACK_PUSH(_cons(&thread->heap.allocator, &a, &b));
+			}
+			NEXT();
+
+			TARGET(OP_CAR) {
+				obj_t p = STACK_POP();
+				if (!IS_PAIR(p))
+					THREAD_ERROR("expected pair\n");
+				pair_t *pair = PTR(p);
+				STACK_PUSH(pair->car.ptr);
+			}
+			NEXT();
+
+			TARGET(OP_CDR) {
+				obj_t p = STACK_POP();
+				if (!IS_PAIR(p))
+					THREAD_ERROR("expected pair\n");
+				pair_t *pair = PTR(p);
+				STACK_PUSH(pair->cdr.ptr);
+			}
 			NEXT();
 		}
 	}

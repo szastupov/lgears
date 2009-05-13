@@ -1,78 +1,148 @@
+#|
+ | This file is part of lGears scheme system
+ | Copyright (C) 2009 Stepan Zastupov <redchrom@gmail.com>
+ |
+ | This program is free software; you can redistribute it and/or
+ | modify it under the terms of the GNU Lesser General Public
+ | License as published by the Free Software Foundation; either
+ | version 3 of the License, or (at your option) any later version.
+ |
+ | This program is distributed in the hope that it will be useful,
+ | but WITHOUT ANY WARRANTY; without even the implied warranty of
+ | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ | Lesser General Public License for more details.
+ |
+ | You should have received a copy of the GNU Lesser General
+ | Public Licens along with this program, if not; see
+ | <http://www.gnu.org/licenses>.
+ |#
+
+;;;
+;;; TODO make it more generic
+;;;
+
 (library (core.arithmetic)
-  (export + * - / = < > min max abs zero? positive? odd? even?)
+  (export + f-add * f-mul - f-sub / f-div mod < f-< > f-> = f-=)
   (import (core.forms)
           (core.sequence))
 
-  (define (+ . args)
-    (fold-left $+ 0 args))
+  (define (f-add . args)
+    (fold-left (lambda (x y)
+                 ($+ x y))
+               0 args))
 
-  (define (* . args)
-    (fold-left $* 1 args))
+  (define (f-mul . args)
+    (fold-left (lambda (x y)
+                 ($* x y))
+               1 args))
 
-  (define (- init . args)
+  (define (f-sub init . args)
     (if (null? args)
         ($- 0 init)
-        (fold-left $- init args)))
+        (fold-left (lambda (x y)
+                     ($- x y))
+                   init args)))
 
-  (define (/ init . args)
+  (define (f-div init . args)
     (if (null? args)
         ($/ 1 init)
-        (fold-left $/ init args)))
+        (fold-left (lambda (x y)
+                     ($/ x y))
+                   init args)))
 
-  (define (= init . args)
-    (let loop ((arg args))
-      (cond ((null? arg)
-             #t)
-            (($= init (car arg))
-             (loop (cdr arg)))
-            (else #f))))
+  (define-syntax +
+    (lambda (x)
+      (syntax-case x ()
+        ((_) #'0)
+        ((_ a) #'a)
+        ((_ a b) #'($+ a b))
+        ((_ a b c ...) #'(+ ($+ a b) c ...))
+        (_ #'f-add))))
 
-  (define (cmp op init args)
+  (define-syntax *
+    (lambda (x)
+      (syntax-case x ()
+        ((_) #'1)
+        ((_ a) #'a)
+        ((_ a b) #'($* a b))
+        ((_ a b c ...) #'(* ($* a b) c ...))
+        (_ #'f-mul))))
+
+  (define-syntax -
+    (lambda (x)
+      (syntax-case x ()
+        ((_) (syntax-error x "required at least 1 argument"))
+        ((_ a) #'($- 0 a))
+        ((_ a b) #'($- a b))
+        ((_ a b c ...) #'(- ($- a b) c ...))
+        (_ #'f-sub))))
+
+  (define-syntax /
+    (lambda (x)
+      (syntax-case x ()
+        ((_) (syntax-error x "required at least 1 argument"))
+        ((_ a) #'($/ 1 a))
+        ((_ a b) #'($/ a b))
+        ((_ a b c ...) #'(/ ($/ a b) c ...))
+        (_ #'f-div))))
+
+  (define-syntax mod
+    (lambda (x)
+      (syntax-case x ()
+        ((_ a b) #'($% a b))
+        (a (if (identifier? #'a)
+               #'(lambda (x y)
+                   ($% x y))
+               (syntax-error x "invalid syntax"))))))
+
+  (define (cmp proc init args)
     (let loop ((a init)
                (arg args))
-      (cond ((null? arg)
-             #t)
-            ((op a (car arg))
+      (cond ((null? arg) #t)
+            ((proc a (car arg))
              (loop (car arg) (cdr arg)))
             (else #f))))
 
-  (define (< init . args)
-    (cmp $< init args))
+  (define (f-< init . args)
+    (cmp (lambda (x y)
+           ($< x y))
+         init args))
 
-  (define (> init . args)
-    (cmp $> init args))
+  (define-syntax <
+    (lambda (x)
+      (syntax-case x ()
+        ((_) (syntax-error x "required at least 1 argument"))
+        ((_ a) '#t)
+        ((_ a b) #'($< a b))
+        ((_ a b c ...) #'(and ($< a b) (< c ...)))
+        (_ #'f-<))))
 
-  (define (find-m op init args)
-    (fold-left (lambda (x y)
-                 (if (op y x) y x))
-               init args))
+  (define (f-> init . args)
+    (cmp (lambda (x y)
+           ($> x y))
+         init args))
 
-  (define (min init . args)
-    (find-m < init args))
+  (define-syntax >
+    (lambda (x)
+      (syntax-case x ()
+        ((_) (syntax-error x "required at least 1 argument"))
+        ((_ a) '#t)
+        ((_ a b) #'($> a b))
+        ((_ a b c ...) #'(and ($> a b) (> c ...)))
+        (_ #'f->))))
 
-  (define (max init . args)
-    (find-m > init args))
+  (define (f-= init . args)
+    (cmp (lambda (x y)
+           ($= x y))
+         init args))
 
-  (define (abs x)
-    (if (> x 0)
-        x
-        (- x)))
-
-  (define (zero? x)
-    (= x 0))
-
-  (define (positive? x)
-    (> x 0))
-
-  (define (negative? x)
-    (< x 0))
-
-  (define (odd? x)
-    (not (= (mod x 2) 0)))
-
-  (define (even? x)
-    (= (mod x 2) 0))
-
-  (display "loaded core.arith\n")
+  (define-syntax =
+    (lambda (x)
+      (syntax-case x ()
+        ((_) (syntax-error x "required at least 1 argument"))
+        ((_ a) '#t)
+        ((_ a b) #'($= a b))
+        ((_ a b c ...) #'(and ($= a b) (= c ...)))
+        (_ #'f-=))))
 
   )

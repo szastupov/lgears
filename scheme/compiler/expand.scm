@@ -225,6 +225,9 @@
                             identifier?
                             datum->syntax
                             generate-temporaries)
+                    ;; For compatibility
+                    (rename (rnrs base)
+                            (cons $cons))
                     (compiler expand)
                     (compiler syntax-core)))
 

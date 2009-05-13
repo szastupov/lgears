@@ -34,9 +34,6 @@
   ;; (name side-effect? change-cont?)
   (define primitives-builtin
     '((display #t #f)
-      (car #f #f)
-      (cdr #f #f)
-      (cons #f #f)
       (__exit #t #f)
       (call/cc #t #t)
       (apply #f #t)

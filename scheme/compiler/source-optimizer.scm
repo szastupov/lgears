@@ -31,6 +31,8 @@
              (cond ((assq (car node) primitives-builtin)
                     => (lambda (res)
                          (not (or (cadr res) (caddr res)))))
+                   ((memq (car node) primitives-operators)
+                    #t)
                    (else #f)))))
 
   (define (optimize-body body)

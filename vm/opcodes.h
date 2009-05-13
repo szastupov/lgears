@@ -17,6 +17,18 @@
 #define FUNC_CALL	0x9	/* Call function */
 #define SET_LOCAL	0xa	/* Assign new value to local binding */
 #define SET_BIND	0xb	/* Asign new value to non-local binding */
+#define OP_CONS	0xc	/* cons */
+#define OP_CAR	0xd	/* car */
+#define OP_CDR	0xe	/* cdr */
+#define OP_SUB	0xf	/* - */
+#define OP_ADD	0x10	/* + */
+#define OP_MUL	0x11	/* * */
+#define OP_DIV	0x12	/* / */
+#define OP_MOD	0x13	/* % */
+#define OP_LT	0x14	/* < */
+#define OP_GT	0x15	/* > */
+#define OP_EQ	0x16	/* = */
+#define OP_NOT	0x17	/* ! */
 
 #define OT_FIXNUM	0x0	/* Fixed number */
 #define OT_CHARACTER	0x1	/* Character */
@@ -44,6 +56,18 @@ static inline const char* opcode_name(int code)
 		OP_CASE(FUNC_CALL);
 		OP_CASE(SET_LOCAL);
 		OP_CASE(SET_BIND);
+		OP_CASE(OP_CONS);
+		OP_CASE(OP_CAR);
+		OP_CASE(OP_CDR);
+		OP_CASE(OP_SUB);
+		OP_CASE(OP_ADD);
+		OP_CASE(OP_MUL);
+		OP_CASE(OP_DIV);
+		OP_CASE(OP_MOD);
+		OP_CASE(OP_LT);
+		OP_CASE(OP_GT);
+		OP_CASE(OP_EQ);
+		OP_CASE(OP_NOT);
 	}
 	return "unknown";
 }

@@ -22,12 +22,18 @@
   (import (rnrs)
           (only (core) pretty-print) ; This works only for ypsilon
           (compiler gen-name)
+          (compiler primitives-info)
           (format))
+
+  (define (simple-operation? args)
+    (for-all self-eval? args))
 
   (define (self-eval? node)
     (or (not (pair? node))
         (and (pair? node)
-             (eq? (car node) 'quote))))
+             (eq? (car node) 'quote))
+        (and (operation? node)
+             (simple-operation? (cdr node)))))
 
   (define (inlinable? node)
     (and (pair? node)
@@ -129,10 +135,13 @@
                               name
                               `(lambda (,name)
                                  ,@(splice-begin (list res)))))
-                 (expr `(,(car rlargs) ,control ,@(cdr rlargs))))
+                 (expr (if (operation? rlargs)
+                           `(,control ,rlargs)
+                           `(,(car rlargs) ,control ,@(cdr rlargs)))))
             ;;; Clue everything
             (fold-left (lambda (prev x n)
-                         (if (or (self-eval? x) (inlinable? x))
+                         (if (or (self-eval? x)
+                                 (inlinable? x))
                            prev
                            (convert prev x n)))
                        expr args largs))))))

@@ -18,23 +18,32 @@
  |#
 
 (library (compiler primitives-info)
-  (export primitives-builtin)
-  (import (rnrs base))
+  (export primitives-builtin primitives-operators operation?)
+  (import (rnrs base)
+          (rnrs lists))
+
+  (define primitives-operators
+    '($cons $car $cdr $- $+ $* $/ $% $< $> $= $!))
+
+  (define (operation? node)
+    (and (pair? node)
+         (symbol? (car node))
+         (memq (car node) primitives-operators)))
 
   ;; The table of builtin functions which also describe functions safity
   ;; (name side-effect? change-cont?)
   (define primitives-builtin
     '((display #t #f)
+      (car #f #f)
+      (cdr #f #f)
+      (cons #f #f)
       (__exit #t #f)
       (call/cc #t #t)
       (apply #f #t)
-      (cons #f #f)
       (list #f #f)
       ($make-list #f #f)
       (list? #f #f)
       (length #f #f)
-      (car #f #f)
-      (cdr #f #f)
       (void #f #f)
       (char->integer #f #f)
       (integer->char #f #f)
@@ -46,15 +55,6 @@
       (number? #f #f)
       (pair? #f #f)
       (symbol? #f #f)
-      ($+ #f #f)
-      ($- #f #f)
-      ($* #f #f)
-      ($/ #f #f)
-      (mod #f #f)
-      ($= #f #f)
-      ($< #f #f)
-      ($> #f #f)
-      (fxior #f #f)
       (vector #f #f)
       (vector? #f #f)
       (vector-length #f #f)

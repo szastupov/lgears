@@ -15,6 +15,18 @@ static const void* opcode_targets[] = {
 	&&TARGET_FUNC_CALL,
 	&&TARGET_SET_LOCAL,
 	&&TARGET_SET_BIND,
+	&&TARGET_OP_CONS,
+	&&TARGET_OP_CAR,
+	&&TARGET_OP_CDR,
+	&&TARGET_OP_SUB,
+	&&TARGET_OP_ADD,
+	&&TARGET_OP_MUL,
+	&&TARGET_OP_DIV,
+	&&TARGET_OP_MOD,
+	&&TARGET_OP_LT,
+	&&TARGET_OP_GT,
+	&&TARGET_OP_EQ,
+	&&TARGET_OP_NOT,
 };
 
 #endif

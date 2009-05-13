@@ -371,6 +371,12 @@
 	  `(set! ,(expand a r)
 			 ,(expand b r)))))
 
+  (define (exp-operation x r)
+    (syntax-match
+     x ()
+     ((op a b) `(op ,(expand a r)
+                    ,(expand b r)))))
+
   (define (exp-begin x r)
 	(syntax-match
 	 x ()
@@ -555,5 +561,6 @@
 								 (begin . ,exp-begin)
 								 (syntax . ,exp-syntax)
 								 (syntax-case . ,exp-syntax-case)
+                                 ;; TODO add operator protections
 								 ))))
   )

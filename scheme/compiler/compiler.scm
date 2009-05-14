@@ -229,7 +229,10 @@
                   (eq? (caadr node) 'lambda))
              (cont-safe? (car node))))
 
-      (define (rewrite-cont args)
+      (define (lambda-call? func)
+        (eq? (caar func) 'LOAD_CLOSURE))
+
+      (define (rewrite-func args)
         (cons `(LOAD_FUNC ,(cadar args))
               (cdr args)))
 
@@ -240,9 +243,11 @@
 								   (compile env x))
 								 (cdr node))))
 		  `(,@(if (optimize-cont? node)
-                  (rewrite-cont args)
+                  (rewrite-func args)
                   args)
-            ,@func
+            ,@(if (lambda-call? func)
+                  (rewrite-func func)
+                  func)
             (FUNC_CALL ,argc))))
 
 	  (define (compile-assigment env node)

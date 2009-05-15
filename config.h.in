@@ -1,0 +1,4 @@
+#cmakedefine FATAL_SAFE_ASSERT 1
+#cmakedefine DEBUG_TRACE_OPCODE 1
+#cmakedefine COMPUTED_GOTO 1
+#cmakedefine CHECK_OPSTACK 1

@@ -1,6 +1,19 @@
 project(lgears)
 cmake_minimum_required(VERSION 2.6)
 
+include(FindThreads)
+
+option(FATAL_SAFE_ASSERT "Die when safe assertion failed" ON)
+option(DEBUG_TRACE_OPCODE "Trace opcode" OFF)
+option(COMPUTED_GOTO "Use 'threaded' code" ON)
+option(CHECK_OPSTACK "Check operand stack for overflow" ON)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+
+add_definitions(-Wall)
+set(CMAKE_C_FLAGS_DEBUG "-g3")
+set(CMAKE_C_FLAGS_RELEASE "-O3")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 add_subdirectory(vm)
 
 install(DIRECTORY scheme

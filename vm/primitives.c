@@ -195,7 +195,7 @@ void ns_install_native(hash_table_t *tbl,
 {
 	ptr_t ptr;
 	FUNC_INIT(ptr, nt);
-	hash_table_insert(tbl, name, ptr.ptr); 
+	hash_table_insert(tbl, name, ptr.ptr);
 }
 
 static int char_to_integer(vm_thread_t *thread, obj_t *chr)

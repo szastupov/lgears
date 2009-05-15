@@ -51,6 +51,9 @@ typedef struct {
 
 typedef struct linked_mem_s {
 	struct linked_mem_s *next;
+#if __WORDSIZE == 32
+	char pad[4];
+#endif
 	block_hdr_t hdr;
 } linked_mem_t;
 

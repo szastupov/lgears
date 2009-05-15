@@ -36,14 +36,14 @@ typedef int (*native_binary)(vm_thread_t*, obj_t*, obj_t*);
 typedef int (*native_ternary)(vm_thread_t*, obj_t*, obj_t*, obj_t*);
 typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 
-#define MAKE_NATIVE(func, farity, fargc, fswallow)	\
-	const native_func_t func##_nt = {					\
-		.hdr.type = func_native,					\
-		.hdr.argc = fargc+1,						\
-		.hdr.swallow = fswallow,					\
-		.arity = farity,							\
-		.fp = func,									\
-		.name = #func								\
+#define MAKE_NATIVE(func, farity, fargc, fswallow)					\
+	const native_func_t __attribute__((aligned(8))) func##_nt = {	\
+		.hdr.type = func_native,									\
+		.hdr.argc = fargc+1,										\
+		.hdr.swallow = fswallow,									\
+		.arity = farity,											\
+		.fp = func,													\
+		.name = #func												\
 	}
 
 #define MAKE_NATIVE_VARIADIC(func, fargc)		\

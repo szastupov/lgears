@@ -42,9 +42,9 @@
   (define libraries-root (library-manager-root))
 
   (define (exp-macro p x)
-	(let* ((m (make-mark))
-		   (xm (add-mark m x)))
-	  (add-mark m (extend-wrap-from xm (p xm)))))
+    (let* ((m (make-mark))
+           (xm (add-mark m x)))
+      (add-mark m (extend-wrap-from xm (p xm)))))
 
   (define (exp-core p x r)
 	(p x r))
@@ -240,28 +240,25 @@
                   (apply environment sys-env))))))
 
   ;; Sequentional macro compilation
-  (define (compile-i body env macro*)
+  (define (compile-i wrap env macro*)
 	(if (null? macro*)
-		(values (syntax->list body) env)
-		(let* ((compiled (make-macro (car macro*) env))
+		(values wrap env)
+		(let* ((compiled (make-macro (extend-wrap wrap (car macro*)) env))
 			   (label (make-label))
 			   (subst (add-subst (car compiled) label))
 			   (binding (macro-binding (cdr compiled))))
-		  (compile-i (extend-wrap (list subst) body)
+		  (compile-i (cons subst wrap)
 					 (extend-env label binding env)
-					 (if (null? (cdr macro*))
-						 '()
-						 (map (lambda (x)
-								(extend-wrap (list subst) x))
-							  (cdr macro*)))))))
+                     (cdr macro*)))))
 
   (define (extend-syntax env body)
 	(define (define-syntax? x)
 	  (and (syntax-pair? x)
 		   (eq? (syntax-object-expr (syntax-car x))
 				'define-syntax)))
-	(let-values (((macro body) (partition define-syntax? body)))
-	  (compile-i body env macro)))
+	(let*-values (((macro body) (partition define-syntax? body))
+                  ((wrap env) (compile-i '() env macro)))
+      (values body env wrap)))
 
   (define (scan-defines body)
 	(define (define? x)
@@ -276,17 +273,20 @@
 				   head)))
 		   defines)))
 
-  (define (expand-body env varlist new-vars body)
-	(let-values (((body env)
+  (define (expand-body src env varlist new-vars body)
+	(let-values (((body env wrap)
 				  (extend-syntax env (splice-begin body))))
-
 	  (let* ((defines (scan-defines body))
 			 (new-defines (gen-names defines))
 			 (env-vars (append varlist defines))
-			 (labels (gen-labels env-vars)))
+			 (labels (gen-labels env-vars))
+             (marks (wrap-marks (syntax-object-wrap src))))
+        (define (new-subst v l)
+          (make-subst (syntax-object-expr v) marks l))
 		(expand
 		 (extend-wrap
-		  (map add-subst env-vars labels)
+          (append (map new-subst env-vars labels)
+                  wrap)
 		  body)
 		 (fold-left (lambda (prev label v)
 					  (extend-env label
@@ -297,7 +297,7 @@
 
   (define (exp-lambda x env)
 	(define (expand-lambda varlist new-vars body)
-	  (expand-body env varlist new-vars body))
+	  (expand-body x env varlist new-vars body))
 	(syntax-match
 	 x ()
 	 ((lambda (varlist ...) body ...)
@@ -499,10 +499,10 @@
 
 	  (let*-values (((init-wrap init-env include)
 					 (resolve-imports imports))
-					((body env)
+					((body env wrap)
 					 (extend-syntax init-env (make-body body init-wrap))))
 
-		(let ((wrap (syntax-object-wrap (car body)))
+		(let ((wrap (append wrap init-wrap))
 			  (defines (strip (scan-defines body))))
 
 		  (define (extract-binding exprt)

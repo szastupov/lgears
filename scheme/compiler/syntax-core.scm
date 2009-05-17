@@ -54,9 +54,9 @@
           syntax->list
           syntax->pair
           syntax-length
-          top-marked?
           top-mark
           wrap-marks
+          wrap-subst
           same-marks?
           extend-wrap
           extend-wrap-from
@@ -179,25 +179,30 @@
 
   (define top-mark (make-mark))
 
-  (define (top-marked? wrap)
-    (and (not (null? wrap))
-         (or (eq? (car wrap) top-mark)
-             (top-marked? (cdr wrap)))))
+  (define (wrap-filter pred? wrap)
+    (let loop ((wrap wrap))
+      (if (null? wrap)
+          '()
+          (let ((w0 (car wrap)))
+            (if (pred? w0)
+                (cons w0 (loop (cdr wrap)))
+                (loop (cdr wrap)))))))
 
   (define (wrap-marks wrap)
-    (if (null? wrap)
-      '()
-      (let ((w0 (car wrap)))
-        (if (mark? w0)
-          (cons w0 (wrap-marks (cdr wrap)))
-          (wrap-marks (cdr wrap))))))
+    (wrap-filter mark? wrap))
+
+  (define (wrap-subst wrap)
+    (wrap-filter subst? wrap))
 
   (define (same-marks? m1* m2*)
-    (if (null? m1*)
-        (null? m2*)
-        (and (not (null? m2*))
-             (eq? (car m1*) (car m2*))
-             (same-marks? (cdr m1*) (cdr m2*)))))
+    (if (= (length m1*) (length m2*))
+        (let loop ((m1* m1*)
+                   (m2* m2*))
+          (if (null? m1*)
+              (null? m2*)
+              (and (not (null? m2*))
+                   (eq? (car m1*) (car m2*))
+                   (loop (cdr m1*) (cdr m2*)))))))
 
   (define (extend-wrap wrap x)
     (if (syntax-object? x)
@@ -235,6 +240,10 @@
           (else #f)))
 
   (define (find-label sym wrap)
+    ;; (if (> (length wrap) 1000)
+    ;;     (begin
+    ;;       (format #t "~a\n" (map subst-sym (wrap-subst wrap)))
+    ;;       (error 'find-label "too much" sym)))
     (let search ((wrap wrap)
                  (mark* (wrap-marks wrap)))
       (if (null? wrap)

@@ -56,7 +56,7 @@ static int make_bytevector(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	bytevector_t *bv = bv_new(&thread->heap, FIXNUM(*count));
 	memset(bv->data, FIXNUM(*fill), bv->size);
 
-	RESULT_PTR(make_ptr(bv, id_ptr));
+	RESULT_OBJ(make_ptr(bv, id_ptr));
 }
 MAKE_NATIVE_BINARY(make_bytevector);
 

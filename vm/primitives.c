@@ -50,7 +50,7 @@ void pair_repr(void *ptr)
 	printf(")");
 }
 
-void* _cons(allocator_t *al, obj_t *car, obj_t *cdr)
+obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 {
 	pair_t *pair = allocator_alloc(al, sizeof(pair_t), t_pair);
 	pair->car = *car;
@@ -71,22 +71,21 @@ void* _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 	return make_ptr(pair, al->id);
 }
 
-void* _list(heap_t *heap, obj_t *argv, int argc)
+obj_t _list(heap_t *heap, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
 
 	heap_require_blocks(heap, sizeof(pair_t), argc);
 	int i;
 	for (i = argc-1; i >= 0; i--)
-		res.ptr = _cons(&heap->allocator, &argv[i], &res);
+		res = _cons(&heap->allocator, &argv[i], &res);
 
-	return res.ptr;
+	return res;
 }
 
 static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	void *res = _list(&thread->heap, &argv[1], argc-1);
-	RESULT_PTR(res);
+	RESULT_OBJ(_list(&thread->heap, &argv[1], argc-1));
 }
 MAKE_NATIVE_VARIADIC(list, 0);
 
@@ -109,7 +108,7 @@ static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	heap_require_blocks(&thread->heap, sizeof(pair_t), size);
 	int i;
 	for (i = 0; i < size; i++)
-		res.ptr = _cons(&thread->heap.allocator, fill, &res);
+		res = _cons(&thread->heap.allocator, fill, &res);
 
 	RESULT_OBJ(res);
 }
@@ -134,7 +133,7 @@ void continuation_visit(visitor_t *vs, void *data)
 	vs->visit(vs, &cont->func);
 }
 
-static void *continuation_new(heap_t *heap, obj_t *func)
+static obj_t continuation_new(heap_t *heap, obj_t *func)
 {
 	continuation_t *cont = heap_alloc(heap, sizeof(continuation_t), t_cont);
 	cont->func = *func;
@@ -147,7 +146,7 @@ static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 	SAFE_ASSERT(IS_FUNC(argv[1]));
 
 	// Push continuation
-	STACK_PUSH(argv[0].ptr);
+	STACK_PUSH(argv[0]);
 	STACK_PUSH(continuation_new(&thread->heap, &argv[0]));
 
 	thread->tramp.argc = 2;
@@ -163,13 +162,13 @@ static int apply(vm_thread_t *thread, obj_t *argv, int argc)
 	SAFE_ASSERT(IS_TYPE(argv[2], t_pair));
 
 	// Push continuation
-	STACK_PUSH(argv[0].ptr);
+	STACK_PUSH(argv[0]);
 
 	// Push arguments from list
 	pair_t *pair = PTR(argv[2]);
 	int cargc = 1;
 	while (1) {
-		STACK_PUSH(pair->car.ptr);
+		STACK_PUSH(pair->car);
 		cargc++;
 		if (IS_TYPE(pair->cdr, t_pair))
 			pair = PTR(pair->cdr);

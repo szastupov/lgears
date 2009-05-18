@@ -146,12 +146,12 @@ DEFINE_TYPE(char_t, short val);
  * Utilites
  */
 
-static inline void* make_ptr(void *ptr, int tag)
+static inline obj_t make_ptr(void *ptr, int tag)
 {
 	ptr_t p;
 	PTR_SET(p, ptr);
 	p.tag = tag;
-	return p.ptr;
+	return p.obj;
 }
 
 typedef struct visitor_s {

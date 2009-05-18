@@ -38,8 +38,8 @@ typedef struct {
 
 void pair_repr(void *ptr);
 void pair_visit(visitor_t *vs, void *data);
-void* _list(heap_t *heap, obj_t *argv, int argc);
-void* _cons(allocator_t *al, obj_t *car, obj_t *cdr);
+obj_t _list(heap_t *heap, obj_t *argv, int argc);
+obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr);
 
 #define IS_PAIR(obj) IS_TYPE(obj, t_pair)
 

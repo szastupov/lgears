@@ -112,11 +112,11 @@ static void bindmap_init(obj_t *bindmap, env_t *senv, func_t *func)
 	int i;
 	for (i = 0; i < func->bmcount; i++) {
 		env_t *env = env_display(senv, func->bindmap[i]);
-		bindmap[i].ptr = make_ptr(env, id_ptr);
+		bindmap[i] = make_ptr(env, id_ptr);
 	}
 }
 
-static void* closure_new(heap_t *heap, func_t *func, env_t **env)
+static obj_t closure_new(heap_t *heap, func_t *func, env_t **env)
 {
 	size_t size = sizeof(closure_t);
 	if (func->bmcount)
@@ -151,11 +151,11 @@ static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 	}
 
 	func_t *func = MODULE_FUNC(mod, mod->entry_point);
-	void *enter = make_ptr(func, id_func);
+	obj_t enter = make_ptr(func, id_func);
 
-	STACK_PUSH(argv[0].ptr);	/* Push continuation */
+	STACK_PUSH(argv[0]);	/* Push continuation */
 	thread->tramp.argc = 1;
-	thread->tramp.func.ptr = enter;
+	thread->tramp.func = enter;
 
 	return RC_OK;
 }
@@ -186,7 +186,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 			STACK_PUSH(_list(&thread->heap, args, i));
 			op_arg -= (i-1);
 		} else {
-			STACK_PUSH(cnull.ptr);
+			STACK_PUSH(cnull.obj);
 			op_arg++;
 		}
 	}
@@ -292,11 +292,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
-				STACK_PUSH(thread->objects[op_arg].ptr);
+				STACK_PUSH(thread->objects[op_arg]);
 			NEXT();
 
 			TARGET(LOAD_CONST)
-				STACK_PUSH(func->module->consts[op_arg].ptr);
+				STACK_PUSH(func->module->consts[op_arg]);
 			NEXT();
 
 			TARGET(JUMP_IF_FALSE)
@@ -414,7 +414,7 @@ dispatch_func:
 			TARGET(LOAD_BIND) {
 				bind_t *bind = &func->bindings[op_arg];
 				env_t *env = ENV(thread->bindmap[bind->up]);
-				STACK_PUSH(env->objects[bind->idx].ptr);
+				STACK_PUSH(env->objects[bind->idx]);
 			}
 			NEXT();
 
@@ -426,27 +426,27 @@ dispatch_func:
 			NEXT();
 
 			TARGET(PUSH_BOOL)
-				STACK_PUSH(CIF(op_arg).ptr);
+				STACK_PUSH(CIF(op_arg).obj);
 			NEXT();
 
 			TARGET(PUSH_NULL)
-				STACK_PUSH(cnull.ptr);
+				STACK_PUSH(cnull.obj);
 			NEXT();
 
 			TARGET(OP_NOT)
-				STACK_PUSH(CIF(IS_FALSE(STACK_POP())).ptr);
+				STACK_PUSH(CIF(IS_FALSE(STACK_POP())).obj);
 			NEXT();
 
 			TARGET(OP_EQ_PTR) {
 				FETCH_AB();		/* It's ok to use fixnum */
-				STACK_PUSH(CIF(fxa.ptr == fxb.ptr).ptr);
+				STACK_PUSH(CIF(fxa.ptr == fxb.ptr).obj);
 			}
 			NEXT();
 
 #define COMPARE_TARGET(name, op)							\
 			TARGET(OP_##name) {								\
 				FETCH_AB();									\
-				STACK_PUSH(CIF(fxa.val op fxb.val).ptr);	\
+				STACK_PUSH(CIF(fxa.val op fxb.val).obj);	\
 			}												\
 			NEXT();
 
@@ -460,7 +460,7 @@ dispatch_func:
 			TARGET(OP_##name) {					\
 				FETCH_AB();						\
 				fxc.val = fxa.val op fxb.val;	\
-				STACK_PUSH(fxc.ptr);			\
+				STACK_PUSH(fxc.obj);			\
 			}									\
 			NEXT();
 
@@ -486,7 +486,7 @@ dispatch_func:
 				if (!IS_PAIR(p))
 					THREAD_ERROR("expected pair\n");
 				pair_t *pair = PTR(p);
-				STACK_PUSH(pair->car.ptr);
+				STACK_PUSH(pair->car);
 			}
 			NEXT();
 
@@ -495,7 +495,7 @@ dispatch_func:
 				if (!IS_PAIR(p))
 					THREAD_ERROR("expected pair\n");
 				pair_t *pair = PTR(p);
-				STACK_PUSH(pair->cdr.ptr);
+				STACK_PUSH(pair->cdr);
 			}
 			NEXT();
 		}
@@ -504,7 +504,7 @@ dispatch_func:
 
 static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void* make_symbol(const char *str)
+obj_t make_symbol(const char *str)
 {
 	pthread_mutex_lock(&symbol_mutex);
 	void *res = hash_table_lookup(&sym_table, str);

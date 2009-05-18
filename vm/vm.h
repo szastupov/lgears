@@ -110,12 +110,12 @@ typedef struct {
 } vm_thread_t;
 
 #if CHECK_OPSTACK
-static inline void __stack_push(vm_thread_t *thread, void *ptr)
+static inline void __stack_push(vm_thread_t *thread, obj_t obj)
 {
 	if (thread->op_stack_idx == thread->op_stack_size-1)
 		FATAL("stack overflow (push)\n");
 
-	thread->opstack[thread->op_stack_idx++].ptr = ptr;
+	thread->opstack[thread->op_stack_idx++] = obj;
 }
 
 static inline obj_t __stack_pop(vm_thread_t *thread)
@@ -128,11 +128,11 @@ static inline obj_t __stack_pop(vm_thread_t *thread)
 #define STACK_PUSH(n) __stack_push(thread, n)
 #define STACK_POP() __stack_pop(thread)
 #else
-#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++].ptr = n
+#define STACK_PUSH(n) thread->opstack[thread->op_stack_idx++] = n
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
 #endif
 
-void* make_symbol(const char *str);
+obj_t make_symbol(const char *str);
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread);
 void thread_get_roots(visitor_t *visitor, vm_thread_t *thread);
 

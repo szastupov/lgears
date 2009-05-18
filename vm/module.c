@@ -189,7 +189,7 @@ static const char* code_read_string(code_t *code)
 	return res;
 }
 
-static void* fasl_read_datum(code_t *code, allocator_t *al)
+static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 {
 	int type = code_read8(code);
 	switch (type) {
@@ -197,13 +197,13 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 		fixnum_t n;
 		int64_t val = code_read64(code);
 		FIXNUM_INIT(n, val);
-		return n.ptr;
+		return n.obj;
 	}
 	case OT_CHARACTER: {
 		char_t c;
 		uint16_t val = code_read16(code);
 		CHAR_INIT(c, val);
-		return c.ptr;
+		return c.obj;
 	}
 	case OT_SYMBOL: {
 		const char *str = code_read_string(code);
@@ -215,29 +215,30 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 	}
 	case OT_STATIC: {
 		const char *str = code_read_string(code);
-		void *res = hash_table_lookup(&builtin, str);
-		if (!res)
+		obj_t res;
+		res.ptr = hash_table_lookup(&builtin, str);
+		if (!res.ptr)
 			FATAL("Invalid static %s\n", str);
 		return res;
 	}
 	case OT_NULL:
-		return cnull.ptr;
+		return cnull.obj;
 	case OT_BOOLEAN:
-		return CIF(code_read8(code)).ptr;
+		return CIF(code_read8(code)).obj;
 	case OT_PAIR_BEGIN: {
 		int fresh = 1;
 		obj_t res, new;
 		while (1)
 			if (code_peek8(code) == OT_PAIR_END) {
 				code_read8(code);
-				return res.ptr;
+				return res;
 			} else {
-				new.ptr = fasl_read_datum(code, al);
+				new = fasl_read_datum(code, al);
 				if (fresh) {
 					res = new;
 					fresh = 0;
 				} else
-					res.ptr = _cons(al, &new, &res);
+					res = _cons(al, &new, &res);
 			}
 	}
 	case OT_VECTOR: {
@@ -245,14 +246,12 @@ static void* fasl_read_datum(code_t *code, allocator_t *al)
 		vector_t *vec = vector_new(al, size);
 		int i;
 		for (i = 0; i < size; i++)
-			vec->objects[i].ptr = fasl_read_datum(code, al);
+			vec->objects[i] = fasl_read_datum(code, al);
 		return make_ptr(vec, id_const_ptr);
 	}
 	default:
 		FATAL("unhandled const type: %s\n", object_type_name(type));
 	}
-
-	return NULL;
 }
 
 static void load_consts(module_t *mod, code_t *code)
@@ -260,7 +259,7 @@ static void load_consts(module_t *mod, code_t *code)
 	int ccount = code_read8(code);
 	mod->consts = mem_alloc(ccount*sizeof(obj_t));
 	int loaded = 0;
-#define PUSH_CONST(p) mod->consts[loaded++].ptr = p
+#define PUSH_CONST(p) mod->consts[loaded++] = p
 
 	while (loaded < ccount) {
 		PUSH_CONST(fasl_read_datum(code, &mod->allocator.al));

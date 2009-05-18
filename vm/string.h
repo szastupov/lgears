@@ -27,7 +27,7 @@ typedef struct {
 
 #define IS_STRING(obj) IS_TYPE(obj, t_string)
 
-void* _string(allocator_t *alloc, char *str, int copy);
+obj_t _string(allocator_t *alloc, char *str, int copy);
 void string_repr(void *ptr);
 void string_visit(visitor_t *vs, void *data);
 void ns_install_string(hash_table_t *tbl);

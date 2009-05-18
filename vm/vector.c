@@ -61,7 +61,7 @@ static int vector(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 0; i < count; i++)
 		vec->objects[i] = argv[i+1];
 
-	RESULT_PTR(make_ptr(vec, id_ptr));
+	RESULT_OBJ(make_ptr(vec, id_ptr));
 }
 MAKE_NATIVE_VARIADIC(vector, 0);
 
@@ -74,7 +74,7 @@ static int make_vector(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	for (i = 0; i < vec->size; i++)
 		vec->objects[i] = *fill;
 
-	RESULT_PTR(make_ptr(vec, id_ptr));
+	RESULT_OBJ(make_ptr(vec, id_ptr));
 }
 MAKE_NATIVE_BINARY(make_vector);
 
@@ -124,8 +124,7 @@ static int vector_to_list(vm_thread_t *thread, obj_t *obj)
 {
 	SAFE_ASSERT(IS_VECTOR(*obj));
 	vector_t *vec = PTR(*obj);
-	void *res = _list(&thread->heap, vec->objects, vec->size);
-	RESULT_PTR(res);
+	RESULT_OBJ(_list(&thread->heap, vec->objects, vec->size));
 }
 MAKE_NATIVE_UNARY(vector_to_list);
 

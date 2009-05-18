@@ -62,11 +62,7 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 	MAKE_NATIVE(func, 3, 3, 0)
 
 #define RESULT_OBJ(obj)							\
-	STACK_PUSH(obj.ptr);						\
-	return RC_OK;
-
-#define RESULT_PTR(p)							\
-	STACK_PUSH(p);								\
+	STACK_PUSH(obj);							\
 	return RC_OK;
 
 #define RESULT_FIXNUM(num) {					\

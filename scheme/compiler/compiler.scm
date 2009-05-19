@@ -125,18 +125,6 @@
   (define (env-ref env name)
 	(hashtable-ref (env-tbl env) name #f))
 
-  (define-record-type store
-	(fields (mutable head) (mutable count))
-	(protocol
-	  (lambda (new)
-		(lambda () (new '() 0)))))
-
-  (define (store-push! store val)
-	(let ((res (store-count store)))
-	  (store-count-set! store (+ 1 res))
-	  (store-head-set! store (cons val (store-head store)))
-	  res))
-
   (define (map-append proc lst)
 	(if (null? lst)
 	  '()
@@ -149,7 +137,7 @@
        (write dt port))))
 
   (define (start-compile root)
-	(let ((code-store (make-store))
+	(let ((code-store '())
 		  (consts '()))
 
 	  (define (make-const datum)
@@ -161,23 +149,30 @@
 									consts))
 				 idx))))
 
+      (define (push-code code)
+        (let ((idx (length code-store)))
+          (set! code-store (cons code code-store))
+          idx))
+
 	  (define (env-lookup env name)
 		(let loop ((step 0)
 				   (cur-env env))
-		  (if (null? cur-env)
-			  (cond ((assq name static-variables)
-					 => (lambda (res)
-						  `(STATIC . ,(make-const (cdr res)))))
-					(else
-					 (error 'env-lookup "undefined" name)))
-			  (let ((res (env-ref cur-env name)))
-				(if res
-					(if (zero? step)
-						`(LOCAL . ,res)
-						(begin
-						  (env-onheap-set! cur-env #t)
-						  `(BIND . ,(env-bind env (env-depth cur-env) res))))
-					(loop (+ step 1) (env-parent cur-env)))))))
+          (cond ((null? cur-env)
+                 (cond ((assq name static-variables)
+                        => (lambda (res)
+                             `(STATIC . ,(make-const (cdr res)))))
+                       (else
+                        (error 'env-lookup "undefined" name))))
+                ((env-ref cur-env name)
+                 => (lambda (res)
+                      (if (zero? step)
+                          `(LOCAL . ,res)
+                          (begin
+                            (env-onheap-set! cur-env #t)
+                            `(BIND . ,(env-bind env (env-depth cur-env)
+                                                res))))))
+                (else
+                 (loop (+ step 1) (env-parent cur-env))))))
 
 	  (define (split-extend node)
 		(if (and (pair? (car node))
@@ -201,12 +196,8 @@
 	  (define (compile-func parent args body)
 		(let* ((env (make-env parent args))
 			   (compiled (compile-body env body))
-			   (idx (store-push! code-store
-								 (make-func compiled env))))
+			   (idx (push-code (make-func compiled env))))
 		  `((LOAD_CLOSURE ,idx))))
-		  ;(if (null? (env-bindings env))
-			;`((LOAD_FUNC ,idx))
-			;`((LOAD_CLOSURE ,idx)))))
 
 	  (define (compile-if env node)
 		(let ((pred (compile env (car node)))
@@ -310,8 +301,8 @@
 					(else
 					 (error 'compile "unknown" res)))))))
 
-	  (let ((entry-point (compile '() root)))
+	  (compile '() root)
 		(make-ilr (map car (reverse consts))
-				  (reverse (store-head code-store))
-				  (cadar entry-point)))))
+				  (reverse code-store)
+				  (- (length code-store) 1))))
   )

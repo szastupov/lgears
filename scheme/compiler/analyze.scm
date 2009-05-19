@@ -19,12 +19,14 @@
 
 (library (compiler analyze)
   (export analyze tagged? binding-ref-count function? function-args
-          function-body self-eval?)
+          function-body self-eval? reference? reference-bind
+          binding-value binding-value-set! function-bindings)
   (import (rnrs))
 
   (define-record-type binding
     (fields (mutable ref-count)
-            (mutable mutate)))
+            (mutable mutate)
+            (mutable value)))
 
   (define-record-type env
     (fields prev (mutable bindings)))
@@ -38,7 +40,7 @@
   (define (env-lookup env name)
     (cond ((null? env) #f)
           ((assq name (env-bindings env))
-           => cdr)
+           => (lambda (res) res))
           (else (env-lookup (env-prev env)
                             name))))
 
@@ -46,8 +48,12 @@
     (binding-ref-count-set!
      b (+ 1 (binding-ref-count b))))
 
+  (define (fresh-reference b)
+    (binding-incref! (cdr b))
+    (make-reference (cdr b)))
+
   (define (fresh-bind name)
-    (cons name (make-binding 0 #f)))
+    (cons name (make-binding 0 #f name)))
 
   (define (make-bindings lst)
     (let loop ((lst lst))
@@ -71,9 +77,10 @@
   (define (analyze-assigment env node)
     (cond ((env-lookup env (cadr node))
            => (lambda (b)
-                (binding-mutate-set! b #t)
-                (binding-incref! b))))
-    node)
+                (binding-mutate-set! (cdr b) #t)
+                `(set! ,(fresh-reference b)
+                       ,(analyze env (caddr node)))))
+          (else node)))
 
   (define (analyze-define env node)
     (let ((bind (fresh-bind (cadr node))))
@@ -97,8 +104,8 @@
     (cond ((self-eval? node) node)
           ((symbol? node)
            (cond ((env-lookup env node)
-                  => binding-incref!))
-           node)
+                  => fresh-reference)
+                 (else node)))
           ((tagged? node 'lambda)
            (analyze-lambda env node))
           ((tagged? node 'set!)

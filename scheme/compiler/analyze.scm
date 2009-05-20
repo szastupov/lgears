@@ -18,9 +18,9 @@
  |#
 
 (library (compiler analyze)
-  (export analyze tagged? binding-ref-count function? function-args
+  (export analyze tagged? binding-ref-count function? function-args function-has-defines?
           function-body self-eval? reference? reference-bind
-          binding-value binding-value-set! function-bindings)
+          binding-value binding-mutate binding-value-set! function-bindings)
   (import (rnrs))
 
   (define-record-type binding
@@ -32,10 +32,25 @@
     (fields prev (mutable bindings)))
 
   (define-record-type function
-    (fields bindings args body))
+    (fields bindings args body has-defines?))
 
   (define-record-type reference
     (fields bind))
+
+  (define (tagged? node tag)
+    (and (pair? node)
+         (eq? (car node) tag)))
+
+  (define (define? node)
+    (tagged? node 'define))
+
+  (define (quote? node)
+    (tagged? node 'quote))
+
+  (define (self-eval? node)
+    (or (not (or (pair? node)
+                 (symbol? node)))
+        (quote? node)))
 
   (define (env-lookup env name)
     (cond ((null? env) #f)
@@ -68,11 +83,13 @@
     (let* ((env (make-env prev (make-bindings (cadr node))))
            (body (map (lambda (x)
                         (analyze env x))
-                      (cddr node))))
+                      (cddr node)))
+           (has-defines? (exists define? (cddr node))))
       (make-function
        (env-bindings env)
        (cadr node)
-       body)))
+       body
+       has-defines?)))
 
   (define (analyze-assigment env node)
     (cond ((env-lookup env (cadr node))
@@ -91,15 +108,6 @@
       `(define ,bind
          ,(analyze env (caddr node)))))
 
-  (define (tagged? node tag)
-    (and (pair? node)
-         (eq? (car node) tag)))
-
-  (define (self-eval? node)
-    (or (not (or (pair? node)
-                 (symbol? node)))
-        (tagged? node 'quote)))
-
   (define (analyze env node)
     (cond ((self-eval? node) node)
           ((symbol? node)
@@ -110,7 +118,7 @@
            (analyze-lambda env node))
           ((tagged? node 'set!)
            (analyze-assigment env node))
-          ((tagged? node 'define)
+          ((define? node)
            (analyze-define env node))
           ((pair? node)
            (cons (analyze env (car node))

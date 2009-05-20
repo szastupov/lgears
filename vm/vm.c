@@ -23,6 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <locale.h>
+#include <stdarg.h>
 
 #include "opcodes.h"
 #include "vm.h"
@@ -216,6 +217,37 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 	}
 }
 
+int push_exception_handler(vm_thread_t *thread, const char *msg, ...)
+{
+	char buf[256];
+	va_list ap;
+	va_start(ap, msg);
+	vsnprintf(buf, sizeof(buf), msg, ap);
+	va_end(ap);
+
+	if (!IS_PAIR(thread->exception_handlers))
+		goto bad_exception;
+	pair_t *pair = PTR(thread->exception_handlers);
+
+	if (!IS_FUNC(pair->car))
+		goto bad_exception;
+
+	obj_t obj = _string(&thread->heap.allocator, buf, 1);
+
+	obj_t cont = make_ptr((native_func_t*)&vm_exit_nt, id_func);
+	STACK_PUSH(cont);
+	STACK_PUSH(obj);
+	STACK_PUSH(pair->car);
+
+	thread->exception_handlers = pair->cdr;
+
+	return 2;
+
+bad_exception:
+	fprintf(stderr, "Unhandler VM error: `%s'\n", buf);
+	return 0;
+}
+
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	int16_t *opcode;
@@ -225,6 +257,13 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	fixnum_t fxa, fxb, fxc;
 	fxc.tag = id_fixnum;
 #define FETCH_AB() fxb.obj = STACK_POP(); fxa.obj = STACK_POP();
+
+#define RAISE(who, msg...)  {									\
+		op_arg = push_exception_handler(thread, who": "msg);	\
+		if (!op_arg)											\
+			return;												\
+		goto funcall;											\
+	}
 
 #if DEBUG_TRACE_OPCODE
 	void (*trace_func)();
@@ -269,6 +308,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 	thread->objects[0].ptr = hash_table_lookup(&builtin, "__exit");
 	thread->lib_cache = cnull.obj;
+	thread->exception_handlers = cnull.obj;
 
 	SET_TRACE();
 
@@ -312,7 +352,9 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				STACK_PUSH(make_ptr(MODULE_FUNC(func->module, op_arg), id_func));
 			NEXT();
 
-			TARGET(FUNC_CALL) {
+			TARGET(FUNC_CALL)
+				funcall:
+			{
 				ptr_t fp;
 				void *ptr;
 				fp.obj = STACK_POP();
@@ -332,7 +374,7 @@ dispatch_func:
 								op_arg--;
 								goto dispatch_func;
 							} else
-								THREAD_ERROR("got pointer but it isn't a closure or a continuation\n");
+								RAISE("got pointer but it isn't a closure or a continuation");
 						}
 						break;
 					case id_func:
@@ -341,16 +383,16 @@ dispatch_func:
 						thread->closure = NULL;
 						break;
 					default:
-						THREAD_ERROR("expected function or closure but got tag %d\n", fp.tag);
+						RAISE("call", "expected function or closure but got tag %d\n", fp.tag);
 				}
 
 				func_hdr_t *fhdr = (func_hdr_t*)ptr;
 				if (fhdr->swallow) {
 					if (op_arg < fhdr->argc)
-						THREAD_ERROR("try to pass %d args when at least %d requred\n", op_arg, fhdr->argc);
+						RAISE("call", "try to pass %d args when at least %d requred", op_arg-1, fhdr->argc-1);
 				} else {
 					if (op_arg != fhdr->argc)
-						THREAD_ERROR("try to pass %d args when %d requred\n", op_arg, fhdr->argc);
+						RAISE("call", "try to pass %d args when %d requred", op_arg-1, fhdr->argc-1);
 				}
 
 				switch (fhdr->type) {
@@ -374,7 +416,7 @@ dispatch_func:
 									/* Terminate thread */
 									return;
 								case RC_ERROR:
-									THREAD_ERROR("%s failed\n", func->name);
+									RAISE("call", "%s failed", func->name);
 									return;
 								case RC_OK:
 								default:
@@ -484,7 +526,7 @@ dispatch_func:
 			TARGET(OP_CAR) {
 				obj_t p = STACK_POP();
 				if (!IS_PAIR(p))
-					THREAD_ERROR("expected pair\n");
+					RAISE("car", "expected pair");
 				pair_t *pair = PTR(p);
 				STACK_PUSH(pair->car);
 			}
@@ -493,7 +535,7 @@ dispatch_func:
 			TARGET(OP_CDR) {
 				obj_t p = STACK_POP();
 				if (!IS_PAIR(p))
-					THREAD_ERROR("expected pair\n");
+					RAISE("cdr", "expected pair");
 				pair_t *pair = PTR(p);
 				STACK_PUSH(pair->cdr);
 			}
@@ -533,6 +575,7 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 	}
 
 	visitor->visit(visitor, &thread->lib_cache);
+	visitor->visit(visitor, &thread->exception_handlers);
 }
 
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)

@@ -22,7 +22,8 @@
           string-append caaaar cdaaar cadaar cddaar caadar cdadar caddar cdddar
           caaadr cdaadr cadadr cddadr caaddr cdaddr cadddr cddddr caaar cdaar
           cadar cddar caadr cdadr caddr cdddr caar cdar cadr cddr)
-  (import (core.forms))
+  (import (core.forms)
+          (core.exceptions))
 
   (define (caaaar x) (car (car (car (car x)))))
   (define (cdaaar x) (cdr (car (car (car x)))))
@@ -104,6 +105,7 @@
             (for-each-n (map cdr lst)))))
 
     ;; TODO chech that length of lists is same
+    (assert (procedure? proc))
     (if (null? lst2)
         (for-each-1 lst1)
         (for-each-n (cons lst1 lst2))))
@@ -122,6 +124,7 @@
           (cons (apply proc (map car lst))
                 (map-n (map cdr lst)))))
 
+    (assert (procedure? proc))
     (if (null? lst2)
         (map-1 lst1)
         (map-n (cons lst1 lst2))))
@@ -138,6 +141,7 @@
           (fold-left-n (apply proc (cons res (map car lst)))
                        (map cdr lst))))
 
+    (assert (procedure? proc))
     (if (null? lst2)
         (fold-left-1 init lst1)
         (fold-left-n init (cons lst1 lst2))))
@@ -153,6 +157,7 @@
           init
           (apply proc (append (map car lst) (list (fold-right-n (map cdr lst)))))))
 
+    (assert (procedure? proc))
     (if (null? lst2)
         (fold-right-1 lst1)
         (fold-right-n (cons lst1 lst2))))

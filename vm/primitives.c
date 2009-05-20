@@ -123,6 +123,7 @@ MAKE_NATIVE_UNARY(display);
 
 static int vm_exit(vm_thread_t *thread)
 {
+	printf("exiting\n");
 	return RC_EXIT;
 }
 MAKE_NATIVE_NULLARY(vm_exit);
@@ -155,6 +156,17 @@ static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 	return RC_OK;
 }
 MAKE_NATIVE(call_cc, -1, 1, 0);
+
+static int exception_handlers(vm_thread_t *thread, obj_t *argv, int argc)
+{
+	if (argc == 2) {
+		SAFE_ASSERT(IS_PAIR(argv[1]) || IS_NULL(argv[1]));
+		thread->exception_handlers = argv[1];
+		RESULT_OBJ(cvoid.obj);
+	} else
+		RESULT_OBJ(thread->exception_handlers);
+}
+MAKE_NATIVE_VARIADIC(exception_handlers, 0);
 
 static int apply(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -273,6 +285,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
 	ns_install_native(tbl, "call/cc", &call_cc_nt);
 	ns_install_native(tbl, "apply", &apply_nt);
+	ns_install_native(tbl, "exception-handlers", &exception_handlers_nt);
 	ns_install_native(tbl, "list", &list_nt);
 	ns_install_native(tbl, "$make-list", &make_list_nt);
 	ns_install_native(tbl, "void", &get_void_nt);

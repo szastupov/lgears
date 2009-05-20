@@ -158,6 +158,4 @@
         (_ #'(lambda (a b)
                ($eq? a b))))))
 
-  (display "coreforms loaded\n")
-
   )

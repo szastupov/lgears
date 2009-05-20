@@ -26,32 +26,32 @@
     (display "\n")
     (__exit))
 
-  (define exception-handler (list default-exception))
+  (exception-handlers (cons default-exception
+                           (exception-handlers)))
 
   (define (with-exception-handler new thunk)
-    (let ((parent exception-handler))
-      (set! exception-handler (cons new parent))
+    (let ((parent (exception-handlers)))
+      (exception-handlers (cons new parent))
       (let ((res (thunk)))
-        (set! exception-handler parent)
+        (exception-handlers parent)
         res)))
 
   (define (raise x)
-    (let ((handlers exception-handler))
-      (set! exception-handler (cdr handlers))
+    (let ((handlers (exception-handlers)))
+      (exception-handlers (cdr handlers))
       ((car handlers) x)
       (__exit)))
 
   (define (raise-continuable x)
-    (let ((handlers exception-handler))
-      (set! exception-handler (cdr handlers))
+    (let ((handlers (exception-handlers)))
+      (exception-handlers (cdr handlers))
       (let ((res ((car handlers) x)))
-        (set! exception-handler handlers)
+        (exception-handlers handlers)
         res)))
 
   (define-syntax assert
     (syntax-rules ()
       ((_ expr)
        (if (not expr)
-           (raise 'expr)))))
-
+           (raise '("Assertion failed:" expr))))))
   )

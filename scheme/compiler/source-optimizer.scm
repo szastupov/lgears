@@ -71,9 +71,8 @@
                              (binding-mutate (reference-bind val))))
            (single-ref? (= (binding-ref-count bind) 1)))
       (and (not mutate?)
-           (if (self-eval? val)
-               (not mutate-arg?)
-               single-ref?))))
+           (self-eval? val)
+           (not mutate-arg?))))
 
   (define (may-inline-lambda? node)
     (let* ((func (car node))

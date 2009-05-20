@@ -23,6 +23,8 @@
 #include "string.h"
 #include "bytevector.h"
 
+extern const native_func_t vm_exit_nt;
+
 void exception_handler_init(vm_thread_t *thread);
 void ns_install_primitives(hash_table_t *tbl);
 

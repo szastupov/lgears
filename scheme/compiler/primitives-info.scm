@@ -72,6 +72,7 @@
       (fd-seek #t #f)
       (fd-write #t #f)
       (load-library #t #t)
-      (library-cache #t #f)))
+      (library-cache #t #f)
+      (exception-handlers #t #f)))
 
   )

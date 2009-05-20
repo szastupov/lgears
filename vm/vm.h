@@ -105,6 +105,7 @@ typedef struct {
 	int heap_env;
 
 	obj_t lib_cache;
+	obj_t exception_handlers;
 
 	trampoline_t tramp;
 } vm_thread_t;

@@ -39,20 +39,20 @@
  */
 typedef union {
 	TYPE_TAG;
-	void *ptr;	/**< Pointer for casting */
+	void *ptr;	/* Pointer for casting */
 } obj_t;
 
 /**
  * @brief Basic type ids
  */
 enum {
-	id_ptr,		/**< Pointer on a heap-allocated object */
+	id_ptr,		/* Pointer on a heap-allocated object */
 	id_const_ptr,				/* Pinter on constant object */
-	id_fixnum,	/**< Integer */
-	id_char,	/**< Character */
-	id_func,	/**< Function pointer */
-	id_symbol,	/**< Symbol pointer */
-	id_const	/**< Constant */
+	id_fixnum,	/* Integer */
+	id_char,	/* Character */
+	id_func,	/* Function pointer */
+	id_symbol,	/* Symbol pointer */
+	id_const	/* Constant */
 };
 
 #define DEFINE_TYPE(name, members...)			\
@@ -177,6 +177,7 @@ enum {
 	t_pair,
 	t_string,
 	t_vector,
+	t_struct,
 	t_bytevector
 };
 

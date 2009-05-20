@@ -16,40 +16,19 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef PRIMITIVES_H
-#define PRIMITIVES_H
-#include "native.h"
-#include "struct.h"
-#include "vector.h"
-#include "string.h"
-#include "bytevector.h"
-
-extern const native_func_t vm_exit_nt;
-
-void exception_handler_init(vm_thread_t *thread);
-void ns_install_primitives(hash_table_t *tbl);
+#ifndef STRUCT_H
+#define STRUCT_H
 
 typedef struct {
-	obj_t car, cdr;
-	/*
-	 * FIXME store next value only for list (allocate additional
-	 * memory in _cons)
-	 */
-	unsigned list:1;
-	unsigned length:31;
-} pair_t;
+	obj_t type_name;			/* Symbol for type id and name */
+	int size;
+	obj_t *fields;
+} struct_t;
 
-void pair_repr(void *ptr);
-void pair_visit(visitor_t *vs, void *data);
-obj_t _list(heap_t *heap, obj_t *argv, int argc);
-obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr);
+#define IS_STRUCT(obj) IS_TYPE(obj, t_struct)
 
-#define IS_PAIR(obj) IS_TYPE(obj, t_pair)
+void ns_install_struct(hash_table_t *tbl);
+void struct_repr(void *ptr);
+void struct_visit(visitor_t *vs, void *data);
 
-typedef struct {
-	obj_t func;
-} continuation_t;
-
-void continuation_visit(visitor_t *vs, void *data);
-
-#endif /* PRIMITIVES_H */
+#endif

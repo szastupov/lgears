@@ -129,8 +129,8 @@
   (define-syntax not
     (lambda (x)
       (syntax-case x ()
-        ((not expr) #'(if expr #f #t))
-        (_ #'(lambda (x) (if x #f #t))))))
+        ((not expr) #'($! expr))
+        (_ #'(lambda (x) ($! expr))))))
 
   (define-syntax cons
     (lambda (x)

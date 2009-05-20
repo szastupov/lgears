@@ -42,6 +42,7 @@ const type_t type_table[] = {
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
 	{ .name = "string", .visit = string_visit, .repr = string_repr },
 	{ .name = "vector", .visit = vector_visit, .repr = vector_repr },
+	{ .name = "struct", .visit = struct_visit, .repr = struct_repr },
 	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
 };
 
@@ -292,12 +293,6 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 #define TRACE()
 #define SET_TRACE()
 #endif
-
-#define THREAD_ERROR(msg...) {								\
-		LOG_ERR(msg);										\
-		fprintf(stderr, "\tshutting down the thread...\n"); \
-		return;												\
-	}
 
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;

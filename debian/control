@@ -2,7 +2,7 @@ Source: lgears
 Section: interpreters
 Priority: optional
 Maintainer: Stepan Zastupov <redchrom@gmail.com>
-Build-Depends: debhelper (>= 7)
+Build-Depends: debhelper (>= 7), cmake, cdbs
 Standards-Version: 3.8.1
 Vcs-Git: git://github.com/redchrom/lgears.git
 Vcs-Browser: http://github.com/redchrom/lgears

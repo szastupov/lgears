@@ -6,4 +6,5 @@ tags
 TAGS
 vm/vm
 gmon.out
-build
+debug/
+release/

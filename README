@@ -6,7 +6,7 @@ scheme - scheme sources
 scheme/sc - compiler itself
 vm - vm sources
 
-At this moment, you need a external scheme implementation to run the compiler,
+At this moment, you need an external scheme implementation to run the compiler,
 I prefer ypsilon, but you can use any r6rs implementation after rewriting some
 ypsilon-dependent code (I will do it in the future).
 

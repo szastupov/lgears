@@ -1,16 +1,13 @@
-export PREFIX ?= /usr/local
-export PROG = lgears
+.PHONY: debug release
+all: debug
 
-all:
-	@$(MAKE) -C vm
+debug:
+	@test -f debug/Makefile || (mkdir -p debug && cd debug && cmake -DCMAKE_BUILD_TYPE=Debug ..)
+	@$(MAKE) -C debug
 
-clean:
-	@$(MAKE) -C vm clean
-
-install:
-	@mkdir -p -m755 $(DESTDIR)$(PREFIX)/share/$(PROG)
-	@$(MAKE) -C vm install
-	@find scheme -iname '*.scm' -type f|cpio -pdu $(DESTDIR)$(PREFIX)/share/$(PROG)
+release:
+	@test -f release/Makefile || (mkdir -p release && cd release && cmake -DCMAKE_BUILD_TYPE=Release ..)
+	@$(MAKE) -C release
 
 snapshot:
 	git archive --format=tar --prefix=lgears/ HEAD|gzip > lgears_git-$(shell date +'%F').tar.gz

@@ -18,9 +18,10 @@
  |#
 
 (library (compiler analyze)
-  (export analyze tagged? binding-ref-count function? function-args function-has-defines?
-          function-body self-eval? reference? reference-bind
-          binding-value binding-mutate binding-value-set! function-bindings)
+  (export analyze tagged? binding-ref-count function? function-args
+          function-has-defines?  function-body self-eval? reference?
+          reference-bind binding-value binding-mutate binding-value-set!
+          function-bindings)
   (import (rnrs))
 
   (define-record-type binding

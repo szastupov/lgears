@@ -18,6 +18,7 @@
  |#
 (library (core.sequence)
   (export for-each map fold-left fold-right reverse append make-list
+          vector vector? make-vector vector-ref vector-set!  vector->list
           vector-for-each vector-map make-vector string->list string-for-each
           string-append caaaar cdaaar cadaar cddaar caadar cdadar caddar cdddar
           caaadr cdaadr cadadr cddadr caaddr cdaddr cadddr cddddr caaar cdaar
@@ -184,6 +185,36 @@
 
   ;; Vector utilites
 
+  (define (vector . args)
+    (apply make-struct (cons 'vector args)))
+
+  (define (vector? obj)
+    (and (struct? obj)
+         (eq? (struct-type obj) 'vector)))
+
+  (define (vector-length obj)
+    (assert (vector? obj))
+    (struct-size obj))
+
+  (define (vector-ref obj idx)
+    (assert (vector? obj))
+    (struct-ref obj idx))
+
+  (define (vector-set! obj idx val)
+    (assert (vector? obj))
+    (struct-set! obj idx val))
+
+  (define (make-vector size . args)
+    (alloc-struct 'vector
+                  size
+                  (if (null? args)
+                      (void)
+                      (car args))))
+
+  (define (vector->list obj)
+    (assert (vector? obj))
+    (struct->list obj))
+
   (define (vec-for-each-1 ref len proc vec)
     (let loop ((n 0))
       (if ($= n (len vec))
@@ -192,27 +223,24 @@
             (proc (ref vec n))
             (loop ($+ 1 n))))))
 
+  ;; Note that for vector-for-each/vector-map we firstly check right
+  ;; type and pass struct-* functions in order to reduce checks
   (define (vector-for-each-1 proc vec)
-    (vec-for-each-1 vector-ref vector-length proc vec))
+    (assert (vector? vec))
+    (vec-for-each-1 struct-ref struct-size proc vec))
 
   (define vector-for-each vector-for-each-1)
 
   (define (vector-map-1 proc vec)
     (let ((res (make-vector (vector-length vec))))
       (let loop ((n 0))
-        (if ($= n (vector-length vec))
+        (if ($= n (struct-size vec))
             res
             (begin
-              (vector-set! res n (proc (vector-ref vec n)))
+              (struct-set! res n (proc (struct-ref vec n)))
               (loop ($+ 1 n)))))))
 
   (define vector-map vector-map-1)
-
-  ;; Rewrite it with case-lambda
-  (define (make-vector size . args)
-    ($make-vector size (if (null? args)
-                           (void)
-                           (car args))))
 
   (define (string->list str)
     (let loop ((pos ($- (string-length str) 1))

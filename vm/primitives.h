@@ -20,7 +20,6 @@
 #define PRIMITIVES_H
 #include "native.h"
 #include "struct.h"
-#include "vector.h"
 #include "string.h"
 #include "bytevector.h"
 

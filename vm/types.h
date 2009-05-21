@@ -176,7 +176,6 @@ enum {
 	t_cont,
 	t_pair,
 	t_string,
-	t_vector,
 	t_struct,
 	t_bytevector
 };

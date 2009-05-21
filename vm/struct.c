@@ -16,8 +16,7 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#include "native.h"
-#include "struct.h"
+#include "primitives.h"
 
 void struct_repr(void *ptr)
 {
@@ -65,6 +64,21 @@ static int make_struct(vm_thread_t *thread, obj_t *argv, int argc)
 	RESULT_OBJ(make_ptr(st, id_ptr));
 }
 MAKE_NATIVE_VARIADIC(make_struct, 0);
+
+static int alloc_struct(vm_thread_t *thread, obj_t *type_name,
+						obj_t *count, obj_t *fill)
+{
+	SAFE_ASSERT(IS_SYMBOL(*type_name));
+	SAFE_ASSERT(IS_FIXNUM(*count));
+
+	struct_t *st = struct_new(&thread->heap.allocator, type_name, FIXNUM(*count));
+	int i;
+	for (i = 0; i < st->size; i++)
+		st->fields[i] = *fill;
+
+	RESULT_OBJ(make_ptr(st, id_ptr));
+}
+MAKE_NATIVE_TERNARY(alloc_struct);
 
 static int struct_size(vm_thread_t *thread, obj_t *obj)
 {
@@ -116,12 +130,27 @@ static int struct_type(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(struct_type);
 
+static int struct_to_list(vm_thread_t *thread, obj_t *obj)
+{
+	SAFE_ASSERT(IS_STRUCT(*obj));
+
+	/* GC magic */
+	struct_t *st = PTR(*obj);
+	heap_require_blocks(&thread->heap, sizeof(pair_t), st->size);
+	st = PTR(*obj);
+
+	RESULT_OBJ(_list(&thread->heap, st->fields, st->size));
+}
+MAKE_NATIVE_UNARY(struct_to_list);
+
 void ns_install_struct(hash_table_t *tbl)
 {
 	ns_install_native(tbl, "make-struct", &make_struct_nt);
+	ns_install_native(tbl, "alloc-struct", &alloc_struct_nt);
 	ns_install_native(tbl, "struct?", &is_struct_nt);
 	ns_install_native(tbl, "struct-size", &struct_size_nt);
 	ns_install_native(tbl, "struct-set!", &struct_set_nt);
 	ns_install_native(tbl, "struct-ref", &struct_ref_nt);
 	ns_install_native(tbl, "struct-type", &struct_type_nt);
+	ns_install_native(tbl, "struct->list", &struct_to_list_nt);
 }

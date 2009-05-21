@@ -41,7 +41,6 @@ const type_t type_table[] = {
 	{ .name = "continiation", .visit = continuation_visit },
 	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
 	{ .name = "string", .visit = string_visit, .repr = string_repr },
-	{ .name = "vector", .visit = vector_visit, .repr = vector_repr },
 	{ .name = "struct", .visit = struct_visit, .repr = struct_repr },
 	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
 };
@@ -183,6 +182,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 	if (func->hdr.swallow) {
 		i = op_arg - func->hdr.argc;
 		if (i) {
+			heap_require_blocks(&thread->heap, sizeof(pair_t), i);
 			void *args = &thread->opstack[thread->op_stack_idx - i];
 			thread->op_stack_idx -= i;
 			STACK_PUSH(_list(&thread->heap, args, i));

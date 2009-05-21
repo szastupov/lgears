@@ -241,6 +241,7 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 					res = _cons(al, &new, &res);
 			}
 	}
+		/*
 	case OT_VECTOR: {
 		int size = code_read8(code);
 		vector_t *vec = vector_new(al, size);
@@ -249,6 +250,7 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 			vec->objects[i] = fasl_read_datum(code, al);
 		return make_ptr(vec, id_const_ptr);
 	}
+		*/
 	default:
 		FATAL("unhandled const type: %s\n", object_type_name(type));
 	}

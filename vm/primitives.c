@@ -75,7 +75,6 @@ obj_t _list(heap_t *heap, obj_t *argv, int argc)
 {
 	obj_t res = cnull.obj;
 
-	heap_require_blocks(heap, sizeof(pair_t), argc);
 	int i;
 	for (i = argc-1; i >= 0; i--)
 		res = _cons(&heap->allocator, &argv[i], &res);
@@ -85,6 +84,7 @@ obj_t _list(heap_t *heap, obj_t *argv, int argc)
 
 static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
+	heap_require_blocks(&thread->heap, sizeof(pair_t), argc-1);
 	RESULT_OBJ(_list(&thread->heap, &argv[1], argc-1));
 }
 MAKE_NATIVE_VARIADIC(list, 0);
@@ -303,7 +303,6 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "length", &list_length_nt);
 
 	ns_install_struct(tbl);
-	ns_install_vector(tbl);
 	ns_install_string(tbl);
 	ns_install_bytevector(tbl);
 	ns_install_fd(tbl);

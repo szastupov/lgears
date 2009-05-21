@@ -389,30 +389,30 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 				fp.obj = STACK_POP();
 dispatch_func:
 				switch (fp.tag) {
-					case id_ptr:
-						{
-							if (IS_TYPE(fp.obj, t_closure)) {
-								closure_t *closure = PTR(fp.obj);
-								ptr = closure->func;
-								thread->env = closure->env;
-								thread->bindmap = closure->bindmap;
-								thread->closure = closure;
-							} else if (IS_TYPE(fp.obj, t_cont)) {
-								continuation_t *cont = PTR(fp.obj);
-								fp.obj = cont->func;
-								op_arg--;
-								goto dispatch_func;
-							} else
-								RAISE("got pointer but it isn't a closure or a continuation");
-						}
-						break;
-					case id_func:
-						ptr = PTR_GET(fp);
-						thread->bindmap = NULL;
-						thread->closure = NULL;
-						break;
-					default:
-						RAISE("call", "expected function or closure but got tag %d\n", fp.tag);
+				case id_ptr: {
+					if (IS_TYPE(fp.obj, t_closure)) {
+						closure_t *closure = PTR(fp.obj);
+						ptr = closure->func;
+						thread->env = closure->env;
+						thread->bindmap = closure->bindmap;
+						thread->closure = closure;
+					} else if (IS_TYPE(fp.obj, t_cont)) {
+						/* Unpack function and dispatch again */
+						continuation_t *cont = PTR(fp.obj);
+						fp.obj = cont->func;
+						op_arg--;
+						goto dispatch_func;
+					} else
+						RAISE("got pointer but it isn't a closure or a continuation");
+					break;
+				}
+				case id_func:
+					ptr = PTR_GET(fp);
+					thread->bindmap = NULL;
+					thread->closure = NULL;
+					break;
+				default:
+					RAISE("call", "expected function or closure but got tag %d\n", fp.tag);
 				}
 
 				func_hdr_t *fhdr = (func_hdr_t*)ptr;
@@ -424,46 +424,44 @@ dispatch_func:
 						RAISE("call", "try to pass %d args when %d requred", op_arg-1, fhdr->argc-1);
 				}
 
+				/* TODO: maybe use threaded code here? */
 				switch (fhdr->type) {
-					case func_inter:
-						{
-							func = ptr;
-							opcode = func->opcode;
-							enter_interp(thread, func, op_arg, fp.tag);
-							SET_TRACE();
-						}
-						NEXT();
-					case func_native:
-						{
-							native_func_t *func = ptr;
+				case func_inter: {
+					func = ptr;
+					opcode = func->opcode;
+					enter_interp(thread, func, op_arg, fp.tag);
+					SET_TRACE();
+					NEXT();
+				}
+				case func_native: {
+					native_func_t *func = ptr;
+					obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
+					thread->tramp.argc = 1;
+					thread->tramp.func.ptr = NULL;
 
-							obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
-							thread->tramp.argc = 1;
-							thread->tramp.func.ptr = NULL;
-							switch (native_call(thread, func, argv, op_arg)) {
-								case RC_EXIT:
-									/* Terminate thread */
-									return;
-								case RC_ERROR:
-									RAISE("call", "%s failed", func->name);
-									return;
-								case RC_OK:
-								default:
-									break;
-							}
-
-							if (thread->tramp.func.ptr)
-								fp.obj = thread->tramp.func;
-							else
-								fp.obj = argv[0];
-
-							op_arg = thread->tramp.argc;
-
-							goto dispatch_func;
-						}
-						break;
+					switch (native_call(thread, func, argv, op_arg)) {
+					case RC_EXIT:
+						/* Terminate thread */
+						return;
+					case RC_ERROR:
+						RAISE("call", "%s failed", func->name);
+						return;
+					case RC_OK:
 					default:
-						FATAL("BUG! Expected function but got type tag: %d\n", fp.tag);
+						break;
+					}
+
+					if (thread->tramp.func.ptr)
+						fp.obj = thread->tramp.func;
+					else
+						fp.obj = argv[0];
+
+					op_arg = thread->tramp.argc;
+
+					goto dispatch_func;
+				}
+				default:
+					FATAL("BUG! Expected function but got type tag: %d\n", fp.tag);
 				}
 			}
 			NEXT();
@@ -548,7 +546,6 @@ dispatch_func:
 			TARGET(OP_CONS) {
 				obj_t b = STACK_POP();
 				obj_t a = STACK_POP();
-				/* Warning! GC may broke func pointer */
 				STACK_PUSH(_cons(&thread->heap.allocator, &a, &b));
 			}
 			NEXT();

@@ -65,11 +65,11 @@ typedef struct {
 	remembered_set_t remembered_set;
 	unsigned full_gc:1;			/* Full gc flag */
 	hash_table_t *old_map;		/* Map used to update pointers to OLD objects */
-	void *thread;
+	vm_thread_t *thread;		/* Thread pointer */
 	allocator_t allocator;		/* Provide allocator interface */
 } heap_t;
 
-void heap_init(heap_t *heap, void *thread);
+void heap_init(heap_t *heap, vm_thread_t *thread);
 void heap_destroy(heap_t *heap);
 void* heap_alloc(heap_t *heap, int size, int type_id);
 void* heap_alloc0(heap_t *heap, int size, int type_id);

@@ -28,11 +28,11 @@
   (define oplist
     '((LOAD_FUNC . "Load function local to module")
       (LOAD_CLOSURE . "Make closure on heap")
-      (LOAD_LOCAL . "Load object from frame-local area")
+      (LOAD_LOCAL . "Load object from local area")
       (LOAD_BIND . "Load object form binding")
       (LOAD_CONST . "Load object from module constant area")
       (PUSH_BOOL . "Push boolean value")
-      (PUSH_NULL . "Load built-in constant")
+      (PUSH_NULL . "Push null")
       (JUMP_IF_FALSE . "Jump if false")
       (JUMP_FORWARD . "Jump forward")
       (FUNC_CALL . "Call function")
@@ -60,7 +60,7 @@
       (OT_STATIC . "Static variable")
       (OT_PAIR_BEGIN . "Pair begin")
       (OT_PAIR_END . "Pair end")
-      (OT_VECTOR . "Vector begin")
+      (OT_STRUCT . "Structure")
       (OT_BOOLEAN . "Boolean")
       (OT_NULL . "Null object")))
 

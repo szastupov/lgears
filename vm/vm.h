@@ -22,6 +22,9 @@
 #include "hash.h"
 #include "cutil.h"
 #include "types.h"
+
+typedef struct vm_thread_s vm_thread_t;
+
 #include "heap.h"
 
 extern hash_table_t builtin;
@@ -94,7 +97,7 @@ typedef struct {
 	int argc;					/* Arguments count */
 } trampoline_t;
 
-typedef struct {
+struct vm_thread_s {
 	heap_t heap;				/* Heap */
 	obj_t *opstack;				/* Operands stack */
 	int op_stack_idx;			/* Stack index */
@@ -108,7 +111,7 @@ typedef struct {
 	obj_t lib_cache;			/* Library cache register */
 	obj_t exception_handlers;	/* Exception handlers register */
 	trampoline_t tramp;			/* Trampoline for native/built-in functions */
-} vm_thread_t;
+};
 
 #if CHECK_OPSTACK
 static inline void __stack_push(vm_thread_t *thread, obj_t obj)

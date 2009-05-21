@@ -7,11 +7,11 @@
 
 #define LOAD_FUNC	0x0	/* Load function local to module */
 #define LOAD_CLOSURE	0x1	/* Make closure on heap */
-#define LOAD_LOCAL	0x2	/* Load object from frame-local area */
+#define LOAD_LOCAL	0x2	/* Load object from local area */
 #define LOAD_BIND	0x3	/* Load object form binding */
 #define LOAD_CONST	0x4	/* Load object from module constant area */
 #define PUSH_BOOL	0x5	/* Push boolean value */
-#define PUSH_NULL	0x6	/* Load built-in constant */
+#define PUSH_NULL	0x6	/* Push null */
 #define JUMP_IF_FALSE	0x7	/* Jump if false */
 #define JUMP_FORWARD	0x8	/* Jump forward */
 #define FUNC_CALL	0x9	/* Call function */
@@ -38,7 +38,7 @@
 #define OT_STATIC	0x4	/* Static variable */
 #define OT_PAIR_BEGIN	0x5	/* Pair begin */
 #define OT_PAIR_END	0x6	/* Pair end */
-#define OT_VECTOR	0x7	/* Vector begin */
+#define OT_STRUCT	0x7	/* Structure */
 #define OT_BOOLEAN	0x8	/* Boolean */
 #define OT_NULL	0x9	/* Null object */
 
@@ -84,7 +84,7 @@ static inline const char* object_type_name(int code)
 		OP_CASE(OT_STATIC);
 		OP_CASE(OT_PAIR_BEGIN);
 		OP_CASE(OT_PAIR_END);
-		OP_CASE(OT_VECTOR);
+		OP_CASE(OT_STRUCT);
 		OP_CASE(OT_BOOLEAN);
 		OP_CASE(OT_NULL);
 	}

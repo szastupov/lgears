@@ -167,6 +167,7 @@ typedef struct {
 
 /* Type table */
 extern const type_t type_table[];
+
 enum {
 	t_env,
 	t_closure,
@@ -179,11 +180,11 @@ enum {
 
 /* Header attached to each object on heap */
 typedef struct {
-	unsigned size;		/* Size of block (with padding if need) */
-	unsigned type_id:4;	/* Type id @see type_table */
+	unsigned size;			/* Size of block (with padding if need) */
+	unsigned type_id:4;		/* Type id @see type_table */
 	unsigned forward:1;	/* Indicate that pointer should be forwarded */
-	unsigned generation:2;	/* Generation */
-	unsigned remembered:1;	/* Indicate that object is remembered */
+	unsigned generation:2;	  /* Generation */
+	unsigned remembered:1;	  /* Indicate that object is remembered */
 } block_hdr_t;
 
 #define BHDR_SIZE sizeof(block_hdr_t)

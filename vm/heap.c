@@ -407,7 +407,7 @@ static void* heap_allocator_alloc(allocator_t *al, size_t size, int type_id)
 	return heap_alloc(heap, size, type_id);
 }
 
-void heap_init(heap_t *heap, void *thread)
+void heap_init(heap_t *heap, vm_thread_t *thread)
 {
 	heap->mem_size = FRESH_SIZE+SURVIVED_SIZE*2+OLD_SIZE;
 	heap->mem = mem_alloc(heap->mem_size);

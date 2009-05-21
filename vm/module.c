@@ -241,16 +241,16 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 					res = _cons(al, &new, &res);
 			}
 	}
-		/*
-	case OT_VECTOR: {
+	case OT_STRUCT: {
+		const char *str = code_read_string(code);
+		obj_t type_name = make_symbol(str);
 		int size = code_read8(code);
-		vector_t *vec = vector_new(al, size);
+		struct_t *st = struct_new(al, &type_name, size);
 		int i;
 		for (i = 0; i < size; i++)
-			vec->objects[i] = fasl_read_datum(code, al);
-		return make_ptr(vec, id_const_ptr);
+			st->fields[i] = fasl_read_datum(code, al);
+		return make_ptr(st, id_const_ptr);
 	}
-		*/
 	default:
 		FATAL("unhandled const type: %s\n", object_type_name(type));
 	}

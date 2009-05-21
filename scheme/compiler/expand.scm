@@ -99,7 +99,7 @@
 			 => (lambda (res)
 				  ;(format #t "matched ~a = ~a\n" (caar rule) (strip res))
 				  (apply (cdar rule)
-						 (cdr (pattern-bind res (caar rule) '())))))
+						 (pattern-bind res (caar rule) '()))))
 			(else (loop (cdr rule))))))
 
   (define (gen-syntax vars stx)
@@ -117,7 +117,7 @@
 								  (eq? (cadr res) '()))
 							 '()
 							 (cdr res))))
-				   (else (syntax-error stx "ellipsis after non-patern"))))
+				   (else stx)))
 			((pair? stx)
 			 (cons (rewrite (car stx))
 				   (rewrite (cdr stx))))
@@ -125,6 +125,12 @@
 			 (cond ((assq stx vars) => cdr)
 				   (else stx)))
 			(else stx))))
+
+  (define (pass-fender? variant bind)
+    (let ((fender (cadr variant)))
+      (if fender
+          (fender bind)
+          #t)))
 
   (define (sc-dispatch vars x reserved . rules)
 	(let loop ((rule rules))
@@ -137,8 +143,9 @@
                                                    matched
                                                    (caar rule)
                                                    vars)))
-					;(format #t "bind ~a\n" (strip bind))
-					((cdar rule) bind))))
+                    (if (pass-fender? (car rule) bind)
+                        ((caddar rule) bind)
+                        (loop (cdr rule))))))
 			(else (loop (cdr rule))))))
 
   ;; Simplified version of syntax case. We need it to bootstrap, when
@@ -179,14 +186,14 @@
 				#,@(map (lambda (f)
 						  (sys-datum->syntax #'source
 						  `(cons ',(car f)
-								 (lambda ,(get-vars (cdar f))
+								 (lambda ,(get-vars (car f))
 								   ,(cadr f)))))
 						fields*)))))))
 
   (define (exp-quote x r)
 	(syntax-match
 	 x ()
-	 ((quote a) `(quote ,(strip a)))))
+	 ((_ a) `(quote ,(strip a)))))
 
   (define (gen-names lst)
 	(map (lambda (x)
@@ -234,7 +241,7 @@
   (define (make-macro macro env)
     (syntax-match
      macro ()
-     ((define-syntax name expander)
+     ((_ name expander)
       (cons name
             (eval (expand expander env)
                   (apply environment sys-env))))))
@@ -300,19 +307,19 @@
 	  (expand-body x env varlist new-vars body))
 	(syntax-match
 	 x ()
-	 ((lambda (varlist ...) body ...)
+	 ((_ (varlist ...) body ...)
 	  (let ((new-vars (gen-names varlist)))
 		`(lambda ,new-vars
 		   ,@(expand-lambda varlist new-vars body))))
 
-	 ((lambda (v1 . rem) body ...)
+	 ((_ (v1 . rem) body ...)
 	  (let* ((varlist (improper->propper
 					   (cons v1 (syntax->pair rem))))
 			 (new-vars (gen-names varlist)))
 		`(lambda ,(apply cons* new-vars)
 		   ,@(expand-lambda varlist new-vars body))))
 
-	 ((lambda var body ...)
+	 ((_ var body ...)
 	  (let* ((varlist (list var))
 			 (new-vars (gen-names varlist)))
 		`(lambda ,@new-vars
@@ -321,7 +328,7 @@
   (define (exp-define x r)
 	(syntax-match
 	 x ()
-	 ((define (var args ...) body ...)
+	 ((_ (var args ...) body ...)
 	  `(define ,(expand var r)
 		 ,(expand (extend-wrap-from
 				   x
@@ -329,7 +336,7 @@
 					  ,@body))
 				  r)))
 
-	 ((define (var . rem) body ...)
+	 ((_ (var . rem) body ...)
 	  `(define ,(expand var r)
 		 ,(expand (extend-wrap-from
 						 x
@@ -337,11 +344,11 @@
 							,@body))
 						r)))
 
-	 ((define var val)
+	 ((_ var val)
 	  `(define ,(expand var r)
 		 ,(expand val r)))
 
-	 ((define var)
+	 ((_ var)
 	  `(define ,(expand var r) (void)))))
 
   (define (exp-if x r)
@@ -355,10 +362,10 @@
 
 	(syntax-match
 	 x ()
-	 ((if a b)
+	 ((_ a b)
 	  (expand (extend-wrap-from
 			   x `(if ,a ,b (void))) r))
-	 ((if a b c)
+	 ((_ a b c)
       (let ((pred (expand a r)))
         (cond ((always-true? pred) (expand b r))
               ((always-false? pred) (expand c r))
@@ -370,45 +377,50 @@
   (define (exp-set! x r)
 	(syntax-match
 	 x ()
-	 ((set! a b)
+	 ((_ a b)
 	  `(set! ,(expand a r)
 			 ,(expand b r)))))
-
-  (define (exp-operation x r)
-    (syntax-match
-     x ()
-     ((op a b) `(op ,(expand a r)
-                    ,(expand b r)))))
 
   (define (exp-begin x r)
 	(syntax-match
 	 x ()
-	 ((begin e)
+	 ((_ e)
 	  (expand e r))
-	 ((begin body ...)
+	 ((_ body ...)
 	  `(begin ,@(exp-exprs body r)))))
 
   (define (exp-syntax x r)
 	(syntax-match
 	 x ()
-	 ((syntax e) `(gen-syntax syntax-vars ',(strip e)))))
+	 ((_ e) `(gen-syntax syntax-vars ',(strip e)))))
 
   (define (exp-syntax-case x r)
+    (define (make-variant var)
+      (syntax-match
+       var ()
+       ((pat acc)
+        (expand (datum->syntax
+                 x `(list ',(strip pat)
+                          #f
+                          (lambda (syntax-vars)
+                            ,(expand acc r))))
+                r))
+       ((pat fender acc)
+        (expand (datum->syntax
+                 x `(list ',(strip pat)
+                          (lambda (syntax-vars)
+                            ,(expand fender r))
+                          (lambda (syntax-vars)
+                            ,(expand acc r))))
+                r))))
 	(syntax-match
 	 x ()
-	 ((syntax-case src reserved (pat* acc*) ...)
+	 ((_ src reserved variants ...)
 	  `(sc-dispatch
         syntax-vars
 		,(expand src r)
 		',(strip reserved)
-		,@(map (lambda (pat acc)
-				 (expand
-				  (datum->syntax
-				   x `(cons ',(strip pat)
-							(lambda (syntax-vars)
-							  ,(expand acc r))))
-				  r))
-			   pat* acc*)))))
+		,@(map make-variant variants)))))
 
   (define (load-library name)
 	(let ((path (find-library-file name)))

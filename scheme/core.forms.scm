@@ -1,7 +1,7 @@
 (library (core.forms)
   (export quote lambda define if set! begin syntax syntax-case
           with-syntax syntax-rules or and let let* cond case unquote unquote-splicing
-          when unless not cons car cdr eq?)
+          when unless not cons car cdr eq? op-binary op-unary)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -126,36 +126,39 @@
 	   (if (not test)
 		   (begin result1 result2 ...)))))
 
-  (define-syntax not
+  (define-syntax op-unary
     (lambda (x)
       (syntax-case x ()
-        ((not expr) #'($! expr))
-        (_ #'(lambda (x) ($! expr))))))
+        ((_ op)
+         #'(lambda (y)
+             (syntax-case y ()
+               ((_ a) #'(op a))
+               (id (identifier? #'id)
+                   #'(lambda (a) (op a)))))))))
 
-  (define-syntax cons
+  (define-syntax op-binary
     (lambda (x)
       (syntax-case x ()
-        ((_ a b) #'($cons a b))
-        (_ #'(lambda (a b)
-               ($cons a b))))))
+        ((_ op)
+         #'(lambda (y)
+             (syntax-case y ()
+               ((_ a b) #'(op a b))
+               (id (identifier? #'id)
+                   #'(lambda (a b) (op a b)))))))))
 
   (define-syntax car
-    (lambda (x)
-      (syntax-case x ()
-        ((_ a) #'($car a))
-        (_ #'(lambda (a) ($car a))))))
+    (op-unary $car))
 
   (define-syntax cdr
-    (lambda (x)
-      (syntax-case x ()
-        ((_ a) #'($cdr a))
-        (_ #'(lambda (a) ($cdr a))))))
+    (op-unary $cdr))
+
+  (define-syntax not
+    (op-unary $!))
+
+  (define-syntax cons
+    (op-binary $cons))
 
   (define-syntax eq?
-    (lambda (x)
-      (syntax-case x ()
-        ((_ a b) #'($eq? a b))
-        (_ #'(lambda (a b)
-               ($eq? a b))))))
+    (op-binary $eq?))
 
   )

@@ -18,6 +18,13 @@
  */
 #include "primitives.h"
 
+/*
+ * Structure used by vectors and records (and anything else which
+ * needs O(1) access to fields). To distinguish types (i.e. record
+ * vs. vector), a programmer should use type_name field (accessible
+ * via struct-type procedure).
+ */
+
 void struct_repr(void *ptr)
 {
 	struct_t *st = ptr;

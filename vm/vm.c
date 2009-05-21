@@ -32,9 +32,16 @@
 
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
 
+hash_table_t sym_table;			/* Symbols table */
+hash_table_t builtin;			/* Builtin functions */
+hash_table_t libraries;			/* Libraries */
+
+char *cache_path;
+
 static void env_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
 
+/* Type table */
 const type_t type_table[] = {
 	{ .name = "env", .visit = env_visit },
 	{ .name = "closure", .visit = closure_visit },
@@ -44,12 +51,6 @@ const type_t type_table[] = {
 	{ .name = "struct", .visit = struct_visit, .repr = struct_repr },
 	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
 };
-
-hash_table_t sym_table;
-hash_table_t builtin;
-hash_table_t libraries;
-
-char *cache_path;
 
 static void mark_env(env_t **env, visitor_t *visitor)
 {
@@ -97,6 +98,7 @@ static void closure_visit(visitor_t *vs, void *data)
 	}
 }
 
+/* Search environment by depth mark */
 env_t *env_display(env_t *env, int idx)
 {
 	while (idx != env->depth) {
@@ -173,6 +175,7 @@ static int library_cache(vm_thread_t *thread, obj_t *argv, int argc)
 }
 MAKE_NATIVE_VARIADIC(library_cache, 0);
 
+/* Initialize interpreted function  */
 static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 {
 	thread->func = func;
@@ -195,6 +198,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 
 	args = &thread->opstack[thread->op_stack_idx - op_arg];
 	if (func->heap_env) {
+		/* Store objects on the env */
 		thread->env = env_new(&thread->heap, &thread->env, func->env_size, func->depth);
 		thread->objects = thread->env->objects;
 		if (op_arg) {
@@ -202,6 +206,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 			memcpy(thread->objects, args, op_arg*sizeof(obj_t));
 		}
 	} else {
+		/* Store objects on the stack */
 		if (thread->op_stack_idx > op_arg*2) {
 			thread->objects = memcpy(thread->opstack,
 									 args, op_arg*sizeof(obj_t));
@@ -211,6 +216,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 	}
 	thread->heap_env = func->heap_env;
 
+	/* Initialize bindmap */
 	if (func->bcount && !thread->bindmap) {
 		thread->bindmap = &thread->opstack[thread->op_stack_idx];
 		thread->op_stack_idx += func->bmcount;
@@ -218,6 +224,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 	}
 }
 
+/* Initialize current exception handler and build error message */
 int push_exception_handler(vm_thread_t *thread, const char *msg, ...)
 {
 	char buf[256];
@@ -249,8 +256,22 @@ bad_exception:
 	return 0;
 }
 
+/*
+ * The heart of lGears Virtual Machine
+ *
+ * lGears VM is designed to evaluate Continuation Passing Style code,
+ * so it doesn't has frame stack. A continuation passed as first
+ * argument on each function call. Compiler should decide itself how to
+ * allocate function. I.e. if we pass continuation to native function
+ * we don't have to allocate full closure, only function pointer is
+ * needed. All thread-local data is stored inside thread structure, it
+ * slow-down access but allows to get rid of some GC problems.
+ * Although the VM doesn't has a frame stack, it has the operand stack
+ * and stack nature.
+ */
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
+	/* This variables updated every time a new function takes control */
 	int16_t *opcode;
 	int op_code, op_arg;
 	func_t *func;
@@ -259,6 +280,10 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	fxc.tag = id_fixnum;
 #define FETCH_AB() fxb.obj = STACK_POP(); fxa.obj = STACK_POP();
 
+	/*
+	 * Try to raise an exception. If no suitable exception found -
+	 * just kill the thread
+	 */
 #define RAISE(who, msg...)  {									\
 		op_arg = push_exception_handler(thread, who": "msg);	\
 		if (!op_arg)											\
@@ -266,6 +291,9 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 		goto funcall;											\
 	}
 
+	/*
+	 * Tracing is optional and suitable only for VM hacking
+	 */
 #if DEBUG_TRACE_OPCODE
 	void (*trace_func)();
 #define TRACE() trace_func()
@@ -294,9 +322,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 #define SET_TRACE()
 #endif
 
+	/* First time initialization */
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
+	/* FIXME, entry point may not requite heap env */
 	thread->env = env_new(&thread->heap, NULL, func->env_size, func->depth);
 	thread->objects = thread->env->objects;
 	thread->heap_env = 1;
@@ -307,8 +337,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 
 	SET_TRACE();
 
+	/* Computed goto (a.k.a. Threaded code) may speed-up performance
+	 * but is's not standard. But 90% of us use gcc so, it should work.
+	 */
 #if COMPUTED_GOTO
-#include "opcode_targets.h"
+#include "opcode_targets.h"		/* Targets generated bu gen-headers */
 #define TARGET(op)								\
 	TARGET_##op:								\
 		op_code = *(opcode++);					\
@@ -324,6 +357,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	switch (op_code)
 #endif
 
+	/* Opcode description available in opcodes.h */
 	for (;;) {
 		DISPATCH() {
 			TARGET(LOAD_LOCAL)
@@ -514,6 +548,7 @@ dispatch_func:
 			TARGET(OP_CONS) {
 				obj_t b = STACK_POP();
 				obj_t a = STACK_POP();
+				/* Warning! GC may broke func pointer */
 				STACK_PUSH(_cons(&thread->heap.allocator, &a, &b));
 			}
 			NEXT();
@@ -553,6 +588,7 @@ obj_t make_symbol(const char *str)
 	return make_ptr(res, id_symbol);
 }
 
+/* Collect root objects */
 void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 {
 	int i;
@@ -573,6 +609,7 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 	visitor->visit(visitor, &thread->exception_handlers);
 }
 
+/* Update pointers */
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)
 {
 	if (thread->heap_env)
@@ -581,6 +618,7 @@ void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)
 		thread->bindmap = thread->closure->bindmap;
 }
 
+/* Initialize thread */
 static void vm_thread_init(vm_thread_t *thread)
 {
 	memset(thread, 0, sizeof(*thread));
@@ -592,12 +630,14 @@ static void vm_thread_init(vm_thread_t *thread)
 	thread->op_stack_size = ssize/sizeof(obj_t);
 }
 
+/* Cleanup thread */
 static void vm_thread_destroy(vm_thread_t *thread)
 {
 	heap_destroy(&thread->heap);
 	mem_free(thread->opstack);
 }
 
+/* Start thread */
 static void *thread_start(void *mod_arg)
 {
 	module_t *mod = mod_arg;
@@ -619,6 +659,7 @@ void vm_eval_module(module_t *mod)
 	pthread_join(thread, NULL);
 }
 
+/* Initialize global vm structures */
 void vm_init()
 {
 	hash_table_init(&builtin, string_hash, string_equal);
@@ -639,6 +680,7 @@ void vm_init()
 	}
 }
 
+/* Cleanup VM (I want clear valgrind output) */
 void vm_cleanup()
 {
 	hash_table_destroy(&builtin);

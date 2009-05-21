@@ -35,11 +35,11 @@ typedef struct allocator_s {
 
 /* Heap space */
 typedef struct {
-	void *mem;		/* Memory */
-	void *pos;		/* Current position */
-	size_t size;		/* Total size of space */
-	size_t free_mem;	/* Free memory */
-	int blocks;			/* Allocated blocks */
+	void *mem;					/* Memory */
+	void *pos;					/* Current position */
+	size_t size;				/* Total size of space */
+	size_t free_mem;			/* Free memory */
+	int blocks;					/* Allocated blocks */
 } space_t;
 
 /* Node in remembered set */

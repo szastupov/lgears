@@ -21,8 +21,8 @@
 
 typedef struct {
 	obj_t type_name;			/* Symbol for type id and name */
-	int size;
-	obj_t *fields;
+	int size;					/* Fields count */
+	obj_t *fields;				/* Fields */
 } struct_t;
 
 #define IS_STRUCT(obj) IS_TYPE(obj, t_struct)

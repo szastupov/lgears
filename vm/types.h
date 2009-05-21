@@ -28,23 +28,21 @@
  * All primitive types has a 3-bit type tag.
  * In order to fit a pointer in __WORDSIZE-3, we have to shift pointer value, so
  * it means that pointers should be at least 8 bytes aligned. VM heaps do that,
- * glibc malloc too. Need to check it on other systems...
+ * glibc malloc too.
+ * Porting note: if system's malloc does not allign poiters by 8
+ * bytes, we may use posix_memalign. Also I haven't tested it on big endian.
  */
 
 #define TYPE_TAG unsigned tag:3
 #define TYPE_CAST(o, type) ((type)(o))
 
-/**
- * @brief Base object
- */
+/* Fundamental VM object, provide tag and pointer for casting */
 typedef union {
-	TYPE_TAG;
-	void *ptr;	/* Pointer for casting */
+	TYPE_TAG;					/* Type tag */
+	void *ptr;					/* Pointer for casting */
 } obj_t;
 
-/**
- * @brief Basic type ids
- */
+/* Basic type identifiers */
 enum {
 	id_ptr,		/* Pointer on a heap-allocated object */
 	id_const_ptr,				/* Pinter on constant object */
@@ -65,9 +63,7 @@ enum {
 		obj_t obj;								\
 	} name;
 
-/**
- * @brief constant
- */
+/* Constant values */
 typedef union {
 	struct {
 		TYPE_TAG;
@@ -83,11 +79,12 @@ typedef union {
 		.st.id = nid,							\
 	};
 
-DEFINE_CONST(cnull, 0);
-DEFINE_CONST(ctrue, 1);
-DEFINE_CONST(cfalse, 2);
-DEFINE_CONST(cvoid, 3);
+DEFINE_CONST(cnull, 0);			/* null '() */
+DEFINE_CONST(ctrue, 1);			/* true #t */
+DEFINE_CONST(cfalse, 2);		/* false #f */
+DEFINE_CONST(cvoid, 3);			/* void unspecified */
 
+/* Predicates */
 #define CIF(a) ((a) ? ctrue : cfalse)
 #define IS_PTR(obj) ((obj).tag == id_ptr)
 #define IS_FIXNUM(obj) ((obj).tag == id_fixnum)
@@ -102,8 +99,8 @@ DEFINE_CONST(cvoid, 3);
 					  ((obj).tag == id_ptr &&							\
 					   (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
 
-/**
- * @brief Tagged poiner repesintation
+/*
+ * Tagged poiner repesintation
  *
  * Assuming that pointer is 8-byte aligned,
  * we can use 3 bits for type tag.
@@ -123,15 +120,15 @@ DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 
 /* Function types */
 typedef enum {
-	func_inter,	/**< Normal interpreted function */
-	func_native	/**< Native C-function */
+	func_inter,	/* Normal interpreted function */
+	func_native	/* Native C-function */
 } func_type_t;
 
-/* Function header */
+/* Common function header */
 typedef struct {
-	func_type_t type;
-	uint16_t argc;
-	uint16_t swallow:1;
+	func_type_t type;			/* type */
+	uint16_t argc;				/* arguments count */
+	uint16_t swallow:1;			/* swallow? */
 } func_hdr_t;
 
 DEFINE_TYPE(fixnum_t, long val:__WORDSIZE-3);

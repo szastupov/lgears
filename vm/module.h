@@ -17,7 +17,7 @@
  * <http://www.gnu.org/licenses>.
  */
 #ifndef MODULE_H
-#define MODULE_H 
+#define MODULE_H
 
 module_t* module_load(const char *path);
 module_t* module_load_static(const uint8_t *mem, int size);

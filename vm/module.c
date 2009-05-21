@@ -27,20 +27,20 @@
 #include "primitives.h"
 
 struct func_hdr_s {
-	uint16_t env_size;
-	uint16_t argc;
-	uint16_t swallow;
-	uint16_t op_count;
-	uint16_t heap_env;
-	uint16_t depth;
-	uint16_t bcount;
-	uint16_t bmcount;
+	uint16_t env_size;			/* Total size of environment */
+	uint16_t argc;				/* Minumum arguments count */
+	uint16_t swallow;			/* Accept additional arguments as list? */
+	uint16_t op_count;			/* Count of operations */
+	uint16_t heap_env;			/* Allocate environment on heap? */
+	uint16_t depth;				/* Depth marker */
+	uint16_t bcount;			/* Count of bindings */
+	uint16_t bmcount;			/* Count of bindmaps */
 } __attribute__((__packed__));
 
 struct module_hdr_s {
-	uint32_t consts_size;
-	uint16_t fun_count;
-	uint16_t entry_point;
+	uint32_t consts_size;		/* Count of constant objects */
+	uint16_t fun_count;			/* Count of functions */
+	uint16_t entry_point;		/* Entry point */
 } __attribute__((__packed__));
 
 #define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)

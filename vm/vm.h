@@ -34,16 +34,19 @@ typedef struct {
 typedef struct module_s module_t;
 typedef struct {
 	func_hdr_t hdr;
+
+	/* Fields copied from func_hdr_s */
 	short env_size;
 	int op_count;
 	short heap_env;
 	int depth;
-	int16_t *opcode;
-	bind_t *bindings;
 	int bcount;
-	int *bindmap;
 	int bmcount;
-	module_t *module;
+
+	int16_t *opcode;			/* Opcode */
+	bind_t *bindings;			/* Bindings */
+	int *bindmap;				/* Bindmap */
+	module_t *module;			/* Module */
 
 	char *dbg_symbols;
 	const char **dbg_table;
@@ -65,49 +68,46 @@ typedef struct {
 
 /* Module representation */
 struct module_s {
-	func_t *functions;
-	int entry_point;
-	int fun_count;
-	obj_t *consts;
-	const_allocator_t allocator;
+	func_t *functions;			/* Functions */
+	int entry_point;			/* Entry point */
+	int fun_count;				/* Functions count */
+	obj_t *consts;				/* Consant pool */
+	const_allocator_t allocator; /* Constant allocator */
 };
 
 typedef struct env_s {
-	struct env_s *prev;
-	int size;
-	int depth;
-	obj_t *objects;
+	struct env_s *prev;			/* Parent environment */
+	int size;					/* Objects count */
+	int depth;					/* Depth marker */
+	obj_t *objects;				/* Objects */
 } env_t;
 #define ENV(o) ((env_t*)PTR(o))
 
 typedef struct {
-	env_t *env;
-	obj_t *bindmap;
-	func_t *func;
+	env_t *env;					/* Parent invironment */
+	obj_t *bindmap;				/* Precreated bindmap */
+	func_t *func;				/* Function */
 } closure_t;
 
 typedef struct {
-	obj_t func;
-	int argc;
+	obj_t func;					/* Function to pass control */
+	int argc;					/* Arguments count */
 } trampoline_t;
 
 typedef struct {
-	heap_t heap;
-
-	obj_t *opstack;
-	int op_stack_idx;
-	int op_stack_size;
-	obj_t *objects;
-	env_t *env;
-	obj_t *bindmap;
-	func_t *func;
-	closure_t *closure;
-	int heap_env;
-
-	obj_t lib_cache;
-	obj_t exception_handlers;
-
-	trampoline_t tramp;
+	heap_t heap;				/* Heap */
+	obj_t *opstack;				/* Operands stack */
+	int op_stack_idx;			/* Stack index */
+	int op_stack_size;			/* Stack size (max objects count) */
+	obj_t *objects;				/* Locals pointer (may be stack or env) */
+	env_t *env;					/* Last environment */
+	obj_t *bindmap;				/* Current bindmap (if exists) */
+	func_t *func;				/* Current function */
+	closure_t *closure;			/* Current closure (if exists) */
+	int heap_env;				/* Is env allocated on heap? */
+	obj_t lib_cache;			/* Library cache register */
+	obj_t exception_handlers;	/* Exception handlers register */
+	trampoline_t tramp;			/* Trampoline for native/built-in functions */
 } vm_thread_t;
 
 #if CHECK_OPSTACK

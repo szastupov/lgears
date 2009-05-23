@@ -49,7 +49,6 @@ enum {
 	id_fixnum,	/* Integer */
 	id_char,	/* Character */
 	id_func,	/* Function pointer */
-	id_symbol,	/* Symbol pointer */
 	id_const	/* Constant */
 };
 
@@ -90,12 +89,12 @@ DEFINE_CONST(coef, 4);			/* eof object */
 #define IS_PTR(obj) ((obj).tag == id_ptr)
 #define IS_FIXNUM(obj) ((obj).tag == id_fixnum)
 #define IS_CHAR(obj) ((obj).tag == id_char)
-#define IS_SYMBOL(obj) ((obj).tag == id_symbol)
 #define IS_CONST(obj) ((obj).tag == id_const)
 #define IS_FALSE(obj) ((obj).ptr == cfalse.ptr)
 #define IS_TRUE(obj) ((obj).ptr == ctrue.ptr)
 #define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
 #define IS_NULL(obj) ((obj).ptr == cnull.ptr)
+#define IS_SYMBOL(obj) IS_TYPE(obj, t_symbol)
 #define IS_FUNC(obj) ((obj).tag == id_func ||							\
 					  ((obj).tag == id_ptr &&							\
 					   (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
@@ -114,10 +113,8 @@ DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
 #define PTR_SET(p,a) (p).addr = (unsigned long)a >> 3
 #define PTR_GET(p) (void*)(unsigned long)((p).addr << 3)
 #define PTR_INIT(p, a) { (p).tag = id_ptr; PTR_SET(p, a); }
-
+#define SYMBOL(o) (char*)PTR(o)
 #define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }
-#define SYMBOL_INIT(i, v) { (i).tag = id_symbol; PTR_SET(i, v); }
-#define SYMBOL_TO_CHARP(o) (const char*)PTR(o)
 
 /* Function types */
 typedef enum {
@@ -176,7 +173,8 @@ enum {
 	t_pair,
 	t_string,
 	t_struct,
-	t_bytevector
+	t_bytevector,
+	t_symbol
 };
 
 /* Header attached to each object on heap */

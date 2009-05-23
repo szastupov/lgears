@@ -25,10 +25,15 @@ void string_repr(void *ptr)
 	printf("%s", string->str);
 }
 
+void symbol_repr(void *ptr)
+{
+	printf("%s", (char*)ptr);
+}
+
 void string_visit(visitor_t *vs, void *data)
 {
 	string_t *str = data;
-	if (str->copy)
+	if (str->allocated)
 		str->str = data+sizeof(string_t);
 }
 
@@ -45,9 +50,9 @@ obj_t _string(allocator_t *al, char *str, int copy)
 	if (copy) {
 		string->str = mem + sizeof(string_t);
 		memcpy(string->str, str, ssize);
-		string->copy = 1;
+		string->allocated = 1;
 	} else {
-		string->copy = 0;
+		string->allocated = 0;
 		string->str = str;
 	}
 
@@ -80,7 +85,7 @@ MAKE_NATIVE_BINARY(string_concat);
 static int symbol_to_string(vm_thread_t *thread, obj_t *sym)
 {
 	SAFE_ASSERT(IS_SYMBOL(*sym));
-	char *str = PTR(*sym);
+	char *str = SYMBOL(*sym);
 
 	RETURN_OBJ(_string(&thread->heap.allocator, str, 0));
 }

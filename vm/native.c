@@ -100,9 +100,6 @@ void print_obj(obj_t obj)
 	case id_func:
 		print_func(obj);
 		break;
-	case id_symbol:
-		printf("%s", (const char*)PTR(obj));
-		break;
 	case id_const:
 		print_const(obj);
 		break;

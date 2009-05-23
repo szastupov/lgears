@@ -50,6 +50,7 @@ const type_t type_table[] = {
 	{ .name = "string", .visit = string_visit, .repr = string_repr },
 	{ .name = "struct", .visit = struct_visit, .repr = struct_repr },
 	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
+	{ .name = "symbol", .repr = symbol_repr }
 };
 
 static void mark_env(env_t **env, visitor_t *visitor)
@@ -142,7 +143,7 @@ static obj_t closure_new(heap_t *heap, func_t *func, env_t **env)
 static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	SAFE_ASSERT(IS_SYMBOL(argv[1]));
-	char *libname = (char*)PTR(argv[1]);
+	char *libname = SYMBOL(argv[1]);
 	module_t *mod = hash_table_lookup(&libraries, libname);
 
 	if (!mod) {
@@ -573,16 +574,37 @@ dispatch_func:
 
 static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+typedef struct {
+	obj_t obj;
+	char *str;
+	block_hdr_t hdr;
+} symbol_t;
+
+symbol_t* new_symbol(const char *str)
+{
+	size_t sz = strlen(str)+1;
+	void *mem = malloc(sizeof(symbol_t)+sz);
+	symbol_t *sym = mem;
+	memset(&sym->hdr, 0, sizeof(sym->hdr));
+	sym->hdr.size = sz;
+	sym->hdr.type_id = t_symbol;
+	sym->str = mem+sizeof(symbol_t);
+	sym->obj = make_ptr(sym->str, id_const_ptr);
+	memcpy(sym->str, str, sz);
+
+	return sym;
+}
+
 obj_t make_symbol(const char *str)
 {
 	pthread_mutex_lock(&symbol_mutex);
-	void *res = hash_table_lookup(&sym_table, str);
-	if (!res) {
-		res = strdup(str);
-		hash_table_insert(&sym_table, res, res);
+	symbol_t *sym = hash_table_lookup(&sym_table, str);
+	if (!sym) {
+		sym = new_symbol(str);
+		hash_table_insert(&sym_table, sym->str, sym);
 	}
 	pthread_mutex_unlock(&symbol_mutex);
-	return make_ptr(res, id_symbol);
+	return sym->obj;
 }
 
 /* Collect root objects */
@@ -665,7 +687,7 @@ void vm_init()
 	ns_install_native(&builtin, "library-cache", &library_cache_nt);
 
 	hash_table_init(&sym_table, string_hash, string_equal);
-	sym_table.destroy_key = free;
+	sym_table.destroy_val = free;
 
 	hash_table_init(&libraries, direct_hash, direct_equal);
 	libraries.destroy_val = (destroy_func)module_free;

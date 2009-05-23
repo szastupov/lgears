@@ -61,22 +61,22 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 #define MAKE_NATIVE_TERNARY(func)				\
 	MAKE_NATIVE(func, 3, 3, 0)
 
-#define RESULT_OBJ(obj)							\
+#define RETURN_OBJ(obj)							\
 	STACK_PUSH(obj);							\
 	return RC_OK;
 
-#define RESULT_FIXNUM(num) {					\
+#define RETURN_FIXNUM(num) {					\
 		fixnum_t fx; FIXNUM_INIT(fx, num);		\
-		RESULT_OBJ(fx.obj);						\
+		RETURN_OBJ(fx.obj);						\
 	}
 
-#define RESULT_CHAR(chr) {						\
+#define RETURN_CHAR(chr) {						\
 		char_t c; CHAR_INIT(c, chr);			\
-		RESULT_OBJ(c.obj);						\
+		RETURN_OBJ(c.obj);						\
 	}
 
-#define RESULT_BOOL(b)							\
-	RESULT_OBJ(CIF(b).obj);
+#define RETURN_BOOL(b)							\
+	RETURN_OBJ(CIF(b).obj);
 
 #if FATAL_SAFE_ASSERT
 #define FAIL_ASSERT FATAL
@@ -89,7 +89,7 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 		return RC_ERROR;							\
 	}
 
-#define RESULT_ERROR(msg...) {					\
+#define RETURN_ERROR(msg...) {					\
 		fprintf(stderr, msg);					\
 		return RC_ERROR;						\
 	}

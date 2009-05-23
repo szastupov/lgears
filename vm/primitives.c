@@ -18,6 +18,7 @@
  */
 #include "primitives.h"
 #include "fd.h"
+#include "fs.h"
 
 void pair_visit(visitor_t *vs, void *data)
 {
@@ -85,7 +86,7 @@ obj_t _list(heap_t *heap, obj_t *argv, int argc)
 static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
 	heap_require_blocks(&thread->heap, sizeof(pair_t), argc-1);
-	RESULT_OBJ(_list(&thread->heap, &argv[1], argc-1));
+	RETURN_OBJ(_list(&thread->heap, &argv[1], argc-1));
 }
 MAKE_NATIVE_VARIADIC(list, 0);
 
@@ -95,7 +96,7 @@ static int list_length(vm_thread_t *thread, obj_t *obj)
 	pair_t *pair = PTR(*obj);
 	SAFE_ASSERT(pair->list);
 
-	RESULT_FIXNUM(pair->length);
+	RETURN_FIXNUM(pair->length);
 }
 MAKE_NATIVE_UNARY(list_length);
 
@@ -110,14 +111,14 @@ static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	for (i = 0; i < size; i++)
 		res = _cons(&thread->heap.allocator, fill, &res);
 
-	RESULT_OBJ(res);
+	RETURN_OBJ(res);
 }
 MAKE_NATIVE_BINARY(make_list);
 
 static int display(vm_thread_t *thread, obj_t *obj)
 {
 	print_obj(*obj);
-	RESULT_OBJ(cvoid.obj);
+	RETURN_OBJ(cvoid.obj);
 }
 MAKE_NATIVE_UNARY(display);
 
@@ -162,9 +163,9 @@ static int exception_handlers(vm_thread_t *thread, obj_t *argv, int argc)
 	if (argc == 2) {
 		SAFE_ASSERT(IS_PAIR(argv[1]) || IS_NULL(argv[1]));
 		thread->exception_handlers = argv[1];
-		RESULT_OBJ(cvoid.obj);
+		RETURN_OBJ(cvoid.obj);
 	} else
-		RESULT_OBJ(thread->exception_handlers);
+		RETURN_OBJ(thread->exception_handlers);
 }
 MAKE_NATIVE_VARIADIC(exception_handlers, 0);
 
@@ -197,7 +198,7 @@ MAKE_NATIVE(apply, -1, 2, 0);
 
 static int get_void(vm_thread_t *thread)
 {
-	RESULT_OBJ(cvoid.obj);
+	RETURN_OBJ(cvoid.obj);
 }
 MAKE_NATIVE_NULLARY(get_void);
 
@@ -212,14 +213,14 @@ void ns_install_native(hash_table_t *tbl,
 static int char_to_integer(vm_thread_t *thread, obj_t *chr)
 {
 	SAFE_ASSERT(IS_CHAR(*chr));
-	RESULT_FIXNUM(CHAR(*chr));
+	RETURN_FIXNUM(CHAR(*chr));
 }
 MAKE_NATIVE_UNARY(char_to_integer);
 
 static int integer_to_char(vm_thread_t *thread, obj_t *i)
 {
 	SAFE_ASSERT(IS_FIXNUM(*i));
-	RESULT_CHAR(FIXNUM(*i));
+	RETURN_CHAR(FIXNUM(*i));
 }
 MAKE_NATIVE_UNARY(integer_to_char);
 
@@ -229,43 +230,43 @@ MAKE_NATIVE_UNARY(integer_to_char);
 
 static int is_procedure(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_FUNC(*obj));
+	RETURN_BOOL(IS_FUNC(*obj));
 }
 MAKE_NATIVE_UNARY(is_procedure);
 
 static int is_boolean(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_BOOL(*obj));
+	RETURN_BOOL(IS_BOOL(*obj));
 }
 MAKE_NATIVE_UNARY(is_boolean);
 
 static int is_null(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_NULL(*obj));
+	RETURN_BOOL(IS_NULL(*obj));
 }
 MAKE_NATIVE_UNARY(is_null);
 
 static int is_pair(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_PAIR(*obj));
+	RETURN_BOOL(IS_PAIR(*obj));
 }
 MAKE_NATIVE_UNARY(is_pair);
 
 static int is_symbol(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_SYMBOL(*obj));
+	RETURN_BOOL(IS_SYMBOL(*obj));
 }
 MAKE_NATIVE_UNARY(is_symbol);
 
 static int is_char(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_CHAR(*obj));
+	RETURN_BOOL(IS_CHAR(*obj));
 }
 MAKE_NATIVE_UNARY(is_char);
 
 static int is_number(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_FIXNUM(*obj));
+	RETURN_BOOL(IS_FIXNUM(*obj));
 }
 MAKE_NATIVE_UNARY(is_number);
 
@@ -273,9 +274,9 @@ static int is_list(vm_thread_t *thread, obj_t *obj)
 {
 	if (IS_PAIR(*obj)) {
 		pair_t *pair = PTR(*obj);
-		RESULT_BOOL(pair->list);
+		RETURN_BOOL(pair->list);
 	}
-	RESULT_BOOL(IS_NULL(*obj));
+	RETURN_BOOL(IS_NULL(*obj));
 }
 MAKE_NATIVE_UNARY(is_list);
 
@@ -306,4 +307,5 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_string(tbl);
 	ns_install_bytevector(tbl);
 	ns_install_fd(tbl);
+	ns_install_fs(tbl);
 }

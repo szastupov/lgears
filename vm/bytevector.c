@@ -56,7 +56,7 @@ static int make_bytevector(vm_thread_t *thread, obj_t *count, obj_t *fill)
 	bytevector_t *bv = bv_new(&thread->heap, FIXNUM(*count));
 	memset(bv->data, FIXNUM(*fill), bv->size);
 
-	RESULT_OBJ(make_ptr(bv, id_ptr));
+	RETURN_OBJ(make_ptr(bv, id_ptr));
 }
 MAKE_NATIVE_BINARY(make_bytevector);
 
@@ -65,13 +65,13 @@ static int bytevector_length(vm_thread_t *thread, obj_t *obj)
 	SAFE_ASSERT(IS_BYTEVECTOR(*obj));
 	bytevector_t *bv = PTR(*obj);
 
-	RESULT_FIXNUM(bv->size);
+	RETURN_FIXNUM(bv->size);
 }
 MAKE_NATIVE_UNARY(bytevector_length);
 
 static int is_bytevector(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_BYTEVECTOR(*obj));
+	RETURN_BOOL(IS_BYTEVECTOR(*obj));
 }
 MAKE_NATIVE_UNARY(is_bytevector);
 
@@ -88,7 +88,7 @@ static int bytevector_8_set(vm_thread_t *thread, obj_t *obv, obj_t *opos, obj_t 
 	SAFE_ASSERT(val > 0 && val < 256);
 	bv->data[pos] = val;
 
-	RESULT_OBJ(cvoid.obj);
+	RETURN_OBJ(cvoid.obj);
 }
 MAKE_NATIVE_TERNARY(bytevector_8_set);
 

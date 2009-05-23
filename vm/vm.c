@@ -169,9 +169,9 @@ static int library_cache(vm_thread_t *thread, obj_t *argv, int argc)
 	if (argc == 2) {
 		SAFE_ASSERT(IS_PAIR(argv[1]));
 		thread->lib_cache = argv[1];
-		RESULT_OBJ(cvoid.obj);
+		RETURN_OBJ(cvoid.obj);
 	} else
-		RESULT_OBJ(thread->lib_cache);
+		RETURN_OBJ(thread->lib_cache);
 }
 MAKE_NATIVE_VARIADIC(library_cache, 0);
 

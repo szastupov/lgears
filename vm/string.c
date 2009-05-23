@@ -73,7 +73,7 @@ static int string_concat(vm_thread_t *thread, obj_t *oa, obj_t *ob)
 	memcpy(new_str->str, a->str, sep);
 	memcpy(new_str->str+sep, b->str, b->size);
 
-	RESULT_OBJ(make_ptr(new_str, id_ptr));
+	RETURN_OBJ(make_ptr(new_str, id_ptr));
 }
 MAKE_NATIVE_BINARY(string_concat);
 
@@ -82,7 +82,7 @@ static int symbol_to_string(vm_thread_t *thread, obj_t *sym)
 	SAFE_ASSERT(IS_SYMBOL(*sym));
 	char *str = PTR(*sym);
 
-	RESULT_OBJ(_string(&thread->heap.allocator, str, 0));
+	RETURN_OBJ(_string(&thread->heap.allocator, str, 0));
 }
 MAKE_NATIVE_UNARY(symbol_to_string);
 
@@ -94,7 +94,7 @@ static int string_ref(vm_thread_t *thread, obj_t *ostr, obj_t *opos)
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(pos < str->size-1);
 
-	RESULT_CHAR(str->str[pos]);
+	RETURN_CHAR(str->str[pos]);
 }
 MAKE_NATIVE_BINARY(string_ref);
 
@@ -103,13 +103,13 @@ static int string_length(vm_thread_t *thread, obj_t *ostr)
 	SAFE_ASSERT(IS_STRING(*ostr));
 	string_t *str = PTR(*ostr);
 
-	RESULT_FIXNUM(str->size-1);
+	RETURN_FIXNUM(str->size-1);
 }
 MAKE_NATIVE_UNARY(string_length);
 
 static int is_string(vm_thread_t *thread, obj_t *obj)
 {
-	RESULT_BOOL(IS_STRING(*obj));
+	RETURN_BOOL(IS_STRING(*obj));
 }
 MAKE_NATIVE_UNARY(is_string);
 
@@ -120,7 +120,7 @@ static int string_eq(vm_thread_t *thread, obj_t *a, obj_t *b)
 	string_t *sa = PTR(*a);
 	string_t *sb = PTR(*b);
 
-	RESULT_BOOL(strcmp(sa->str, sb->str) == 0);
+	RETURN_BOOL(strcmp(sa->str, sb->str) == 0);
 }
 MAKE_NATIVE_BINARY(string_eq);
 

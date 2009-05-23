@@ -23,7 +23,7 @@
 #include "native.h"
 #include "string.h"
 
-/* 
+/*
  * File descriptors
  * Export only low level descriptros,
  * r6rs port system will be build on it
@@ -48,14 +48,14 @@ static int fd_open(vm_thread_t *thread, obj_t *opath, obj_t *omode)
 	SAFE_ASSERT(mode > 0 && mode < sizeof(fd_modes)/sizeof(int));
 	int fd = open(path->str, fd_modes[mode], S_IRWXU);
 
-	RESULT_FIXNUM(fd);
+	RETURN_FIXNUM(fd);
 }
 MAKE_NATIVE_BINARY(fd_open);
 
 static int fd_close(vm_thread_t *thread, obj_t *fd)
 {
 	SAFE_ASSERT(IS_FIXNUM(*fd));
-	RESULT_FIXNUM(close(FIXNUM(*fd)));
+	RETURN_FIXNUM(close(FIXNUM(*fd)));
 }
 MAKE_NATIVE_UNARY(fd_close);
 
@@ -81,7 +81,7 @@ static int fd_seek(vm_thread_t *thread, obj_t *fd, obj_t *offt, obj_t *omode)
 	}
 
 	off_t offset = lseek(FIXNUM(*fd), FIXNUM(*offt), mode);
-	RESULT_FIXNUM(offset);
+	RETURN_FIXNUM(offset);
 }
 MAKE_NATIVE_TERNARY(fd_seek);
 
@@ -93,7 +93,7 @@ static int fd_write(vm_thread_t *thread, obj_t *fd, obj_t *data)
 	string_t *str = PTR(*data);
 	int wrote = write(FIXNUM(*fd), str->str, str->size-1);
 
-	RESULT_FIXNUM(wrote);
+	RETURN_FIXNUM(wrote);
 }
 MAKE_NATIVE_BINARY(fd_write);
 

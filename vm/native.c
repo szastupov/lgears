@@ -34,8 +34,6 @@ int native_call(vm_thread_t *thread, native_func_t *native, obj_t *argv, int arg
 	default:
 		FATAL("wrong arity %d of %s\n", native->arity, native->name);
 	}
-
-	return -1;
 }
 
 static void print_const(obj_t obj)
@@ -45,7 +43,8 @@ static void print_const(obj_t obj)
 		"()",
 		"#t",
 		"#f",
-		"<void>"
+		"<void>",
+		"<eof>"
 	};
 	static int max_id = sizeof(descr)/sizeof(char*)-1;
 	if (c.st.id < 0 || c.st.id > max_id)

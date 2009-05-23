@@ -23,7 +23,7 @@
 #include <stdint.h>
 
 /*
- * Primitive types that fit in word size
+ * Primitive types fits in word size
  *
  * All primitive types has a 3-bit type tag.
  * In order to fit a pointer in __WORDSIZE-3, we have to shift pointer value, so
@@ -83,6 +83,7 @@ DEFINE_CONST(cnull, 0);			/* null '() */
 DEFINE_CONST(ctrue, 1);			/* true #t */
 DEFINE_CONST(cfalse, 2);		/* false #f */
 DEFINE_CONST(cvoid, 3);			/* void unspecified */
+DEFINE_CONST(coef, 4);			/* eof object */
 
 /* Predicates */
 #define CIF(a) ((a) ? ctrue : cfalse)

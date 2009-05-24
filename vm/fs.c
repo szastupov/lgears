@@ -37,7 +37,21 @@ int t_dir;
 
 typedef struct {
 	DIR *dir;
+	obj_t opath;
 } dir_t;
+
+static void dir_repr(void *ptr)
+{
+	dir_t *dir = ptr;
+	string_t *path = PTR(dir->opath);
+	printf("<dir: %s>", path->str);
+}
+
+static void dir_visit(visitor_t *vs, void *data)
+{
+	dir_t *dir = data;
+	vs->visit(vs, &dir->opath);
+}
 
 /*
  * Stat call, scheme code should provide syntactic sugar
@@ -109,6 +123,7 @@ static int fs_opendir(vm_thread_t *thread, obj_t *opath)
 	DIR *dir = opendir(path->str);
 	if (dir) {
 		dir_t *dt = heap_alloc(&thread->heap, sizeof(dir_t), t_dir);
+		dt->opath = *opath;
 		dt->dir = dir;
 		RETURN_OBJ(make_ptr(dt, id_ptr));
 	} else {
@@ -147,7 +162,7 @@ MAKE_NATIVE_UNARY(fs_readdir);
 
 void ns_install_fs(hash_table_t *tbl)
 {
-	t_dir = register_type("directory", NULL, NULL);
+	t_dir = register_type("directory", dir_repr, dir_visit);
 
 	ns_install_native(tbl, "fs-stat", &fs_stat_nt);
 	ns_install_native(tbl, "fs-remove", &fs_remove_nt);

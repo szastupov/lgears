@@ -63,6 +63,7 @@ typedef struct {
 	hash_table_t *old_map;		/* Map used to update pointers to OLD objects */
 	vm_thread_t *thread;		/* Thread pointer */
 	allocator_t allocator;		/* Provide allocator interface */
+	struct timeval gc_time;
 } heap_t;
 
 void heap_init(heap_t *heap, vm_thread_t *thread);

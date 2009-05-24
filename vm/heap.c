@@ -252,8 +252,8 @@ static void heap_gc_main(heap_t *heap)
 
 static void heap_gc(heap_t *heap)
 {
-	HEAP_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
-	struct timeval tv1, tv2;
+	//HEAP_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
+	struct timeval tv1, tv2, tv3;
 	gettimeofday(&tv1, NULL);
 
 	heap_gc_main(heap);
@@ -277,8 +277,8 @@ static void heap_gc(heap_t *heap)
 		heap->full_gc = 1;		/* Tell to perform full gc next time */
 
 	gettimeofday(&tv2, NULL);
-	printf("\nGC time: %ld seconds, %ld microseconds\n",
-			tv2.tv_sec-tv1.tv_sec, tv2.tv_usec-tv1.tv_usec);
+	timersub(&tv2, &tv1, &tv3);
+	timeradd(&heap->gc_time, &tv3, &heap->gc_time);
 }
 
 void* heap_alloc(heap_t *heap, int size, int type_id)
@@ -437,4 +437,6 @@ void heap_destroy(heap_t *heap)
 {
 	mem_free(heap->mem);
 	forget(&heap->remembered_set);
+	LOG_DBG("total time spent in GC %ld sec, %ld microsec\n",
+			heap->gc_time.tv_sec, heap->gc_time.tv_usec);
 }

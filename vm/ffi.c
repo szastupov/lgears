@@ -172,3 +172,4 @@ void ns_install_ffi(hash_table_t *tbl)
 	ns_install_native(tbl, "load-so", &load_so_nt);
 	ns_install_native(tbl, "make-foreign", &make_foreign_nt);
 }
+

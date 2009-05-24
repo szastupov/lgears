@@ -548,6 +548,7 @@ dispatch_func:
 			ARITHMETIC_TARGET(SUB, -);
 
 			TARGET(OP_CONS) {
+				heap_require(&thread->heap, sizeof(pair_t));
 				obj_t b = STACK_POP();
 				obj_t a = STACK_POP();
 				STACK_PUSH(_cons(&thread->heap.allocator, &a, &b));

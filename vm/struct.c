@@ -25,7 +25,9 @@
  * via struct-type procedure).
  */
 
-void struct_repr(void *ptr)
+int t_struct;
+
+static void struct_repr(void *ptr)
 {
 	struct_t *st = ptr;
 	printf("#<%s: ", (char*)PTR(st->type_name));
@@ -38,7 +40,7 @@ void struct_repr(void *ptr)
 	printf(">");
 }
 
-void struct_visit(visitor_t *vs, void *data)
+static void struct_visit(visitor_t *vs, void *data)
 {
 	struct_t *st = data;
 	st->fields = data+sizeof(struct_t);
@@ -152,6 +154,7 @@ MAKE_NATIVE_UNARY(struct_to_list);
 
 void ns_install_struct(hash_table_t *tbl)
 {
+	t_struct = register_type("struct", struct_repr, struct_visit);
 	ns_install_native(tbl, "make-struct", &make_struct_nt);
 	ns_install_native(tbl, "alloc-struct", &alloc_struct_nt);
 	ns_install_native(tbl, "struct?", &is_struct_nt);

@@ -19,15 +19,12 @@
 #include "native.h"
 #include "string.h"
 
-void string_repr(void *ptr)
+int t_string;
+
+static void string_repr(void *ptr)
 {
 	string_t *string = ptr;
 	printf("%s", string->str);
-}
-
-void symbol_repr(void *ptr)
-{
-	printf("%s", (char*)ptr);
 }
 
 void string_visit(visitor_t *vs, void *data)
@@ -131,6 +128,7 @@ MAKE_NATIVE_BINARY(string_eq);
 
 void ns_install_string(hash_table_t *tbl)
 {
+	t_string = register_type("string", string_repr, string_visit);
 	ns_install_native(tbl, "symbol->string", &symbol_to_string_nt);
 	ns_install_native(tbl, "string-ref", &string_ref_nt);
 	ns_install_native(tbl, "string-length", &string_length_nt);

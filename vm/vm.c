@@ -35,23 +35,26 @@
 hash_table_t sym_table;			/* Symbols table */
 hash_table_t builtin;			/* Builtin functions */
 hash_table_t libraries;			/* Libraries */
+const_allocator_t global_const_pool;
 
 char *cache_path;
 
 static void env_visit(visitor_t *vs, void *data);
 static void closure_visit(visitor_t *vs, void *data);
 
-/* Type table */
-const type_t type_table[] = {
-	{ .name = "env", .visit = env_visit },
-	{ .name = "closure", .visit = closure_visit },
-	{ .name = "continiation", .visit = continuation_visit },
-	{ .name = "pair", .visit = pair_visit, .repr = pair_repr },
-	{ .name = "string", .visit = string_visit, .repr = string_repr },
-	{ .name = "struct", .visit = struct_visit, .repr = struct_repr },
-	{ .name = "bytevector", .visit = bv_visit, .repr = bv_repr },
-	{ .name = "symbol", .repr = symbol_repr }
-};
+int t_env, t_closure, t_symbol;
+
+static void symbol_repr(void *ptr)
+{
+	printf("%s", (char*)ptr);
+}
+
+static void vm_register_types()
+{
+	t_env = register_type("env", NULL, env_visit);
+	t_closure = register_type("closure", NULL, closure_visit);
+	t_symbol = register_type("symbol", symbol_repr, NULL);
+}
 
 static void mark_env(env_t **env, visitor_t *visitor)
 {
@@ -574,37 +577,18 @@ dispatch_func:
 
 static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-typedef struct {
-	obj_t obj;
-	char *str;
-	block_hdr_t hdr;
-} symbol_t;
-
-symbol_t* new_symbol(const char *str)
-{
-	size_t sz = strlen(str)+1;
-	void *mem = malloc(sizeof(symbol_t)+sz);
-	symbol_t *sym = mem;
-	memset(&sym->hdr, 0, sizeof(sym->hdr));
-	sym->hdr.size = sz;
-	sym->hdr.type_id = t_symbol;
-	sym->str = mem+sizeof(symbol_t);
-	sym->obj = make_ptr(sym->str, id_const_ptr);
-	memcpy(sym->str, str, sz);
-
-	return sym;
-}
-
 obj_t make_symbol(const char *str)
 {
 	pthread_mutex_lock(&symbol_mutex);
-	symbol_t *sym = hash_table_lookup(&sym_table, str);
-	if (!sym) {
-		sym = new_symbol(str);
-		hash_table_insert(&sym_table, sym->str, sym);
+	void *res = hash_table_lookup(&sym_table, str);
+	if (!res) {
+		size_t sz = strlen(str)+1;
+		res = allocator_alloc(&global_const_pool.al, sz, t_symbol);
+		memcpy(res, str, sz);
+		hash_table_insert(&sym_table, res, res);
 	}
 	pthread_mutex_unlock(&symbol_mutex);
-	return sym->obj;
+	return make_ptr(res, id_const_ptr);
 }
 
 /* Collect root objects */
@@ -681,13 +665,13 @@ void vm_eval_module(module_t *mod)
 /* Initialize global vm structures */
 void vm_init()
 {
+	vm_register_types();
 	hash_table_init(&builtin, string_hash, string_equal);
 	ns_install_primitives(&builtin);
 	ns_install_native(&builtin, "load-library", &load_library_nt);
 	ns_install_native(&builtin, "library-cache", &library_cache_nt);
 
 	hash_table_init(&sym_table, string_hash, string_equal);
-	sym_table.destroy_val = free;
 
 	hash_table_init(&libraries, direct_hash, direct_equal);
 	libraries.destroy_val = (destroy_func)module_free;
@@ -697,6 +681,8 @@ void vm_init()
 		cache_path = mem_alloc(256);
 		snprintf(cache_path, 256, "%s/.cache/lgears", getenv("HOME"));
 	}
+
+	const_allocator_init(&global_const_pool);
 }
 
 /* Cleanup VM (I want clear valgrind output) */
@@ -705,6 +691,7 @@ void vm_cleanup()
 	hash_table_destroy(&builtin);
 	hash_table_destroy(&sym_table);
 	hash_table_destroy(&libraries);
+	const_allocator_clean(&global_const_pool);
 }
 
 #define SIZE_INFO(t) printf("sizeof(%s) = %zd\n", #t, sizeof(t))

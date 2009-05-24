@@ -16,18 +16,20 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef BYTEVECTOR_H
-#define BYTEVECTOR_H
+#include "types.h"
+#include "cutil.h"
 
-typedef struct {
-	unsigned char *data;
-	int size;
-} bytevector_t;
+static int types_count = 0;
+type_t type_table[VM_MAX_TYPES];
 
-extern int t_bytevector;
+int register_type(const char *name, void (*repr)(void*), visitor_fun visit)
+{
+	if (types_count == VM_MAX_TYPES-1)
+		FATAL("failed to register type %s, increase VM_MAX_TYPES please\n", name);
+	type_t *type = &type_table[types_count];
+	type->name = name;
+	type->repr = repr;
+	type->visit = visit;
 
-#define IS_BYTEVECTOR(obj) IS_TYPE(obj, t_bytevector)
-
-void ns_install_bytevector(hash_table_t *tbl);
-
-#endif
+	return types_count++;
+}

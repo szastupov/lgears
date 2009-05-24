@@ -20,7 +20,9 @@
 #include "fd.h"
 #include "fs.h"
 
-void pair_visit(visitor_t *vs, void *data)
+int t_pair, t_cont;
+
+static void pair_visit(visitor_t *vs, void *data)
 {
 	pair_t *pair = data;
 	vs->visit(vs, &pair->car);
@@ -42,7 +44,7 @@ static void disp_pair(pair_t *pair)
 	}
 }
 
-void pair_repr(void *ptr)
+static void pair_repr(void *ptr)
 {
 	pair_t *pair = ptr;
 	printf("(");
@@ -129,7 +131,7 @@ static int vm_exit(vm_thread_t *thread)
 }
 MAKE_NATIVE_NULLARY(vm_exit);
 
-void continuation_visit(visitor_t *vs, void *data)
+static void continuation_visit(visitor_t *vs, void *data)
 {
 	continuation_t *cont = data;
 	vs->visit(vs, &cont->func);
@@ -202,6 +204,12 @@ static int get_void(vm_thread_t *thread)
 }
 MAKE_NATIVE_NULLARY(get_void);
 
+static int get_eof(vm_thread_t *thread)
+{
+	RETURN_OBJ(ceof.obj);
+}
+MAKE_NATIVE_NULLARY(get_eof);
+
 void ns_install_native(hash_table_t *tbl,
 		char *name, const native_func_t *nt)
 {
@@ -246,6 +254,12 @@ static int is_null(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(is_null);
 
+static int is_eof(vm_thread_t *thread, obj_t *obj)
+{
+	RETURN_BOOL(IS_EOF(*obj));
+}
+MAKE_NATIVE_UNARY(is_eof);
+
 static int is_pair(vm_thread_t *thread, obj_t *obj)
 {
 	RETURN_BOOL(IS_PAIR(*obj));
@@ -282,6 +296,9 @@ MAKE_NATIVE_UNARY(is_list);
 
 void ns_install_primitives(hash_table_t *tbl)
 {
+	t_pair = register_type("pair", pair_repr, pair_visit);
+	t_cont = register_type("cont", NULL, continuation_visit);
+
 	ns_install_native(tbl, "display", &display_nt);
 	ns_install_native(tbl, "__exit", &vm_exit_nt);
 	ns_install_native(tbl, "call/cc", &call_cc_nt);
@@ -290,6 +307,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "list", &list_nt);
 	ns_install_native(tbl, "$make-list", &make_list_nt);
 	ns_install_native(tbl, "void", &get_void_nt);
+	ns_install_native(tbl, "eof-object", &get_eof_nt);
 	ns_install_native(tbl, "char->integer", &char_to_integer_nt);
 	ns_install_native(tbl, "integer->char", &integer_to_char_nt);
 
@@ -301,6 +319,7 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_native(tbl, "pair?", &is_pair_nt);
 	ns_install_native(tbl, "symbol?", &is_symbol_nt);
 	ns_install_native(tbl, "list?", &is_list_nt);
+	ns_install_native(tbl, "eof-object?", &is_eof_nt);
 	ns_install_native(tbl, "length", &list_length_nt);
 
 	ns_install_struct(tbl);
@@ -308,4 +327,5 @@ void ns_install_primitives(hash_table_t *tbl)
 	ns_install_bytevector(tbl);
 	ns_install_fd(tbl);
 	ns_install_fs(tbl);
+	ns_install_ffi(tbl);
 }

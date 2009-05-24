@@ -188,7 +188,7 @@ static void heap_scan_remebered(heap_t *heap)
 /*
  * 1. Collect all reached objects
  * 2. Reset the old space
- * 3. Move obects to the begining of the old space, creating mappings
+ * 3. Move obects to the begining of the old space creating mappings
  */
 static void heap_gc_old(heap_t *heap)
 {

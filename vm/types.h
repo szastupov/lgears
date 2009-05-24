@@ -45,7 +45,8 @@ typedef union {
 /* Basic type identifiers */
 enum {
 	id_ptr,		/* Pointer on a heap-allocated object */
-	id_const_ptr,				/* Pinter on constant object */
+	id_const_ptr,				/* Pointer on constant object */
+	id_foreign_ptr,				/* Foreign pointer */
 	id_fixnum,	/* Integer */
 	id_char,	/* Character */
 	id_func,	/* Function pointer */
@@ -82,7 +83,7 @@ DEFINE_CONST(cnull, 0);			/* null '() */
 DEFINE_CONST(ctrue, 1);			/* true #t */
 DEFINE_CONST(cfalse, 2);		/* false #f */
 DEFINE_CONST(cvoid, 3);			/* void unspecified */
-DEFINE_CONST(coef, 4);			/* eof object */
+DEFINE_CONST(ceof, 4);			/* eof object */
 
 /* Predicates */
 #define CIF(a) ((a) ? ctrue : cfalse)
@@ -94,6 +95,7 @@ DEFINE_CONST(coef, 4);			/* eof object */
 #define IS_TRUE(obj) ((obj).ptr == ctrue.ptr)
 #define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
 #define IS_NULL(obj) ((obj).ptr == cnull.ptr)
+#define IS_EOF(obj) ((obj).ptr == ceof.ptr)
 #define IS_SYMBOL(obj) IS_TYPE(obj, t_symbol)
 #define IS_FUNC(obj) ((obj).tag == id_func ||							\
 					  ((obj).tag == id_ptr &&							\
@@ -164,18 +166,10 @@ typedef struct {
 } type_t;
 
 /* Type table */
-extern const type_t type_table[];
-
-enum {
-	t_env,
-	t_closure,
-	t_cont,
-	t_pair,
-	t_string,
-	t_struct,
-	t_bytevector,
-	t_symbol
-};
+#define VM_MAX_TYPES 20
+extern type_t type_table[VM_MAX_TYPES];
+int register_type(const char *name, void (*repr)(void*), visitor_fun visit);
+extern int t_closure, t_cont, t_symbol;
 
 /* Header attached to each object on heap */
 typedef struct {

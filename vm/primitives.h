@@ -22,6 +22,9 @@
 #include "struct.h"
 #include "string.h"
 #include "bytevector.h"
+#include "ffi.h"
+
+extern int t_pair;
 
 extern const native_func_t vm_exit_nt;
 
@@ -38,8 +41,6 @@ typedef struct {
 	unsigned length:31;
 } pair_t;
 
-void pair_repr(void *ptr);
-void pair_visit(visitor_t *vs, void *data);
 obj_t _list(heap_t *heap, obj_t *argv, int argc);
 obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr);
 
@@ -48,7 +49,5 @@ obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr);
 typedef struct {
 	obj_t func;
 } continuation_t;
-
-void continuation_visit(visitor_t *vs, void *data);
 
 #endif /* PRIMITIVES_H */

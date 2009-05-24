@@ -16,18 +16,26 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef BYTEVECTOR_H
-#define BYTEVECTOR_H
+#ifndef CONST_ALLOCATOR_H
+#define CONST_ALLOCATOR_H
 
+#include "types.h"
+#include "allocator.h"
+
+typedef struct linked_mem_s {
+	struct linked_mem_s *next;
+#if __WORDSIZE == 32
+	char pad[4];
+#endif
+	block_hdr_t hdr;
+} linked_mem_t;
+
+/* Simple allocator for constants */
 typedef struct {
-	unsigned char *data;
-	int size;
-} bytevector_t;
+	allocator_t al;
+	linked_mem_t *mem;
+} const_allocator_t;
 
-extern int t_bytevector;
-
-#define IS_BYTEVECTOR(obj) IS_TYPE(obj, t_bytevector)
-
-void ns_install_bytevector(hash_table_t *tbl);
-
+void const_allocator_clean(const_allocator_t *al);
+void const_allocator_init(const_allocator_t *allocator);
 #endif

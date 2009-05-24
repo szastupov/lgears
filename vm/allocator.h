@@ -16,18 +16,18 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef BYTEVECTOR_H
-#define BYTEVECTOR_H
+#ifndef ALLOCATOR_H
+#define ALLOCATOR_H
 
-typedef struct {
-	unsigned char *data;
-	int size;
-} bytevector_t;
+/* Abstract allocator interface */
+typedef struct allocator_s {
+	void* (*alloc)(struct allocator_s*, size_t, int);
+	int id;
+} allocator_t;
 
-extern int t_bytevector;
-
-#define IS_BYTEVECTOR(obj) IS_TYPE(obj, t_bytevector)
-
-void ns_install_bytevector(hash_table_t *tbl);
+static inline void* allocator_alloc(allocator_t *al, size_t size, int type_id)
+{
+	return al->alloc(al, size, type_id);
+}
 
 #endif

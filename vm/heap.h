@@ -19,11 +19,7 @@
 #ifndef HEAP_H
 #define HEAP_H
 
-/* Abstract allocator interface */
-typedef struct allocator_s {
-	void* (*alloc)(struct allocator_s*, size_t, int);
-	int id;
-} allocator_t;
+#include "allocator.h"
 
 #define IS_OLD(hp, ptr) ((void*)ptr >= (hp)->old.mem)
 
@@ -76,10 +72,5 @@ void* heap_alloc0(heap_t *heap, int size, int type_id);
 void heap_require(heap_t *heap, int size);
 void heap_require_blocks(heap_t *heap, int size, int count);
 void heap_remember(heap_t *heap, block_hdr_t *hdr);
-
-static inline void* allocator_alloc(allocator_t *al, size_t size, int type_id)
-{
-	return al->alloc(al, size, type_id);
-}
 
 #endif /* HEAP_H */

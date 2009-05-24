@@ -20,11 +20,29 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <limits.h>
+#include <dirent.h>
 
 #include "native.h"
 #include "struct.h"
 #include "string.h"
 
+/*
+ * This module pretend to be a typesafe interface to posix filesystem
+ * operations. Only basic amount of operations is supported but you
+ * always may use ffi at you own risk :)
+ */
+
+/* Remember? we are safe, so we have to make some types */
+int t_dir;
+
+typedef struct {
+	DIR *dir;
+} dir_t;
+
+/*
+ * Stat call, scheme code should provide syntactic sugar
+ * TODO: export inode type helpers
+ */
 static int fs_stat(vm_thread_t *thread, obj_t *opath)
 {
 	SAFE_ASSERT(IS_STRING(*opath));
@@ -72,7 +90,7 @@ MAKE_NATIVE_UNARY(fs_remove);
 
 static int fs_getcwd(vm_thread_t *thread)
 {
-	char path[PATH_MAX];		/* FIXME */
+	char path[PATH_MAX];
 	if (getcwd(path, sizeof(path))) {
 		RETURN_OBJ(_string(&thread->heap.allocator,
 						   path,
@@ -83,9 +101,58 @@ static int fs_getcwd(vm_thread_t *thread)
 }
 MAKE_NATIVE_NULLARY(fs_getcwd);
 
+static int fs_opendir(vm_thread_t *thread, obj_t *opath)
+{
+	SAFE_ASSERT(IS_STRING(*opath));
+
+	string_t *path = PTR(*opath);
+	DIR *dir = opendir(path->str);
+	if (dir) {
+		dir_t *dt = heap_alloc(&thread->heap, sizeof(dir_t), t_dir);
+		dt->dir = dir;
+		RETURN_OBJ(make_ptr(dt, id_ptr));
+	} else {
+		RETURN_OBJ(cfalse.obj);
+	}
+}
+MAKE_NATIVE_UNARY(fs_opendir);
+
+static int fs_closedir(vm_thread_t *thread, obj_t *odir)
+{
+	SAFE_ASSERT(IS_TYPE(*odir, t_dir));
+	dir_t *dt = PTR(*odir);
+
+	RETURN_BOOL(closedir(dt->dir) == 0);
+}
+MAKE_NATIVE_UNARY(fs_closedir);
+
+static int fs_readdir(vm_thread_t *thread, obj_t *odir)
+{
+	SAFE_ASSERT(IS_TYPE(*odir, t_dir));
+	dir_t *dt = PTR(*odir);
+	struct dirent *d_buf, *d_res;
+	d_buf = alloca(offsetof(struct dirent, d_name)+PATH_MAX);
+	if (readdir_r(dt->dir, d_buf, &d_res) == 0) {
+		if (d_res) {
+			RETURN_OBJ(_string(&thread->heap.allocator,
+							   d_res->d_name, 1));
+		} else {
+			RETURN_OBJ(ceof.obj);
+		}
+	} else {
+		RETURN_OBJ(cfalse.obj);
+	}
+}
+MAKE_NATIVE_UNARY(fs_readdir);
+
 void ns_install_fs(hash_table_t *tbl)
 {
+	t_dir = register_type("directory", NULL, NULL);
+
 	ns_install_native(tbl, "fs-stat", &fs_stat_nt);
 	ns_install_native(tbl, "fs-remove", &fs_remove_nt);
 	ns_install_native(tbl, "fs-getcwd", &fs_getcwd_nt);
+	ns_install_native(tbl, "fs-opendir", &fs_opendir_nt);
+	ns_install_native(tbl, "fs-closedir", &fs_closedir_nt);
+	ns_install_native(tbl, "fs-readdir", &fs_readdir_nt);
 }

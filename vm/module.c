@@ -75,33 +75,6 @@ int mapfile(const char *path, map_t *map)
 	return ret;
 }
 
-static void* const_allocator_alloc(allocator_t *al,
-								   size_t size,
-								   int type_id)
-{
-	const_allocator_t *cal = container_of(al, const_allocator_t, al);
-	void *ptr = mem_alloc(sizeof(linked_mem_t)+size);
-	linked_mem_t *new = ptr;
-	memset(&new->hdr, 0, sizeof(new->hdr));
-	new->hdr.size = size;
-	new->hdr.type_id = type_id;
-	new->next = cal->mem;
-	cal->mem = new;
-
-	return ptr+sizeof(linked_mem_t);
-}
-
-static void const_allocator_clean(const_allocator_t *al)
-{
-	linked_mem_t *cur, *next;
-	cur = al->mem;
-	while (cur) {
-		next = cur->next;
-		mem_free(cur);
-		cur = next;
-	}
-}
-
 typedef struct {
 	const char *buf;
 	const char *cur;
@@ -275,8 +248,7 @@ static module_t* module_parse(const uint8_t *code_src, size_t code_size)
 		.code_size = code_size
 	};
 	module_t *mod = new0(module_t);
-	mod->allocator.al.alloc = const_allocator_alloc;
-	mod->allocator.al.id = id_const_ptr;
+	const_allocator_init(&mod->allocator);
 
 	/* Read module header */
 	const struct module_hdr_s *mhdr = code_read_bytes(&code, MODULE_HDR_OFFSET);

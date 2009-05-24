@@ -16,18 +16,10 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef BYTEVECTOR_H
-#define BYTEVECTOR_H
+#ifndef FFI_H
+#define FFI_H
 
-typedef struct {
-	unsigned char *data;
-	int size;
-} bytevector_t;
-
-extern int t_bytevector;
-
-#define IS_BYTEVECTOR(obj) IS_TYPE(obj, t_bytevector)
-
-void ns_install_bytevector(hash_table_t *tbl);
+extern int t_shared_object;
+void ns_install_ffi(hash_table_t *tbl);
 
 #endif

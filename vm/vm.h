@@ -26,8 +26,10 @@
 typedef struct vm_thread_s vm_thread_t;
 
 #include "heap.h"
+#include "const_allocator.h"
 
 extern hash_table_t builtin;
+extern const_allocator_t global_const_pool;
 extern char *cache_path;
 
 typedef struct {
@@ -54,20 +56,6 @@ typedef struct {
 	char *dbg_symbols;
 	const char **dbg_table;
 } func_t;
-
-typedef struct linked_mem_s {
-	struct linked_mem_s *next;
-#if __WORDSIZE == 32
-	char pad[4];
-#endif
-	block_hdr_t hdr;
-} linked_mem_t;
-
-/* Simple allocator for constants */
-typedef struct {
-	allocator_t al;
-	linked_mem_t *mem;
-} const_allocator_t;
 
 /* Module representation */
 struct module_s {

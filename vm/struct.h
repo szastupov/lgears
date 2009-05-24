@@ -25,11 +25,11 @@ typedef struct {
 	obj_t *fields;				/* Fields */
 } struct_t;
 
+extern int t_struct;
+
 #define IS_STRUCT(obj) IS_TYPE(obj, t_struct)
 
 struct_t* struct_new(allocator_t *al, obj_t *type_name, int size);
 void ns_install_struct(hash_table_t *tbl);
-void struct_repr(void *ptr);
-void struct_visit(visitor_t *vs, void *data);
 
 #endif

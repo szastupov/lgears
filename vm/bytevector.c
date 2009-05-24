@@ -19,7 +19,9 @@
 #include "native.h"
 #include "bytevector.h"
 
-void bv_repr(void *ptr)
+int t_bytevector;
+
+static void bv_repr(void *ptr)
 {
 	bytevector_t *bv = ptr;
 	printf("#vu8(");
@@ -32,7 +34,7 @@ void bv_repr(void *ptr)
 	printf(")");
 }
 
-void bv_visit(visitor_t *vs, void *data)
+static void bv_visit(visitor_t *vs, void *data)
 {
 	bytevector_t *bv = data;
 	bv->data = data+sizeof(bytevector_t);
@@ -94,6 +96,7 @@ MAKE_NATIVE_TERNARY(bytevector_8_set);
 
 void ns_install_bytevector(hash_table_t *tbl)
 {
+	t_bytevector = register_type("bv", bv_repr, bv_visit);
 	ns_install_native(tbl, "make-bytevector", &make_bytevector_nt);
 	ns_install_native(tbl, "bytevector?", &is_bytevector_nt);
 	ns_install_native(tbl, "bytevector-u8-set!", &bytevector_8_set_nt);

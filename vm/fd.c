@@ -21,7 +21,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "native.h"
-#include "string.h"
+#include "strings.h"
 
 /*
  * File descriptors

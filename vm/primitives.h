@@ -20,9 +20,8 @@
 #define PRIMITIVES_H
 #include "native.h"
 #include "struct.h"
-#include "string.h"
+#include "strings.h"
 #include "bytevector.h"
-#include "ffi.h"
 
 extern int t_pair;
 

@@ -19,7 +19,7 @@
 #include <dlfcn.h>
 #include <ffi.h>
 #include "native.h"
-#include "string.h"
+#include "strings.h"
 
 int t_shared_object, t_foreign_function;
 

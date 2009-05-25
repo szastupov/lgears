@@ -16,23 +16,10 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef STRING_H
-#define STRING_H
+#ifndef FOREIGN_H
+#define FOREIGN_H
 
-typedef struct {
-	char *str;
-	int size;
-	unsigned allocated:1;
-} string_t;
+void ffi_init();
+void ffi_cleanup();
 
-extern int t_string, t_symbol;
-
-#define IS_STRING(obj) IS_TYPE(obj, t_string)
-#define IS_SYMBOL(obj) IS_TYPE(obj, t_symbol)
-
-obj_t _string(allocator_t *alloc, char *str, int copy);
-void strings_init();
-void strings_cleanup();
-obj_t make_symbol(const char *str);
-
-#endif /* STRING_H */
+#endif

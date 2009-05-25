@@ -19,6 +19,7 @@
 #include "primitives.h"
 #include "fd.h"
 #include "fs.h"
+#include "foreign.h"
 
 int t_pair, t_cont;
 

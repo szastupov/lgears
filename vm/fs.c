@@ -24,7 +24,7 @@
 
 #include "native.h"
 #include "struct.h"
-#include "string.h"
+#include "strings.h"
 
 /*
  * This module pretend to be a typesafe interface to posix filesystem

@@ -18,7 +18,7 @@
  */
 #include <pthread.h>
 #include "native.h"
-#include "string.h"
+#include "strings.h"
 
 int t_string, t_symbol;
 hash_table_t sym_table;			/* Symbols table */

@@ -152,15 +152,15 @@ static int struct_to_list(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(struct_to_list);
 
-void ns_install_struct(hash_table_t *tbl)
+void struct_init()
 {
 	t_struct = register_type("struct", struct_repr, struct_visit);
-	ns_install_native(tbl, "make-struct", &make_struct_nt);
-	ns_install_native(tbl, "alloc-struct", &alloc_struct_nt);
-	ns_install_native(tbl, "struct?", &is_struct_nt);
-	ns_install_native(tbl, "struct-size", &struct_size_nt);
-	ns_install_native(tbl, "struct-set!", &struct_set_nt);
-	ns_install_native(tbl, "struct-ref", &struct_ref_nt);
-	ns_install_native(tbl, "struct-type", &struct_type_nt);
-	ns_install_native(tbl, "struct->list", &struct_to_list_nt);
+	ns_install_global("make-struct", &make_struct_nt);
+	ns_install_global("alloc-struct", &alloc_struct_nt);
+	ns_install_global("struct?", &is_struct_nt);
+	ns_install_global("struct-size", &struct_size_nt);
+	ns_install_global("struct-set!", &struct_set_nt);
+	ns_install_global("struct-ref", &struct_ref_nt);
+	ns_install_global("struct-type", &struct_type_nt);
+	ns_install_global("struct->list", &struct_to_list_nt);
 }

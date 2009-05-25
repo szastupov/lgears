@@ -211,11 +211,11 @@ static int get_eof(vm_thread_t *thread)
 MAKE_NATIVE_NULLARY(get_eof);
 
 void ns_install_native(hash_table_t *tbl,
-		char *name, const native_func_t *nt)
+		const char *name, const native_func_t *nt)
 {
 	ptr_t ptr;
 	FUNC_INIT(ptr, nt);
-	hash_table_insert(tbl, name, ptr.ptr);
+	hash_table_insert(tbl, (char*)name, ptr.ptr);
 }
 
 static int char_to_integer(vm_thread_t *thread, obj_t *chr)
@@ -294,38 +294,52 @@ static int is_list(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(is_list);
 
-void ns_install_primitives(hash_table_t *tbl)
+static native_module_t modules[] = {
+	{ strings_init, strings_cleanup },
+	{ struct_init },
+	{ bytevector_init },
+	{ fd_init },
+	{ fs_init },
+	{ ffi_init, ffi_cleanup }
+};
+
+void primitives_init()
 {
 	t_pair = register_type("pair", pair_repr, pair_visit);
 	t_cont = register_type("cont", NULL, continuation_visit);
 
-	ns_install_native(tbl, "display", &display_nt);
-	ns_install_native(tbl, "__exit", &vm_exit_nt);
-	ns_install_native(tbl, "call/cc", &call_cc_nt);
-	ns_install_native(tbl, "apply", &apply_nt);
-	ns_install_native(tbl, "exception-handlers", &exception_handlers_nt);
-	ns_install_native(tbl, "list", &list_nt);
-	ns_install_native(tbl, "$make-list", &make_list_nt);
-	ns_install_native(tbl, "void", &get_void_nt);
-	ns_install_native(tbl, "eof-object", &get_eof_nt);
-	ns_install_native(tbl, "char->integer", &char_to_integer_nt);
-	ns_install_native(tbl, "integer->char", &integer_to_char_nt);
+	ns_install_global("display", &display_nt);
+	ns_install_global("__exit", &vm_exit_nt);
+	ns_install_global("call/cc", &call_cc_nt);
+	ns_install_global("apply", &apply_nt);
+	ns_install_global("exception-handlers", &exception_handlers_nt);
+	ns_install_global("list", &list_nt);
+	ns_install_global("$make-list", &make_list_nt);
+	ns_install_global("void", &get_void_nt);
+	ns_install_global("eof-object", &get_eof_nt);
+	ns_install_global("char->integer", &char_to_integer_nt);
+	ns_install_global("integer->char", &integer_to_char_nt);
 
-	ns_install_native(tbl, "procedure?", &is_procedure_nt);
-	ns_install_native(tbl, "boolean?", &is_boolean_nt);
-	ns_install_native(tbl, "null?", &is_null_nt);
-	ns_install_native(tbl, "char?", &is_char_nt);
-	ns_install_native(tbl, "number?", &is_number_nt);
-	ns_install_native(tbl, "pair?", &is_pair_nt);
-	ns_install_native(tbl, "symbol?", &is_symbol_nt);
-	ns_install_native(tbl, "list?", &is_list_nt);
-	ns_install_native(tbl, "eof-object?", &is_eof_nt);
-	ns_install_native(tbl, "length", &list_length_nt);
+	ns_install_global("procedure?", &is_procedure_nt);
+	ns_install_global("boolean?", &is_boolean_nt);
+	ns_install_global("null?", &is_null_nt);
+	ns_install_global("char?", &is_char_nt);
+	ns_install_global("number?", &is_number_nt);
+	ns_install_global("pair?", &is_pair_nt);
+	ns_install_global("symbol?", &is_symbol_nt);
+	ns_install_global("list?", &is_list_nt);
+	ns_install_global("eof-object?", &is_eof_nt);
+	ns_install_global("length", &list_length_nt);
 
-	ns_install_struct(tbl);
-	ns_install_string(tbl);
-	ns_install_bytevector(tbl);
-	ns_install_fd(tbl);
-	ns_install_fs(tbl);
-	ns_install_ffi(tbl);
+	int i;
+	for (i = 0; i < sizeof(modules)/sizeof(native_module_t); i++)
+		modules[i].init();
+}
+
+void primitives_cleanup()
+{
+	int i;
+	for (i = 0; i < sizeof(modules)/sizeof(native_module_t); i++)
+		if (modules[i].cleanup)
+			modules[i].cleanup();
 }

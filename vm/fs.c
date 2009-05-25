@@ -160,14 +160,14 @@ static int fs_readdir(vm_thread_t *thread, obj_t *odir)
 }
 MAKE_NATIVE_UNARY(fs_readdir);
 
-void ns_install_fs(hash_table_t *tbl)
+void fs_init()
 {
 	t_dir = register_type("directory", dir_repr, dir_visit);
 
-	ns_install_native(tbl, "fs-stat", &fs_stat_nt);
-	ns_install_native(tbl, "fs-remove", &fs_remove_nt);
-	ns_install_native(tbl, "fs-getcwd", &fs_getcwd_nt);
-	ns_install_native(tbl, "fs-opendir", &fs_opendir_nt);
-	ns_install_native(tbl, "fs-closedir", &fs_closedir_nt);
-	ns_install_native(tbl, "fs-readdir", &fs_readdir_nt);
+	ns_install_global("fs-stat", &fs_stat_nt);
+	ns_install_global("fs-remove", &fs_remove_nt);
+	ns_install_global("fs-getcwd", &fs_getcwd_nt);
+	ns_install_global("fs-opendir", &fs_opendir_nt);
+	ns_install_global("fs-closedir", &fs_closedir_nt);
+	ns_install_global("fs-readdir", &fs_readdir_nt);
 }

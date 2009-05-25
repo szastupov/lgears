@@ -29,6 +29,11 @@ typedef struct {
 	const char *name;
 } native_func_t;
 
+typedef struct {
+	void (*init)();
+	void (*cleanup)();
+} native_module_t;
+
 int native_call(vm_thread_t *thread, native_func_t *native, obj_t *argv, int argc);
 typedef int (*native_nullary)(vm_thread_t*);
 typedef int (*native_unary)(vm_thread_t*, obj_t*);
@@ -95,7 +100,8 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 	}
 
 void ns_install_native(hash_table_t *tbl,
-		char *name, const native_func_t *nt);
+		const char *name, const native_func_t *nt);
+void ns_install_global(const char *name, const native_func_t *nt);
 void print_obj(obj_t obj);
 
 #endif /* NATIVE_H */

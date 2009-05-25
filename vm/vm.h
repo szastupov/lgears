@@ -124,7 +124,6 @@ static inline obj_t __stack_pop(vm_thread_t *thread)
 #define STACK_POP() thread->opstack[--thread->op_stack_idx]
 #endif
 
-obj_t make_symbol(const char *str);
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread);
 void thread_get_roots(visitor_t *visitor, vm_thread_t *thread);
 

@@ -16,10 +16,12 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
+#include <pthread.h>
 #include "native.h"
 #include "string.h"
 
-int t_string;
+int t_string, t_symbol;
+hash_table_t sym_table;			/* Symbols table */
 
 static void string_repr(void *ptr)
 {
@@ -32,6 +34,27 @@ void string_visit(visitor_t *vs, void *data)
 	string_t *str = data;
 	if (str->allocated)
 		str->str = data+sizeof(string_t);
+}
+
+static void symbol_repr(void *ptr)
+{
+	printf("%s", (char*)ptr);
+}
+
+static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+obj_t make_symbol(const char *str)
+{
+	pthread_mutex_lock(&symbol_mutex);
+	void *res = hash_table_lookup(&sym_table, str);
+	if (!res) {
+		size_t sz = strlen(str)+1;
+		res = allocator_alloc(&global_const_pool.al, sz, t_symbol);
+		memcpy(res, str, sz);
+		hash_table_insert(&sym_table, res, res);
+	}
+	pthread_mutex_unlock(&symbol_mutex);
+	return make_ptr(res, id_const_ptr);
 }
 
 obj_t _string(allocator_t *al, char *str, int copy)
@@ -126,13 +149,22 @@ static int string_eq(vm_thread_t *thread, obj_t *a, obj_t *b)
 }
 MAKE_NATIVE_BINARY(string_eq);
 
-void ns_install_string(hash_table_t *tbl)
+void strings_init()
 {
 	t_string = register_type("string", string_repr, string_visit);
-	ns_install_native(tbl, "symbol->string", &symbol_to_string_nt);
-	ns_install_native(tbl, "string-ref", &string_ref_nt);
-	ns_install_native(tbl, "string-length", &string_length_nt);
-	ns_install_native(tbl, "string?", &is_string_nt);
-	ns_install_native(tbl, "string=?", &string_eq_nt);
-	ns_install_native(tbl, "string-concat", &string_concat_nt);
+	t_symbol = register_type("symbol", symbol_repr, NULL);
+
+	hash_table_init(&sym_table, string_hash, string_equal);
+
+	ns_install_global("symbol->string", &symbol_to_string_nt);
+	ns_install_global("string-ref", &string_ref_nt);
+	ns_install_global("string-length", &string_length_nt);
+	ns_install_global("string?", &is_string_nt);
+	ns_install_global("string=?", &string_eq_nt);
+	ns_install_global("string-concat", &string_concat_nt);
+}
+
+void strings_cleanup()
+{
+	hash_table_destroy(&sym_table);
 }

@@ -28,6 +28,6 @@ extern int t_bytevector;
 
 #define IS_BYTEVECTOR(obj) IS_TYPE(obj, t_bytevector)
 
-void ns_install_bytevector(hash_table_t *tbl);
+void bytevector_init();
 
 #endif

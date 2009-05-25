@@ -25,11 +25,14 @@ typedef struct {
 	unsigned allocated:1;
 } string_t;
 
-extern int t_string;
+extern int t_string, t_symbol;
 
 #define IS_STRING(obj) IS_TYPE(obj, t_string)
+#define IS_SYMBOL(obj) IS_TYPE(obj, t_symbol)
 
 obj_t _string(allocator_t *alloc, char *str, int copy);
-void ns_install_string(hash_table_t *tbl);
+void strings_init();
+void strings_cleanup();
+obj_t make_symbol(const char *str);
 
 #endif /* STRING_H */

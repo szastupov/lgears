@@ -94,10 +94,10 @@ static int bytevector_8_set(vm_thread_t *thread, obj_t *obv, obj_t *opos, obj_t 
 }
 MAKE_NATIVE_TERNARY(bytevector_8_set);
 
-void ns_install_bytevector(hash_table_t *tbl)
+void bytevector_init()
 {
 	t_bytevector = register_type("bv", bv_repr, bv_visit);
-	ns_install_native(tbl, "make-bytevector", &make_bytevector_nt);
-	ns_install_native(tbl, "bytevector?", &is_bytevector_nt);
-	ns_install_native(tbl, "bytevector-u8-set!", &bytevector_8_set_nt);
+	ns_install_global("make-bytevector", &make_bytevector_nt);
+	ns_install_global("bytevector?", &is_bytevector_nt);
+	ns_install_global("bytevector-u8-set!", &bytevector_8_set_nt);
 }

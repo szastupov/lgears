@@ -96,7 +96,6 @@ DEFINE_CONST(ceof, 4);			/* eof object */
 #define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
 #define IS_NULL(obj) ((obj).ptr == cnull.ptr)
 #define IS_EOF(obj) ((obj).ptr == ceof.ptr)
-#define IS_SYMBOL(obj) IS_TYPE(obj, t_symbol)
 #define IS_FUNC(obj) ((obj).tag == id_func ||							\
 					  ((obj).tag == id_ptr &&							\
 					   (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
@@ -169,7 +168,7 @@ typedef struct {
 #define VM_MAX_TYPES 20
 extern type_t type_table[VM_MAX_TYPES];
 int register_type(const char *name, void (*repr)(void*), visitor_fun visit);
-extern int t_closure, t_cont, t_symbol;
+extern int t_closure, t_cont;
 
 /* Header attached to each object on heap */
 typedef struct {

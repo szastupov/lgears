@@ -160,7 +160,7 @@ static int load_so(vm_thread_t *thread, obj_t *oname)
 }
 MAKE_NATIVE_UNARY(load_so);
 
-void ns_install_ffi(hash_table_t *tbl)
+void ffi_init()
 {
 	t_shared_object = register_type("so", so_repr, NULL);
 	t_foreign_function = register_type("foreign",
@@ -169,7 +169,11 @@ void ns_install_ffi(hash_table_t *tbl)
 
 	hash_table_init(&so_cache, string_hash, string_equal);
 
-	ns_install_native(tbl, "load-so", &load_so_nt);
-	ns_install_native(tbl, "make-foreign", &make_foreign_nt);
+	ns_install_global("load-so", &load_so_nt);
+	ns_install_global("make-foreign", &make_foreign_nt);
 }
 
+void ffi_cleanup()
+{
+	hash_table_destroy(&so_cache);
+}

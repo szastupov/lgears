@@ -19,7 +19,7 @@
 #ifndef FFI_H
 #define FFI_H
 
-extern int t_shared_object;
-void ns_install_ffi(hash_table_t *tbl);
+void ffi_init();
+void ffi_cleanup();
 
 #endif

@@ -97,10 +97,10 @@ static int fd_write(vm_thread_t *thread, obj_t *fd, obj_t *data)
 }
 MAKE_NATIVE_BINARY(fd_write);
 
-void ns_install_fd(hash_table_t *tbl)
+void fd_init()
 {
-	ns_install_native(tbl, "fd-open", &fd_open_nt);
-	ns_install_native(tbl, "fd-close", &fd_close_nt);
-	ns_install_native(tbl, "fd-seek", &fd_seek_nt);
-	ns_install_native(tbl, "fd-write", &fd_write_nt);
+	ns_install_global("fd-open", &fd_open_nt);
+	ns_install_global("fd-close", &fd_close_nt);
+	ns_install_global("fd-seek", &fd_seek_nt);
+	ns_install_global("fd-write", &fd_write_nt);
 }

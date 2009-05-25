@@ -29,7 +29,8 @@ extern int t_pair;
 extern const native_func_t vm_exit_nt;
 
 void exception_handler_init(vm_thread_t *thread);
-void ns_install_primitives(hash_table_t *tbl);
+void primitives_init();
+void primitives_cleanup();
 
 typedef struct {
 	obj_t car, cdr;

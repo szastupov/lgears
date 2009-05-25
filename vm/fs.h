@@ -19,6 +19,6 @@
 #ifndef FS_H
 #define FS_H
 
-void ns_install_fs(hash_table_t *tbl);
+void fs_init();
 
 #endif

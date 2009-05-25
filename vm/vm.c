@@ -32,29 +32,11 @@
 
 #define MODULE_FUNC(module, idx) &(module)->functions[idx]
 
-hash_table_t sym_table;			/* Symbols table */
 hash_table_t builtin;			/* Builtin functions */
 hash_table_t libraries;			/* Libraries */
 const_allocator_t global_const_pool;
-
+int t_env, t_closure;
 char *cache_path;
-
-static void env_visit(visitor_t *vs, void *data);
-static void closure_visit(visitor_t *vs, void *data);
-
-int t_env, t_closure, t_symbol;
-
-static void symbol_repr(void *ptr)
-{
-	printf("%s", (char*)ptr);
-}
-
-static void vm_register_types()
-{
-	t_env = register_type("env", NULL, env_visit);
-	t_closure = register_type("closure", NULL, closure_visit);
-	t_symbol = register_type("symbol", symbol_repr, NULL);
-}
 
 static void mark_env(env_t **env, visitor_t *visitor)
 {
@@ -576,22 +558,6 @@ dispatch_func:
 	}
 }
 
-static pthread_mutex_t symbol_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-obj_t make_symbol(const char *str)
-{
-	pthread_mutex_lock(&symbol_mutex);
-	void *res = hash_table_lookup(&sym_table, str);
-	if (!res) {
-		size_t sz = strlen(str)+1;
-		res = allocator_alloc(&global_const_pool.al, sz, t_symbol);
-		memcpy(res, str, sz);
-		hash_table_insert(&sym_table, res, res);
-	}
-	pthread_mutex_unlock(&symbol_mutex);
-	return make_ptr(res, id_const_ptr);
-}
-
 /* Collect root objects */
 void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 {
@@ -663,16 +629,21 @@ void vm_eval_module(module_t *mod)
 	pthread_join(thread, NULL);
 }
 
+void ns_install_global(const char *name, const native_func_t *nt)
+{
+	ns_install_native(&builtin, name, nt);
+}
+
 /* Initialize global vm structures */
 void vm_init()
 {
-	vm_register_types();
-	hash_table_init(&builtin, string_hash, string_equal);
-	ns_install_primitives(&builtin);
-	ns_install_native(&builtin, "load-library", &load_library_nt);
-	ns_install_native(&builtin, "library-cache", &library_cache_nt);
+	t_env = register_type("env", NULL, env_visit);
+	t_closure = register_type("closure", NULL, closure_visit);
 
-	hash_table_init(&sym_table, string_hash, string_equal);
+	hash_table_init(&builtin, string_hash, string_equal);
+	primitives_init();
+	ns_install_global("load-library", &load_library_nt);
+	ns_install_global("library-cache", &library_cache_nt);
 
 	hash_table_init(&libraries, direct_hash, direct_equal);
 	libraries.destroy_val = (destroy_func)module_free;
@@ -689,8 +660,8 @@ void vm_init()
 /* Cleanup VM (I want clear valgrind output) */
 void vm_cleanup()
 {
+	primitives_cleanup();
 	hash_table_destroy(&builtin);
-	hash_table_destroy(&sym_table);
 	hash_table_destroy(&libraries);
 	const_allocator_clean(&global_const_pool);
 }

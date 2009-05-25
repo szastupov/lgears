@@ -189,7 +189,7 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 	case OT_STATIC: {
 		const char *str = code_read_string(code);
 		obj_t res;
-		res.ptr = hash_table_lookup(&builtin, str);
+		res.ptr = lookup_global(str);
 		if (!res.ptr)
 			FATAL("Invalid static %s\n", str);
 		return res;

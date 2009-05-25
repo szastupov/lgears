@@ -49,7 +49,7 @@ obj_t make_symbol(const char *str)
 	void *res = hash_table_lookup(&sym_table, str);
 	if (!res) {
 		size_t sz = strlen(str)+1;
-		res = allocator_alloc(&global_const_pool.al, sz, t_symbol);
+		res = alloc_global_const(sz, t_symbol);
 		memcpy(res, str, sz);
 		hash_table_insert(&sym_table, res, res);
 	}

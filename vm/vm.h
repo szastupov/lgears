@@ -28,8 +28,6 @@ typedef struct vm_thread_s vm_thread_t;
 #include "heap.h"
 #include "const_allocator.h"
 
-extern hash_table_t builtin;
-extern const_allocator_t global_const_pool;
 extern char *cache_path;
 
 typedef struct {
@@ -126,5 +124,7 @@ static inline obj_t __stack_pop(vm_thread_t *thread)
 
 void thread_after_gc(visitor_t *visitor, vm_thread_t *thread);
 void thread_get_roots(visitor_t *visitor, vm_thread_t *thread);
+void* lookup_global(const char *name);
+void* alloc_global_const(size_t sz, int type_id);
 
 #endif /* VM_H */

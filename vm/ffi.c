@@ -147,7 +147,7 @@ static int load_so(vm_thread_t *thread, obj_t *oname)
 		SAFE_ASSERT(so_ptr != NULL);
 
 		size_t ss = name->size + sizeof(shared_object_t);
-		void *mem = allocator_alloc(&global_const_pool.al, ss, t_shared_object);
+		void *mem = alloc_global_const(ss, t_shared_object);
 		so = mem;
 		so->name = mem+sizeof(shared_object_t);
 		memcpy(so->name, name->str, name->size);

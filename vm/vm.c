@@ -634,6 +634,16 @@ void ns_install_global(const char *name, const native_func_t *nt)
 	ns_install_native(&builtin, name, nt);
 }
 
+void* lookup_global(const char *name)
+{
+	return hash_table_lookup(&builtin, name);
+}
+
+void* alloc_global_const(size_t sz, int type_id)
+{
+	return allocator_alloc(&global_const_pool.al, sz, type_id);
+}
+
 /* Initialize global vm structures */
 void vm_init()
 {

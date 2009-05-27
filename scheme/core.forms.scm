@@ -1,5 +1,5 @@
 (library (core.forms)
-  (export quote lambda define if set! begin syntax syntax-case
+  (export quote lambda define if set! begin syntax syntax-case builtin-call
           with-syntax syntax-rules or and let let* cond case unquote unquote-splicing
           when unless not cons car cdr eq? op-binary op-unary)
   (import ($builtin))

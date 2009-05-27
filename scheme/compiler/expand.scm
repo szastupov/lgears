@@ -389,6 +389,15 @@
 	 ((_ body ...)
 	  `(begin ,@(exp-exprs body r)))))
 
+  (define (exp-builtin x r)
+    (syntax-match
+     x ()
+     ((_ func argl ...)
+      (begin
+        (if (not (identifier? func))
+            (syntax-error func "expected identifier"))
+        `(builtin-call ,(strip func) ,@(exp-exprs argl r))))))
+
   (define (exp-syntax x r)
 	(syntax-match
 	 x ()
@@ -576,6 +585,7 @@
 								 (begin . ,exp-begin)
 								 (syntax . ,exp-syntax)
 								 (syntax-case . ,exp-syntax-case)
+                                 (builtin-call . ,exp-builtin)
                                  ;; TODO add operator protections
 								 ))))
   )

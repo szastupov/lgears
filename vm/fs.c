@@ -65,7 +65,7 @@ static int fs_stat(vm_thread_t *thread, obj_t *opath)
 	struct stat st = {0};
 
 	if (stat(path->str, &st) == 0) {
-		obj_t type_name = make_symbol("stat");
+		obj_t type_name = make_symbol("posix-stat");
 		struct_t *pstat = struct_new(&thread->heap.allocator,
 									 &type_name,
 									 10);
@@ -160,6 +160,59 @@ static int fs_readdir(vm_thread_t *thread, obj_t *odir)
 }
 MAKE_NATIVE_UNARY(fs_readdir);
 
+static int fs_chdir(vm_thread_t *thread, obj_t *opath)
+{
+	SAFE_ASSERT(IS_STRING(*opath));
+	string_t *str = PTR(*opath);
+
+	RETURN_BOOL(chdir(str->str) == 0);
+}
+MAKE_NATIVE_UNARY(fs_chdir);
+
+static int fs_mkdir(vm_thread_t *thread, obj_t *opath, obj_t *omode)
+{
+	SAFE_ASSERT(IS_STRING(*opath));
+	SAFE_ASSERT(IS_FIXNUM(*omode));
+	string_t *path = PTR(*opath);
+	mode_t mode = FIXNUM(*omode);
+
+	RETURN_BOOL(mkdir(path->str, mode) == 0);
+}
+MAKE_NATIVE_BINARY(fs_mkdir);
+
+static int os_getenv(vm_thread_t *thread, obj_t *okey)
+{
+	SAFE_ASSERT(IS_STRING(*okey));
+	string_t *key = PTR(*okey);
+	char *res = getenv(key->str);
+	if (res) {
+		RETURN_OBJ(_string(&thread->heap.allocator, res, 1));
+	} else {
+		RETURN_OBJ(cfalse.obj);
+	}
+}
+MAKE_NATIVE_UNARY(os_getenv);
+
+static int os_unsetenv(vm_thread_t *thread, obj_t *okey)
+{
+	SAFE_ASSERT(IS_STRING(*okey));
+	string_t *key = PTR(*okey);
+	RETURN_BOOL(unsetenv(key->str) == 0);
+}
+MAKE_NATIVE_UNARY(os_unsetenv);
+
+static int os_setenv(vm_thread_t *thread, obj_t *okey,
+					 obj_t *oval, obj_t *overwrite)
+{
+	SAFE_ASSERT(IS_STRING(*okey));
+	SAFE_ASSERT(IS_STRING(*oval));
+	string_t *key = PTR(*okey);
+	string_t *val = PTR(*oval);
+
+	RETURN_BOOL(setenv(key->str, val->str, !IS_FALSE(*overwrite)) == 0);
+}
+MAKE_NATIVE_TERNARY(os_setenv);
+
 void fs_init()
 {
 	t_dir = register_type("directory", dir_repr, dir_visit);
@@ -170,4 +223,11 @@ void fs_init()
 	ns_install_global("fs-opendir", &fs_opendir_nt);
 	ns_install_global("fs-closedir", &fs_closedir_nt);
 	ns_install_global("fs-readdir", &fs_readdir_nt);
+	ns_install_global("fs-chdir", &fs_chdir_nt);
+	ns_install_global("fs-mkdir", &fs_mkdir_nt);
+
+	// Move it out of fs
+	ns_install_global("os-getenv", &os_getenv_nt);
+	ns_install_global("os-unsetenv", &os_unsetenv_nt);
+	ns_install_global("os-setenv", &os_setenv_nt);
 }

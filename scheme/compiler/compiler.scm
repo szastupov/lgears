@@ -138,7 +138,8 @@
 
   (define (start-compile root)
 	(let ((code-store '())
-		  (consts '()))
+		  (consts '())
+          (builtins '()))
 
 	  (define (make-const datum)
 		(cond ((assoc datum consts)
@@ -148,6 +149,16 @@
 				 (set! consts (cons (cons datum idx)
 									consts))
 				 idx))))
+
+      (define (make-builtin name)
+        (cond ((assq name builtins)
+               => (lambda (res)
+                    (make-const (cdr res))))
+              (else
+               (let ((st (make-static (symbol->string name))))
+                 (set! builtins (cons (cons name st)
+                                      builtins))
+                 (make-const st)))))
 
       (define (push-code code)
         (let ((idx (length code-store)))
@@ -241,6 +252,18 @@
                   func)
             (FUNC_CALL ,argc))))
 
+      (define (compile-builtin env node)
+        (let ((cont (compile env (car node)))
+              (func (make-builtin (cadr node)))
+              (argc (+ 1 (length (cddr node))))
+              (args (map-append (lambda (x)
+                                  (compile env x))
+                                (cddr node))))
+          `(,@cont
+            ,@args
+            (LOAD_CONST ,func ,(datum->string (cadr node)))
+            (FUNC_CALL ,argc))))
+
 	  (define (compile-assigment env node)
 		(let* ((name (car node))
 			   (slot (env-lookup env name)))
@@ -276,6 +299,8 @@
 								  ,(datum->string (cadr node))))))
 				 ((set!)
 				  (compile-assigment env (cdr node)))
+                 ((builtin-call)
+                  (compile-builtin env (cdr node)))
 				 (else
 				   (compile-call env node))))
 			  ((or (char? node)

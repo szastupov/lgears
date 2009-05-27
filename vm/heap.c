@@ -17,7 +17,6 @@
  * <http://www.gnu.org/licenses>.
  */
 #include <errno.h>
-#include <sys/time.h>
 #include "vm.h"
 
 #define align_up(s, a) (((s)+((a)-1)) & ~((a)-1))

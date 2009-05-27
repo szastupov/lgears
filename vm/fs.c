@@ -145,17 +145,12 @@ static int fs_readdir(vm_thread_t *thread, obj_t *odir)
 {
 	SAFE_ASSERT(IS_TYPE(*odir, t_dir));
 	dir_t *dt = PTR(*odir);
-	struct dirent *d_buf, *d_res;
-	d_buf = alloca(offsetof(struct dirent, d_name)+PATH_MAX);
-	if (readdir_r(dt->dir, d_buf, &d_res) == 0) {
-		if (d_res) {
-			RETURN_OBJ(_string(&thread->heap.allocator,
-							   d_res->d_name, 1));
-		} else {
-			RETURN_OBJ(ceof.obj);
-		}
+	struct dirent *de = readdir(dt->dir);
+	if (de) {
+		RETURN_OBJ(_string(&thread->heap.allocator,
+					de->d_name, 1));
 	} else {
-		RETURN_OBJ(cfalse.obj);
+		RETURN_OBJ(ceof.obj);
 	}
 }
 MAKE_NATIVE_UNARY(fs_readdir);

@@ -19,6 +19,7 @@
 #ifndef HEAP_H
 #define HEAP_H
 
+#include <sys/time.h>
 #include "allocator.h"
 
 #define IS_OLD(hp, ptr) ((void*)ptr >= (hp)->old.mem)

@@ -19,7 +19,9 @@
 #include "primitives.h"
 #include "fd.h"
 #include "fs.h"
+#ifdef HAVE_LIBFFI
 #include "foreign.h"
+#endif
 
 int t_pair, t_cont;
 
@@ -301,7 +303,9 @@ static native_module_t modules[] = {
 	{ bytevector_init },
 	{ fd_init },
 	{ fs_init },
+#ifdef HAVE_LIBFFI
 	{ ffi_init, ffi_cleanup }
+#endif
 };
 
 void primitives_init()

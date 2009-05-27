@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <dirent.h>
+#include <errno.h>
 
 #include "native.h"
 #include "struct.h"
@@ -208,6 +209,30 @@ static int os_setenv(vm_thread_t *thread, obj_t *okey,
 }
 MAKE_NATIVE_TERNARY(os_setenv);
 
+static int os_system(vm_thread_t *thread, obj_t *ocommand)
+{
+	SAFE_ASSERT(IS_STRING(*ocommand));
+	string_t *command = PTR(*ocommand);
+
+	RETURN_FIXNUM(system(command->str));
+}
+MAKE_NATIVE_UNARY(os_system);
+
+static int os_errno(vm_thread_t *thread)
+{
+	RETURN_FIXNUM(errno);
+}
+MAKE_NATIVE_NULLARY(os_errno);
+
+static int os_strerror(vm_thread_t *thread, obj_t *oerrnum)
+{
+	SAFE_ASSERT(IS_FIXNUM(*oerrnum));
+	char *descr = strerror(FIXNUM(*oerrnum));
+
+	RETURN_OBJ(_string(&thread->heap.allocator, descr, 0));
+}
+MAKE_NATIVE_UNARY(os_strerror);
+
 void fs_init()
 {
 	t_dir = register_type("directory", dir_repr, dir_visit);
@@ -225,4 +250,7 @@ void fs_init()
 	ns_install_global("os-getenv", &os_getenv_nt);
 	ns_install_global("os-unsetenv", &os_unsetenv_nt);
 	ns_install_global("os-setenv", &os_setenv_nt);
+	ns_install_global("os-system", &os_system_nt);
+	ns_install_global("os-errno", &os_errno_nt);
+	ns_install_global("os-strerror", &os_strerror_nt);
 }

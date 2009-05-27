@@ -3,12 +3,16 @@
   (import (core.forms)
           (core.exceptions))
 
+  (define (describe-os-error)
+    (builtin-call os-strerror
+                  (builtin-call os-errno)))
+
   (define (file-exists? path)
     (if (builtin-call fs-stat path) #t #f))
 
   (define (delete-file path)
-    (assert (file-exists? path))
-    (builtin-call fs-remove path))
+    (if (not (builtin-call fs-remove path))
+        (error 'delete-file (describe-os-error) path)))
 
   (define (current-directory . arg)
     (if (null? arg)

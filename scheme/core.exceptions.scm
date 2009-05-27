@@ -17,7 +17,8 @@
  | <http://www.gnu.org/licenses>.
  |#
 (library (core.exceptions)
-  (export with-exception-handler raise raise-continuable assert)
+  (export with-exception-handler raise raise-continuable assert error
+          assertion-violation)
   (import (core.forms))
 
   (define (default-exception obj)
@@ -54,4 +55,10 @@
       ((_ expr)
        (if (not expr)
            (raise '("Assertion failed:" expr))))))
+
+  (define (error who msg . irritants)
+    (raise (list who msg irritants)))
+
+  (define assertion-violation error)
+
   )

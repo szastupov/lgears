@@ -105,8 +105,8 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
-/* Type table */
-#define VM_MAX_TYPES 20
+/* Don't forget about block_hdr_t::type_id when changing it */
+#define VM_MAX_TYPES 16
 extern type_t type_table[VM_MAX_TYPES];
 int register_type(const char *name, void (*repr)(void*), visitor_fun visit);
 extern int t_closure, t_cont;

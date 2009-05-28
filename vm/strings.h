@@ -29,6 +29,7 @@ extern int t_string, t_symbol;
 
 #define IS_STRING(obj) IS_TYPE(obj, t_string)
 #define IS_SYMBOL(obj) IS_TYPE(obj, t_symbol)
+#define SYMBOL(obj) (char*)PTR(obj)
 
 obj_t _string(allocator_t *alloc, char *str, int copy);
 void strings_init();

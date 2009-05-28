@@ -38,8 +38,7 @@ int native_call(vm_thread_t *thread, native_func_t *native, obj_t *argv, int arg
 
 static void print_const(obj_t obj)
 {
-	const_t c = { .obj = obj };
-	static const char* descr[] = {
+	const char *descr[] = {
 		"()",
 		"#t",
 		"#f",
@@ -47,10 +46,11 @@ static void print_const(obj_t obj)
 		"<eof>"
 	};
 	static int max_id = sizeof(descr)/sizeof(char*)-1;
-	if (c.st.id < 0 || c.st.id > max_id)
-		FATAL("wrong const id %d\n", c.st.id);
+	int id = FIXNUM(obj);
+	if (id < 0 || id > max_id)
+		FATAL("wrong const id %d\n", id);
 
-	printf("%s", descr[c.st.id]);
+	printf("%s", descr[id]);
 }
 
 static void print_ptr(obj_t obj)
@@ -86,21 +86,21 @@ static void print_func(obj_t obj)
 
 void print_obj(obj_t obj)
 {
-	switch (obj.tag) {
-	case id_const_ptr:
-	case id_ptr:
+	switch (GET_TAG(obj)) {
+	case TAG_CONST_PTR:
+	case TAG_PTR:
 		print_ptr(obj);
 		break;
-	case id_fixnum:
+	case TAG_FIXNUM:
 		printf("%ld", FIXNUM(obj));
 		break;
-	case id_char:
-		printf("%lc", CHAR(obj));
+	case TAG_CHAR:
+		printf("#\%lc", CHAR(obj));
 		break;
-	case id_func:
+	case TAG_FUNC:
 		print_func(obj);
 		break;
-	case id_const:
+	case TAG_CONST:
 		print_const(obj);
 		break;
 	default:

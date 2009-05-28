@@ -70,18 +70,11 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 	STACK_PUSH(obj);							\
 	return RC_OK;
 
-#define RETURN_FIXNUM(num) {					\
-		fixnum_t fx; FIXNUM_INIT(fx, num);		\
-		RETURN_OBJ(fx.obj);						\
-	}
+#define RETURN_FIXNUM(num) RETURN_OBJ(MAKE_FIXNUM(num))
 
-#define RETURN_CHAR(chr) {						\
-		char_t c; CHAR_INIT(c, chr);			\
-		RETURN_OBJ(c.obj);						\
-	}
+#define RETURN_CHAR(chr) RETURN_OBJ(MAKE_CHAR(chr))
 
-#define RETURN_BOOL(b)							\
-	RETURN_OBJ(CIF(b).obj);
+#define RETURN_BOOL(b) RETURN_OBJ(CIF(b));
 
 #if FATAL_SAFE_ASSERT
 #define FAIL_ASSERT FATAL

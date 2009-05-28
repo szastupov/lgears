@@ -49,6 +49,6 @@ void const_allocator_clean(const_allocator_t *al)
 void const_allocator_init(const_allocator_t *allocator)
 {
 	allocator->al.alloc = const_allocator_alloc;
-	allocator->al.id = id_const_ptr;
+	allocator->al.id = TAG_CONST_PTR;
 	allocator->mem = NULL;
 }

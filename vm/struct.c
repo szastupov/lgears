@@ -70,7 +70,7 @@ static int make_struct(vm_thread_t *thread, obj_t *argv, int argc)
 	for (i = 0; i < count; i++)
 		st->fields[i] = argv[i+2];
 
-	RETURN_OBJ(make_ptr(st, id_ptr));
+	RETURN_OBJ(MAKE_HEAP_PTR(st));
 }
 MAKE_NATIVE_VARIADIC(make_struct, 0);
 
@@ -85,7 +85,7 @@ static int alloc_struct(vm_thread_t *thread, obj_t *type_name,
 	for (i = 0; i < st->size; i++)
 		st->fields[i] = *fill;
 
-	RETURN_OBJ(make_ptr(st, id_ptr));
+	RETURN_OBJ(MAKE_HEAP_PTR(st));
 }
 MAKE_NATIVE_TERNARY(alloc_struct);
 
@@ -107,7 +107,7 @@ MAKE_NATIVE_UNARY(is_struct);
 static int struct_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 {
 	SAFE_ASSERT(IS_STRUCT(*obj));
-	SAFE_ASSERT(obj->tag != id_const_ptr);
+	SAFE_ASSERT(IS_CONST_PTR(*obj));
 	struct_t *st = PTR(*obj);
 	int pos = FIXNUM(*opos);
 	SAFE_ASSERT(st->size > pos);
@@ -115,7 +115,7 @@ static int struct_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 	st->fields[pos] = *val;
 	MARK_MODIFIED(&thread->heap, st);
 
-	RETURN_OBJ(cvoid.obj);
+	RETURN_OBJ(cvoid);
 }
 MAKE_NATIVE_TERNARY(struct_set);
 

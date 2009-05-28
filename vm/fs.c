@@ -70,11 +70,7 @@ static int fs_stat(vm_thread_t *thread, obj_t *opath)
 		struct_t *pstat = struct_new(&thread->heap.allocator,
 									 &type_name,
 									 10);
-		fixnum_t fx;
-		fx.tag = id_fixnum;
-#define ST_SET(idx,v)							\
-		fx.val = v;								\
-		pstat->fields[idx] = fx.obj;
+#define ST_SET(idx,v) pstat->fields[idx] = MAKE_FIXNUM(v);
 
 		ST_SET(0, st.st_dev);
 		ST_SET(1, st.st_ino);
@@ -87,9 +83,9 @@ static int fs_stat(vm_thread_t *thread, obj_t *opath)
 		ST_SET(8, st.st_mtime);
 		ST_SET(9, st.st_ctime);
 
-		RETURN_OBJ(make_ptr(pstat, id_ptr));
+		RETURN_OBJ(MAKE_HEAP_PTR(pstat));
 	} else {
-		RETURN_OBJ(cfalse.obj);
+		RETURN_OBJ(cfalse);
 	}
 }
 MAKE_NATIVE_UNARY(fs_stat);
@@ -111,7 +107,7 @@ static int fs_getcwd(vm_thread_t *thread)
 						   path,
 						   1));
 	} else {
-		RETURN_OBJ(cfalse.obj);
+		RETURN_OBJ(cfalse);
 	}
 }
 MAKE_NATIVE_NULLARY(fs_getcwd);
@@ -126,9 +122,9 @@ static int fs_opendir(vm_thread_t *thread, obj_t *opath)
 		dir_t *dt = heap_alloc(&thread->heap, sizeof(dir_t), t_dir);
 		dt->opath = *opath;
 		dt->dir = dir;
-		RETURN_OBJ(make_ptr(dt, id_ptr));
+		RETURN_OBJ(MAKE_HEAP_PTR(dt));
 	} else {
-		RETURN_OBJ(cfalse.obj);
+		RETURN_OBJ(cfalse);
 	}
 }
 MAKE_NATIVE_UNARY(fs_opendir);
@@ -151,7 +147,7 @@ static int fs_readdir(vm_thread_t *thread, obj_t *odir)
 		RETURN_OBJ(_string(&thread->heap.allocator,
 					de->d_name, 1));
 	} else {
-		RETURN_OBJ(ceof.obj);
+		RETURN_OBJ(ceof);
 	}
 }
 MAKE_NATIVE_UNARY(fs_readdir);
@@ -184,7 +180,7 @@ static int os_getenv(vm_thread_t *thread, obj_t *okey)
 	if (res) {
 		RETURN_OBJ(_string(&thread->heap.allocator, res, 1));
 	} else {
-		RETURN_OBJ(cfalse.obj);
+		RETURN_OBJ(cfalse);
 	}
 }
 MAKE_NATIVE_UNARY(os_getenv);

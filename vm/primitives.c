@@ -74,12 +74,12 @@ obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 	} else
 		pair->list = 0;
 
-	return make_ptr(pair, al->id);
+	return MAKE_TAGGED_PTR(pair, al->id);
 }
 
 obj_t _list(heap_t *heap, obj_t *argv, int argc)
 {
-	obj_t res = cnull.obj;
+	obj_t res = cnull;
 
 	int i;
 	for (i = argc-1; i >= 0; i--)
@@ -107,9 +107,9 @@ MAKE_NATIVE_UNARY(list_length);
 
 static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 {
-	SAFE_ASSERT(count->tag == id_fixnum);
+	SAFE_ASSERT(IS_FIXNUM(*count));
 	int size = FIXNUM(*count);
-	obj_t res = cnull.obj;
+	obj_t res = cnull;
 
 	heap_require_blocks(&thread->heap, sizeof(pair_t), size);
 	int i;
@@ -123,7 +123,7 @@ MAKE_NATIVE_BINARY(make_list);
 static int display(vm_thread_t *thread, obj_t *obj)
 {
 	print_obj(*obj);
-	RETURN_OBJ(cvoid.obj);
+	RETURN_OBJ(cvoid);
 }
 MAKE_NATIVE_UNARY(display);
 
@@ -145,7 +145,7 @@ static obj_t continuation_new(heap_t *heap, obj_t *func)
 	continuation_t *cont = heap_alloc(heap, sizeof(continuation_t), t_cont);
 	cont->func = *func;
 
-	return make_ptr(cont, id_ptr);
+	return MAKE_HEAP_PTR(cont);
 }
 
 static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
@@ -168,9 +168,10 @@ static int exception_handlers(vm_thread_t *thread, obj_t *argv, int argc)
 	if (argc == 2) {
 		SAFE_ASSERT(IS_PAIR(argv[1]) || IS_NULL(argv[1]));
 		thread->exception_handlers = argv[1];
-		RETURN_OBJ(cvoid.obj);
-	} else
+		RETURN_OBJ(cvoid);
+	} else {
 		RETURN_OBJ(thread->exception_handlers);
+	}
 }
 MAKE_NATIVE_VARIADIC(exception_handlers, 0);
 
@@ -203,22 +204,21 @@ MAKE_NATIVE(apply, -1, 2, 0);
 
 static int get_void(vm_thread_t *thread)
 {
-	RETURN_OBJ(cvoid.obj);
+	RETURN_OBJ(cvoid);
 }
 MAKE_NATIVE_NULLARY(get_void);
 
 static int get_eof(vm_thread_t *thread)
 {
-	RETURN_OBJ(ceof.obj);
+	RETURN_OBJ(ceof);
 }
 MAKE_NATIVE_NULLARY(get_eof);
 
 void ns_install_native(hash_table_t *tbl,
 		const char *name, const native_func_t *nt)
 {
-	ptr_t ptr;
-	FUNC_INIT(ptr, nt);
-	hash_table_insert(tbl, (char*)name, ptr.ptr);
+	obj_t ptr = MAKE_FUNC(nt);
+	hash_table_insert(tbl, (char*)name, (void*)ptr);
 }
 
 static int char_to_integer(vm_thread_t *thread, obj_t *chr)

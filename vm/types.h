@@ -22,100 +22,61 @@
 #include <stdio.h>
 #include <stdint.h>
 
-/*
- * Primitive types fits in word size
- *
- * All primitive types has a 3-bit type tag.
- * In order to fit a pointer in __WORDSIZE-3, we have to shift pointer value, so
- * it means that pointers should be at least 8 bytes aligned. VM heaps do that,
- * glibc malloc too.
- * Porting note: if system's malloc does not allign poiters by 8
- * bytes, we may use posix_memalign. Also I haven't tested it on big endian.
- */
+typedef uintptr_t obj_t;
 
-#define TYPE_TAG unsigned tag:3
-#define TYPE_CAST(o, type) ((type)(o))
-
-/* Fundamental VM object, provide tag and pointer for casting */
-typedef union {
-	TYPE_TAG;					/* Type tag */
-	void *ptr;					/* Pointer for casting */
-} obj_t;
-
-/* Basic type identifiers */
+#define TAG_SIZE 3				/* Use 3 bits for tag */
+#define TAG_MASK 7				/* 111 */
 enum {
-	id_ptr,		/* Pointer on a heap-allocated object */
-	id_const_ptr,				/* Pointer on constant object */
-	id_foreign_ptr,				/* Foreign pointer */
-	id_fixnum,	/* Integer */
-	id_char,	/* Character */
-	id_func,	/* Function pointer */
-	id_const	/* Constant */
+	TAG_FIXNUM,					/* Fixed number */
+	TAG_PTR,					/* Heap pointer */
+	TAG_CONST_PTR,				/* Constant area pointer */
+	TAG_CHAR,					/* Character */
+	TAG_FUNC,					/* Function */
+	TAG_CONST					/* Constant */
 };
 
-#define DEFINE_TYPE(name, members...)			\
-	typedef union {								\
-		struct {								\
-			TYPE_TAG;							\
-			members;							\
-		};										\
-		void *ptr;								\
-		obj_t obj;								\
-	} name;
+#define ADD_TAG(o, tag) (((o) << TAG_SIZE) | tag)
+/* TODO: add SET_TAG  */
+#define GET_TAG(o) ((o) & TAG_MASK)
+#define TEST_TAG(o, tag) (GET_TAG(o) == tag)
+#define MAKE_OBJ(o, tag) (obj_t)ADD_TAG(o, tag)
 
-/* Constant values */
-typedef union {
-	struct {
-		TYPE_TAG;
-		short id;
-	} st;
-	void *ptr;
-	obj_t obj;
-} const_t;
+#define FIXNUM(o) ((o) >> TAG_SIZE)
+#define MAKE_FIXNUM(v) MAKE_OBJ(v, TAG_FIXNUM)
+#define IS_FIXNUM(v) TEST_TAG(v, TAG_FIXNUM)
 
-#define DEFINE_CONST(name, nid)					\
-	static const const_t name = {				\
-		.st.tag = id_const,						\
-		.st.id = nid,							\
-	};
+#define PTR(o) (void*)FIXNUM(o)
+#define MAKE_TAGGED_PTR(v, tag) MAKE_OBJ((uintptr_t)v, tag) /* TODO use SET_TAG */
+#define MAKE_HEAP_PTR(v) MAKE_TAGGED_PTR(v, TAG_PTR)
+#define MAKE_CONST_PTR(v) MAKE_TAGGED_PTR(v, TAG_CONST_PTR)
+#define IS_HEAP_PTR(v) TEST_TAG(v, TAG_PTR)
+#define IS_CONST_PTR(v) TEST_TAG(v, TAG_CONST_PTR)
 
-DEFINE_CONST(cnull, 0);			/* null '() */
-DEFINE_CONST(ctrue, 1);			/* true #t */
-DEFINE_CONST(cfalse, 2);		/* false #f */
-DEFINE_CONST(cvoid, 3);			/* void unspecified */
-DEFINE_CONST(ceof, 4);			/* eof object */
+#define CHAR(o) (short)FIXNUM(o)
+#define MAKE_CHAR(v) MAKE_OBJ(v, TAG_CHAR)
+#define IS_CHAR(v) TEST_TAG(v, TAG_CHAR)
 
-/* Predicates */
+#define MAKE_FUNC(v) MAKE_TAGGED_PTR(v, TAG_FUNC)
+#define IS_FUNC(o) (TEST_TAG(o, TAG_FUNC)								\
+					|| (IS_HEAP_PTR(o)									\
+						&& (IS_TYPE(o, t_closure) || IS_TYPE(o, t_cont))))
+
+#define DEFINE_CONST(name, val) \
+	static const obj_t name = MAKE_OBJ(val, TAG_CONST)
+#define IS_CONST(v) TEST_TAG(v, TAG_CONST)
+
+DEFINE_CONST(cnull, 0);
+DEFINE_CONST(ctrue, 1);
+DEFINE_CONST(cfalse, 2);
+DEFINE_CONST(cvoid, 3);
+DEFINE_CONST(ceof, 4);
+#define IS_NULL(o) (o == cnull)
+#define IS_TRUE(o) (o == ctrue)
+#define IS_FALSE(o) (o == cfalse)
+#define IS_BOOL(o) (IS_TRUE(o) || IS_FALSE(o))
+#define IS_VOID(o) (o == cvoid)
+#define IS_EOF(o) (o == ceof)
 #define CIF(a) ((a) ? ctrue : cfalse)
-#define IS_PTR(obj) ((obj).tag == id_ptr)
-#define IS_FIXNUM(obj) ((obj).tag == id_fixnum)
-#define IS_CHAR(obj) ((obj).tag == id_char)
-#define IS_CONST(obj) ((obj).tag == id_const)
-#define IS_FALSE(obj) ((obj).ptr == cfalse.ptr)
-#define IS_TRUE(obj) ((obj).ptr == ctrue.ptr)
-#define IS_BOOL(obj) ((obj).tag == id_const && (IS_TRUE(obj) || IS_FALSE(obj)))
-#define IS_NULL(obj) ((obj).ptr == cnull.ptr)
-#define IS_EOF(obj) ((obj).ptr == ceof.ptr)
-#define IS_FUNC(obj) ((obj).tag == id_func ||							\
-					  ((obj).tag == id_ptr &&							\
-					   (IS_TYPE((obj), t_closure) || IS_TYPE((obj), t_cont))))
-
-/*
- * Tagged poiner repesintation
- *
- * Assuming that pointer is 8-byte aligned,
- * we can use 3 bits for type tag.
- * This type used for both heap and func pointers but
- * use different tags.
- * Use helper macros to init, get and set pointer value.
- */
-DEFINE_TYPE(ptr_t, unsigned long addr:__WORDSIZE-3);
-#define PTR(o) PTR_GET(TYPE_CAST(o, ptr_t))
-#define PTR_SET(p,a) (p).addr = (unsigned long)a >> 3
-#define PTR_GET(p) (void*)(unsigned long)((p).addr << 3)
-#define PTR_INIT(p, a) { (p).tag = id_ptr; PTR_SET(p, a); }
-#define SYMBOL(o) (char*)PTR(o)
-#define FUNC_INIT(i, v) { (i).tag = id_func; PTR_SET(i, v); }
 
 /* Function types */
 typedef enum {
@@ -129,26 +90,6 @@ typedef struct {
 	uint16_t argc;				/* arguments count */
 	uint16_t swallow:1;			/* swallow? */
 } func_hdr_t;
-
-DEFINE_TYPE(fixnum_t, long val:__WORDSIZE-3);
-#define FIXNUM_INIT(n,v) { (n).tag = id_fixnum; (n).val = v; }
-#define FIXNUM(o) (long)TYPE_CAST(o, fixnum_t).val
-
-DEFINE_TYPE(char_t, short val);
-#define CHAR_INIT(c,v) { (c).tag = id_char; (c).val = v; }
-#define CHAR(o) TYPE_CAST(o, char_t).val
-
-/*
- * Utilites
- */
-
-static inline obj_t make_ptr(void *ptr, int tag)
-{
-	ptr_t p;
-	PTR_SET(p, ptr);
-	p.tag = tag;
-	return p.obj;
-}
 
 typedef struct visitor_s {
 	void (*visit)(struct visitor_s*, obj_t*);
@@ -182,8 +123,9 @@ typedef struct {
 #define BHDR_SIZE sizeof(block_hdr_t)
 #define HTYPE(ptr) ((block_hdr_t*)((void*)ptr-BHDR_SIZE))
 #define HTYPE_TAG(ptr) HTYPE(ptr)->type_id
-#define IS_TYPE(obj, tid)									\
-	(((obj).tag == id_const_ptr || ((obj).tag == id_ptr))	\
+
+#define IS_TYPE(obj, tid)						\
+	((IS_HEAP_PTR(obj) || IS_CONST_PTR(obj))	\
 	 && (HTYPE_TAG(PTR(obj)) == tid))
 
 #endif /* TYPES_H */

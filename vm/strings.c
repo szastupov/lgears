@@ -54,7 +54,7 @@ obj_t make_symbol(const char *str)
 		hash_table_insert(&sym_table, res, res);
 	}
 	pthread_mutex_unlock(&symbol_mutex);
-	return make_ptr(res, id_const_ptr);
+	return MAKE_CONST_PTR(res);
 }
 
 obj_t _string(allocator_t *al, char *str, int copy)
@@ -76,7 +76,7 @@ obj_t _string(allocator_t *al, char *str, int copy)
 		string->str = str;
 	}
 
-	return make_ptr(string, al->id);
+	return MAKE_TAGGED_PTR(string, al->id);
 }
 
 static int string_concat(vm_thread_t *thread, obj_t *oa, obj_t *ob)
@@ -98,7 +98,7 @@ static int string_concat(vm_thread_t *thread, obj_t *oa, obj_t *ob)
 	memcpy(new_str->str, a->str, sep);
 	memcpy(new_str->str+sep, b->str, b->size);
 
-	RETURN_OBJ(make_ptr(new_str, id_ptr));
+	RETURN_OBJ(MAKE_HEAP_PTR(new_str));
 }
 MAKE_NATIVE_BINARY(string_concat);
 

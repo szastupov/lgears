@@ -278,6 +278,7 @@ static void heap_gc(heap_t *heap)
 	gettimeofday(&tv2, NULL);
 	timersub(&tv2, &tv1, &tv3);
 	timeradd(&heap->gc_time, &tv3, &heap->gc_time);
+	heap->gc_count++;
 }
 
 void* heap_alloc(heap_t *heap, int size, int type_id)
@@ -322,11 +323,10 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	heap_t *heap = visitor->user_data;
 	block_hdr_t *hdr;
 
-	if (!obj->ptr || obj->tag != id_ptr)
+	if (!obj || !IS_HEAP_PTR(*obj))
 		return;
 
-	ptr_t ptr = { .ptr = obj->ptr };
-	void *p = PTR_GET(ptr);
+	void *p = PTR(*obj);
 	if (p < heap->mem || p > heap->mem+heap->mem_size)
 		FATAL("Trying to mark %p which doesn't belong to this heap\n", p);
 
@@ -347,8 +347,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 			if (res) {
 				p = res+BHDR_SIZE;
 				//HEAP_DBG("Forwarding old to %p\n", res);
-				PTR_SET(ptr, p);
-				obj->ptr = ptr.ptr;
+				*obj = MAKE_HEAP_PTR(p);
 			} else {
 				//HEAP_DBG("%p not in map\n", hdr);
 			}
@@ -365,8 +364,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	 */
 	if (hdr->forward) {
 		//HEAP_DBG("Forwarding to %p\n", *forward);
-		PTR_SET(ptr, *forward);
-		obj->ptr = ptr.ptr;
+		*obj = MAKE_HEAP_PTR(*forward);
 		return;
 	}
 
@@ -396,8 +394,7 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	hdr->forward = 0;
 	hdr->generation++;
 	new_pos += BHDR_SIZE;
-	PTR_SET(ptr, new_pos);
-	obj->ptr = ptr.ptr;
+	*obj = MAKE_HEAP_PTR(new_pos);
 }
 
 static void* heap_allocator_alloc(allocator_t *al, size_t size, int type_id)
@@ -429,13 +426,15 @@ void heap_init(heap_t *heap, vm_thread_t *thread)
 	heap->visitor.user_data = heap;
 	heap->thread = thread;
 	heap->allocator.alloc = heap_allocator_alloc;
-	heap->allocator.id = id_ptr;
+	heap->allocator.id = TAG_PTR;
 }
 
 void heap_destroy(heap_t *heap)
 {
 	mem_free(heap->mem);
 	forget(&heap->remembered_set);
-	LOG_DBG("total time spent in GC %ld sec, %ld microsec\n",
-			heap->gc_time.tv_sec, heap->gc_time.tv_usec);
+	LOG_DBG("GC %d collects, %ld sec, %ld microsec\n",
+			heap->gc_count,
+			heap->gc_time.tv_sec,
+			heap->gc_time.tv_usec);
 }

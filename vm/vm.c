@@ -42,10 +42,9 @@ static void mark_env(env_t **env, visitor_t *visitor)
 {
 	if (!*env)
 		return;
-	ptr_t ptr;
-	PTR_INIT(ptr, *env);
-	visitor->visit(visitor, &ptr.obj);
-	*env = PTR_GET(ptr);
+	obj_t ptr = MAKE_HEAP_PTR(*env);
+	visitor->visit(visitor, &ptr);
+	*env = PTR(ptr);
 }
 
 static void env_visit(visitor_t *vs, void *data)
@@ -101,7 +100,7 @@ static void bindmap_init(obj_t *bindmap, env_t *senv, func_t *func)
 	int i;
 	for (i = 0; i < func->bmcount; i++) {
 		env_t *env = env_display(senv, func->bindmap[i]);
-		bindmap[i] = make_ptr(env, id_ptr);
+		bindmap[i] = MAKE_HEAP_PTR(env);
 	}
 }
 
@@ -122,7 +121,7 @@ static obj_t closure_new(heap_t *heap, func_t *func, env_t **env)
 	} else
 		closure->bindmap = NULL;
 
-	return make_ptr(closure, id_ptr);
+	return MAKE_HEAP_PTR(closure);
 }
 
 static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
@@ -140,7 +139,7 @@ static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 	}
 
 	func_t *func = MODULE_FUNC(mod, mod->entry_point);
-	obj_t enter = make_ptr(func, id_func);
+	obj_t enter = MAKE_FUNC(func);
 
 	STACK_PUSH(argv[0]);	/* Push continuation */
 	thread->tramp.argc = 1;
@@ -155,7 +154,7 @@ static int library_cache(vm_thread_t *thread, obj_t *argv, int argc)
 	if (argc == 2) {
 		SAFE_ASSERT(IS_PAIR(argv[1]));
 		thread->lib_cache = argv[1];
-		RETURN_OBJ(cvoid.obj);
+		RETURN_OBJ(cvoid);
 	} else
 		RETURN_OBJ(thread->lib_cache);
 }
@@ -177,7 +176,7 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 			STACK_PUSH(_list(&thread->heap, args, i));
 			op_arg -= (i-1);
 		} else {
-			STACK_PUSH(cnull.obj);
+			STACK_PUSH(cnull);
 			op_arg++;
 		}
 	}
@@ -228,7 +227,7 @@ int push_exception_handler(vm_thread_t *thread, const char *msg, ...)
 
 	obj_t obj = _string(&thread->heap.allocator, buf, 1);
 
-	obj_t cont = make_ptr((native_func_t*)&vm_exit_nt, id_func);
+	obj_t cont = MAKE_FUNC(&vm_exit_nt);
 	STACK_PUSH(cont);
 	STACK_PUSH(obj);
 	STACK_PUSH(pair->car);
@@ -262,9 +261,8 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	int op_code, op_arg;
 	func_t *func;
 
-	fixnum_t fxa, fxb, fxc;
-	fxc.tag = id_fixnum;
-#define FETCH_AB() fxb.obj = STACK_POP(); fxa.obj = STACK_POP();
+	obj_t a, b, c;
+#define FETCH_AB() b = STACK_POP(); a = STACK_POP()
 
 	/*
 	 * Try to raise an exception. If no suitable exception found -
@@ -317,9 +315,9 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	thread->objects = thread->env->objects;
 	thread->heap_env = 1;
 
-	thread->objects[0].ptr = hash_table_lookup(&builtin, "__exit");
-	thread->lib_cache = cnull.obj;
-	thread->exception_handlers = cnull.obj;
+	thread->objects[0] = (obj_t)hash_table_lookup(&builtin, "__exit");
+	thread->lib_cache = cnull;
+	thread->exception_handlers = cnull;
 
 	SET_TRACE();
 
@@ -364,41 +362,41 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 			NEXT();
 
 			TARGET(LOAD_FUNC)
-				STACK_PUSH(make_ptr(MODULE_FUNC(func->module, op_arg), id_func));
+				STACK_PUSH(MAKE_FUNC(MODULE_FUNC(func->module, op_arg)));
 			NEXT();
 
 			TARGET(FUNC_CALL)
 				funcall:
 			{
-				ptr_t fp;
 				void *ptr;
-				fp.obj = STACK_POP();
+				obj_t fp = STACK_POP();
 dispatch_func:
-				switch (fp.tag) {
-				case id_ptr: {
-					if (IS_TYPE(fp.obj, t_closure)) {
-						closure_t *closure = PTR(fp.obj);
+				switch (GET_TAG(fp)) {
+				case TAG_PTR: {
+					if (IS_TYPE(fp, t_closure)) {
+						closure_t *closure = PTR(fp);
 						ptr = closure->func;
 						thread->env = closure->env;
 						thread->bindmap = closure->bindmap;
 						thread->closure = closure;
-					} else if (IS_TYPE(fp.obj, t_cont)) {
+					} else if (IS_TYPE(fp, t_cont)) {
 						/* Unpack function and dispatch again */
-						continuation_t *cont = PTR(fp.obj);
-						fp.obj = cont->func;
+						continuation_t *cont = PTR(fp);
+						fp = cont->func;
 						op_arg--;
 						goto dispatch_func;
 					} else
 						RAISE("got pointer but it isn't a closure or a continuation");
 					break;
 				}
-				case id_func:
-					ptr = PTR_GET(fp);
+				case TAG_FUNC:
+					ptr = PTR(fp);
 					thread->bindmap = NULL;
 					thread->closure = NULL;
 					break;
 				default:
-					RAISE("call", "expected function or closure but got tag %d\n", fp.tag);
+					RAISE("call", "expected function or closure but got tag %d\n",
+						  GET_TAG(fp));
 				}
 
 				func_hdr_t *fhdr = (func_hdr_t*)ptr;
@@ -415,7 +413,7 @@ dispatch_func:
 				case func_inter: {
 					func = ptr;
 					opcode = func->opcode;
-					enter_interp(thread, func, op_arg, fp.tag);
+					enter_interp(thread, func, op_arg, GET_TAG(fp));
 					SET_TRACE();
 					NEXT();
 				}
@@ -423,7 +421,7 @@ dispatch_func:
 					native_func_t *func = ptr;
 					obj_t *argv = &thread->opstack[thread->op_stack_idx - op_arg];
 					thread->tramp.argc = 1;
-					thread->tramp.func.ptr = NULL;
+					thread->tramp.func = 0;
 
 					switch (native_call(thread, func, argv, op_arg)) {
 					case RC_EXIT:
@@ -437,17 +435,18 @@ dispatch_func:
 						break;
 					}
 
-					if (thread->tramp.func.ptr)
-						fp.obj = thread->tramp.func;
+					if (thread->tramp.func)
+						fp = thread->tramp.func;
 					else
-						fp.obj = argv[0];
+						fp = argv[0];
 
 					op_arg = thread->tramp.argc;
 
 					goto dispatch_func;
 				}
 				default:
-					FATAL("BUG! Expected function but got type tag: %d\n", fp.tag);
+					FATAL("BUG! Expected function but got type tag: %ld\n",
+						  GET_TAG(fp));
 				}
 			}
 			NEXT();
@@ -481,27 +480,27 @@ dispatch_func:
 			NEXT();
 
 			TARGET(PUSH_BOOL)
-				STACK_PUSH(CIF(op_arg).obj);
+				STACK_PUSH(CIF(op_arg));
 			NEXT();
 
 			TARGET(PUSH_NULL)
-				STACK_PUSH(cnull.obj);
+				STACK_PUSH(cnull);
 			NEXT();
 
 			TARGET(OP_NOT)
-				STACK_PUSH(CIF(IS_FALSE(STACK_POP())).obj);
+				STACK_PUSH(CIF(IS_FALSE(STACK_POP())));
 			NEXT();
 
 			TARGET(OP_EQ_PTR) {
-				FETCH_AB();		/* It's ok to use fixnum */
-				STACK_PUSH(CIF(fxa.ptr == fxb.ptr).obj);
+				FETCH_AB();
+				STACK_PUSH(CIF(a == b));
 			}
 			NEXT();
 
 #define COMPARE_TARGET(name, op)							\
 			TARGET(OP_##name) {								\
 				FETCH_AB();									\
-				STACK_PUSH(CIF(fxa.val op fxb.val).obj);	\
+				STACK_PUSH(CIF(a op b));					\
 			}												\
 			NEXT();
 
@@ -514,8 +513,8 @@ dispatch_func:
 #define ARITHMETIC_TARGET(name, op)				\
 			TARGET(OP_##name) {					\
 				FETCH_AB();						\
-				fxc.val = fxa.val op fxb.val;	\
-				STACK_PUSH(fxc.obj);			\
+				c = MAKE_FIXNUM(a op b);		\
+				STACK_PUSH(c);					\
 			}									\
 			NEXT();
 
@@ -569,10 +568,9 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 		visitor->visit(visitor, &thread->opstack[i]);
 
 	if (thread->closure) {
-		ptr_t ptr;
-		PTR_INIT(ptr, thread->closure);
-		visitor->visit(visitor, &ptr.obj);
-		thread->closure = PTR_GET(ptr);
+		obj_t ptr = MAKE_HEAP_PTR(thread->closure);
+		visitor->visit(visitor, &ptr);
+		thread->closure = PTR(ptr);
 	}
 
 	visitor->visit(visitor, &thread->lib_cache);
@@ -681,9 +679,6 @@ void vm_cleanup()
 static void info()
 {
 	SIZE_INFO(vm_thread_t);
-	SIZE_INFO(fixnum_t);
-	SIZE_INFO(ptr_t);
-	SIZE_INFO(char_t);
 	SIZE_INFO(type_t);
 	SIZE_INFO(block_hdr_t);
 	SIZE_INFO(env_t);

@@ -167,16 +167,12 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 	int type = code_read8(code);
 	switch (type) {
 	case OT_FIXNUM: {
-		fixnum_t n;
 		int64_t val = code_read64(code);
-		FIXNUM_INIT(n, val);
-		return n.obj;
+		return MAKE_FIXNUM(val);
 	}
 	case OT_CHARACTER: {
-		char_t c;
 		uint16_t val = code_read16(code);
-		CHAR_INIT(c, val);
-		return c.obj;
+		return MAKE_CHAR(val);
 	}
 	case OT_SYMBOL: {
 		const char *str = code_read_string(code);
@@ -188,16 +184,15 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 	}
 	case OT_STATIC: {
 		const char *str = code_read_string(code);
-		obj_t res;
-		res.ptr = lookup_global(str);
-		if (!res.ptr)
+		void *res = lookup_global(str);
+		if (!res)
 			FATAL("Invalid static %s\n", str);
-		return res;
+		return (obj_t)res;
 	}
 	case OT_NULL:
-		return cnull.obj;
+		return cnull;
 	case OT_BOOLEAN:
-		return CIF(code_read8(code)).obj;
+		return CIF(code_read8(code));
 	case OT_PAIR_BEGIN: {
 		int fresh = 1;
 		obj_t res, new;
@@ -222,7 +217,7 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 		int i;
 		for (i = 0; i < size; i++)
 			st->fields[i] = fasl_read_datum(code, al);
-		return make_ptr(st, id_const_ptr);
+		return MAKE_CONST_PTR(st);
 	}
 	default:
 		FATAL("unhandled const type: %s\n", object_type_name(type));

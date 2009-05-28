@@ -132,7 +132,7 @@ static int make_foreign(vm_thread_t *thread, obj_t *oso, obj_t *oname, obj_t *of
 	if (rc != FFI_OK)
 		FATAL("ffi_prep_cif failed");
 
-	RETURN_OBJ(make_ptr(ff, id_ptr));
+	RETURN_OBJ(MAKE_HEAP_PTR(ff));
 }
 MAKE_NATIVE_TERNARY(make_foreign);
 
@@ -156,7 +156,7 @@ static int load_so(vm_thread_t *thread, obj_t *oname)
 		hash_table_insert(&so_cache, so->name, so);
 	}
 
-	RETURN_OBJ(make_ptr(so, id_const_ptr));
+	RETURN_OBJ(MAKE_CONST_PTR(so));
 }
 MAKE_NATIVE_UNARY(load_so);
 

@@ -22,6 +22,7 @@ AC_CHECK_HEADERS([fcntl.h limits.h locale.h stddef.h stdint.h stdlib.h string.h 
 AC_C_INLINE
 AC_TYPE_INT16_T
 AC_TYPE_INT64_T
+AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_TYPE_UINT16_T
@@ -30,7 +31,7 @@ AC_TYPE_UINT8_T
 
 # Checks for library functions.
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([getcwd gettimeofday memset munmap setlocale strerror])
+AC_CHECK_FUNCS([getcwd gettimeofday memset mkdir munmap setenv setlocale strerror])
 
 AC_CONFIG_FILES([Makefile
                  vm/Makefile])

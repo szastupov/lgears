@@ -83,6 +83,11 @@ typedef struct {
 	int argc;					/* Arguments count */
 } trampoline_t;
 
+typedef struct {
+	obj_t *objects[5];
+	int count;
+} local_roots_t;
+
 struct vm_thread_s {
 	heap_t heap;				/* Heap */
 	obj_t *opstack;				/* Operands stack */
@@ -96,6 +101,7 @@ struct vm_thread_s {
 	int heap_env;				/* Is env allocated on heap? */
 	obj_t lib_cache;			/* Library cache register */
 	obj_t exception_handlers;	/* Exception handlers register */
+	local_roots_t *local_roots;
 	trampoline_t tramp;			/* Trampoline for native/built-in functions */
 };
 

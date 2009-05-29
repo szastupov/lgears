@@ -77,21 +77,22 @@ obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr)
 	return MAKE_TAGGED_PTR(pair, al->id);
 }
 
-obj_t _list(heap_t *heap, obj_t *argv, int argc)
+obj_t _list(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	obj_t res = cnull;
+	DEFINE_LOCAL1(res);
+	res = cnull;
 
 	int i;
 	for (i = argc-1; i >= 0; i--)
-		res = _cons(&heap->allocator, &argv[i], &res);
+		res = _cons(&thread->heap.allocator, &argv[i], &res);
 
+	thread->local_roots = NULL;
 	return res;
 }
 
 static int list(vm_thread_t *thread, obj_t *argv, int argc)
 {
-	heap_require_blocks(&thread->heap, sizeof(pair_t), argc-1);
-	RETURN_OBJ(_list(&thread->heap, &argv[1], argc-1));
+	RETURN_OBJ(_list(thread, &argv[1], argc-1));
 }
 MAKE_NATIVE_VARIADIC(list, 0);
 
@@ -109,13 +110,14 @@ static int make_list(vm_thread_t *thread, obj_t *count, obj_t *fill)
 {
 	SAFE_ASSERT(IS_FIXNUM(*count));
 	int size = FIXNUM(*count);
-	obj_t res = cnull;
+	DEFINE_LOCAL1(res);
+	res = cnull;
 
-	heap_require_blocks(&thread->heap, sizeof(pair_t), size);
 	int i;
 	for (i = 0; i < size; i++)
 		res = _cons(&thread->heap.allocator, fill, &res);
 
+	thread->local_roots = NULL;
 	RETURN_OBJ(res);
 }
 MAKE_NATIVE_BINARY(make_list);

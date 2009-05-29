@@ -148,7 +148,7 @@ static int struct_to_list(vm_thread_t *thread, obj_t *obj)
 	heap_require_blocks(&thread->heap, sizeof(pair_t), st->size);
 	st = PTR(*obj);
 
-	RETURN_OBJ(_list(&thread->heap, st->fields, st->size));
+	RETURN_OBJ(_list(thread, st->fields, st->size));
 }
 MAKE_NATIVE_UNARY(struct_to_list);
 

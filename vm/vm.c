@@ -170,10 +170,9 @@ static void enter_interp(vm_thread_t *thread, func_t *func, int op_arg, int tag)
 	if (func->hdr.swallow) {
 		i = op_arg - func->hdr.argc;
 		if (i) {
-			heap_require_blocks(&thread->heap, sizeof(pair_t), i);
 			void *args = &thread->opstack[thread->op_stack_idx - i];
 			thread->op_stack_idx -= i;
-			STACK_PUSH(_list(&thread->heap, args, i));
+			STACK_PUSH(_list(thread, args, i));
 			op_arg -= (i-1);
 		} else {
 			STACK_PUSH(cnull);
@@ -269,6 +268,7 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	 * just kill the thread
 	 */
 #define RAISE(who, msg...)  {									\
+		LOG_DBG("raising %d\n", __LINE__);						\
 		op_arg = push_exception_handler(thread, who": "msg);	\
 		if (!op_arg)											\
 			return;												\
@@ -529,10 +529,11 @@ dispatch_func:
 			ARITHMETIC_TARGET(SUB, -);
 
 			TARGET(OP_CONS) {
-				heap_require(&thread->heap, sizeof(pair_t));
-				obj_t b = STACK_POP();
-				obj_t a = STACK_POP();
+				DEFINE_LOCAL2(a, b);
+				b = STACK_POP();
+				a = STACK_POP();
 				STACK_PUSH(_cons(&thread->heap.allocator, &a, &b));
+				thread->local_roots = NULL;
 			}
 			NEXT();
 
@@ -575,6 +576,10 @@ void thread_get_roots(visitor_t *visitor, vm_thread_t *thread)
 
 	visitor->visit(visitor, &thread->lib_cache);
 	visitor->visit(visitor, &thread->exception_handlers);
+
+	if (thread->local_roots)
+		for (i = 0; i < thread->local_roots->count; i++)
+			visitor->visit(visitor, thread->local_roots->objects[i]);
 }
 
 /* Update pointers */

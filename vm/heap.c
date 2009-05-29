@@ -249,7 +249,7 @@ static void heap_gc_main(heap_t *heap)
 	}
 }
 
-static void heap_gc(heap_t *heap)
+void heap_gc(heap_t *heap)
 {
 	//HEAP_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
 	struct timeval tv1, tv2, tv3;

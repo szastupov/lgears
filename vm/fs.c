@@ -62,10 +62,9 @@ static int fs_stat(vm_thread_t *thread, obj_t *opath)
 {
 	SAFE_ASSERT(IS_STRING(*opath));
 
-	string_t *path = PTR(*opath);
 	struct stat st = {0};
 
-	if (stat(path->str, &st) == 0) {
+	if (stat(CSTRING(*opath), &st) == 0) {
 		obj_t type_name = make_symbol("posix-stat");
 		struct_t *pstat = struct_new(&thread->heap.allocator,
 									 &type_name,
@@ -93,9 +92,7 @@ MAKE_NATIVE_UNARY(fs_stat);
 static int fs_remove(vm_thread_t *thread, obj_t *opath)
 {
 	SAFE_ASSERT(IS_STRING(*opath));
-
-	string_t *path = PTR(*opath);
-	RETURN_BOOL(remove(path->str) == 0);
+	RETURN_BOOL(remove(CSTRING(*opath)) == 0);
 }
 MAKE_NATIVE_UNARY(fs_remove);
 
@@ -116,8 +113,7 @@ static int fs_opendir(vm_thread_t *thread, obj_t *opath)
 {
 	SAFE_ASSERT(IS_STRING(*opath));
 
-	string_t *path = PTR(*opath);
-	DIR *dir = opendir(path->str);
+	DIR *dir = opendir(CSTRING(*opath));
 	if (dir) {
 		dir_t *dt = heap_alloc(&thread->heap, sizeof(dir_t), t_dir);
 		dt->opath = *opath;
@@ -155,9 +151,7 @@ MAKE_NATIVE_UNARY(fs_readdir);
 static int fs_chdir(vm_thread_t *thread, obj_t *opath)
 {
 	SAFE_ASSERT(IS_STRING(*opath));
-	string_t *str = PTR(*opath);
-
-	RETURN_BOOL(chdir(str->str) == 0);
+	RETURN_BOOL(chdir(CSTRING(*opath)) == 0);
 }
 MAKE_NATIVE_UNARY(fs_chdir);
 
@@ -165,18 +159,17 @@ static int fs_mkdir(vm_thread_t *thread, obj_t *opath, obj_t *omode)
 {
 	SAFE_ASSERT(IS_STRING(*opath));
 	SAFE_ASSERT(IS_FIXNUM(*omode));
-	string_t *path = PTR(*opath);
+	const char *path = CSTRING(*opath);
 	mode_t mode = FIXNUM(*omode);
 
-	RETURN_BOOL(mkdir(path->str, mode) == 0);
+	RETURN_BOOL(mkdir(path, mode) == 0);
 }
 MAKE_NATIVE_BINARY(fs_mkdir);
 
 static int os_getenv(vm_thread_t *thread, obj_t *okey)
 {
 	SAFE_ASSERT(IS_STRING(*okey));
-	string_t *key = PTR(*okey);
-	char *res = getenv(key->str);
+	char *res = getenv(CSTRING(*okey));
 	if (res) {
 		RETURN_OBJ(_string(&thread->heap.allocator, res, 1));
 	} else {
@@ -188,8 +181,7 @@ MAKE_NATIVE_UNARY(os_getenv);
 static int os_unsetenv(vm_thread_t *thread, obj_t *okey)
 {
 	SAFE_ASSERT(IS_STRING(*okey));
-	string_t *key = PTR(*okey);
-	RETURN_BOOL(unsetenv(key->str) == 0);
+	RETURN_BOOL(unsetenv(CSTRING(*okey)) == 0);
 }
 MAKE_NATIVE_UNARY(os_unsetenv);
 
@@ -198,10 +190,10 @@ static int os_setenv(vm_thread_t *thread, obj_t *okey,
 {
 	SAFE_ASSERT(IS_STRING(*okey));
 	SAFE_ASSERT(IS_STRING(*oval));
-	string_t *key = PTR(*okey);
-	string_t *val = PTR(*oval);
+	const char *key = CSTRING(*okey);
+	const char *val = CSTRING(*oval);
 
-	RETURN_BOOL(setenv(key->str, val->str, !IS_FALSE(*overwrite)) == 0);
+	RETURN_BOOL(setenv(key, val, !IS_FALSE(*overwrite)) == 0);
 }
 MAKE_NATIVE_TERNARY(os_setenv);
 

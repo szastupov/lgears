@@ -75,5 +75,6 @@ void* heap_alloc0(heap_t *heap, int size, int type_id);
 void heap_require(heap_t *heap, int size);
 void heap_require_blocks(heap_t *heap, int size, int count);
 void heap_remember(heap_t *heap, block_hdr_t *hdr);
+void heap_gc(heap_t *heap);
 
 #endif /* HEAP_H */

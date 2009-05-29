@@ -66,6 +66,30 @@ typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 #define MAKE_NATIVE_TERNARY(func)				\
 	MAKE_NATIVE(func, 3, 3, 0)
 
+#define PROTECT_LOCAL1(x)						\
+	local_roots_t __lr = {						\
+		.count = 1,								\
+		.objects[0] = &x,						\
+	};											\
+	thread->local_roots = &__lr;
+
+#define PROTECT_LOCAL2(x, y)					\
+	local_roots_t __lr = {						\
+		.count = 2,								\
+		.objects[0] = &x,						\
+		.objects[1] = &y,						\
+	};											\
+	thread->local_roots = &__lr;
+
+#define DEFINE_LOCAL1(x)						\
+	obj_t x = cvoid;							\
+	PROTECT_LOCAL1(x)
+
+#define DEFINE_LOCAL2(x, y)						\
+	obj_t x = cvoid;							\
+	obj_t y = cvoid;							\
+	PROTECT_LOCAL2(x, y);
+
 #define RETURN_OBJ(obj)							\
 	STACK_PUSH(obj);							\
 	return RC_OK;

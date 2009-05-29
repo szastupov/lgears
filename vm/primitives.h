@@ -41,7 +41,7 @@ typedef struct {
 	unsigned length:31;
 } pair_t;
 
-obj_t _list(heap_t *heap, obj_t *argv, int argc);
+obj_t _list(vm_thread_t *thread, obj_t *argv, int argc);
 obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr);
 
 #define IS_PAIR(obj) IS_TYPE(obj, t_pair)

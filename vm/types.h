@@ -26,6 +26,8 @@ typedef uintptr_t obj_t;
 
 #define TAG_SIZE 3				/* Use 3 bits for tag */
 #define TAG_MASK 7				/* 111 */
+#define TAG_UNMASK ((unsigned long)-1-TAG_MASK)
+
 enum {
 	TAG_FIXNUM,					/* Fixed number */
 	TAG_PTR,					/* Heap pointer */
@@ -35,8 +37,16 @@ enum {
 	TAG_CONST					/* Constant */
 };
 
+/*
+ * VM use two ways to tag an object:
+ * 1) Shift and or - used for fixnums and immediate objects, where we
+ * can limit size of a value
+ * 2) Clear and or - used for pointers which must be properly aligned
+ */
+
 #define ADD_TAG(o, tag) (((o) << TAG_SIZE) | tag)
-/* TODO: add SET_TAG  */
+#define SET_TAG(o, tag) ((o) | tag)
+#define UNSET_TAG(o) ((o) & TAG_UNMASK)
 #define GET_TAG(o) ((o) & TAG_MASK)
 #define TEST_TAG(o, tag) (GET_TAG(o) == tag)
 #define MAKE_OBJ(o, tag) (obj_t)ADD_TAG(o, tag)
@@ -45,8 +55,8 @@ enum {
 #define MAKE_FIXNUM(v) MAKE_OBJ(v, TAG_FIXNUM)
 #define IS_FIXNUM(v) TEST_TAG(v, TAG_FIXNUM)
 
-#define PTR(o) (void*)FIXNUM(o)
-#define MAKE_TAGGED_PTR(v, tag) MAKE_OBJ((uintptr_t)v, tag) /* TODO use SET_TAG */
+#define PTR(o) (void*)UNSET_TAG(o)
+#define MAKE_TAGGED_PTR(v, tag) SET_TAG(UNSET_TAG((uintptr_t)v), tag)
 #define MAKE_HEAP_PTR(v) MAKE_TAGGED_PTR(v, TAG_PTR)
 #define MAKE_CONST_PTR(v) MAKE_TAGGED_PTR(v, TAG_CONST_PTR)
 #define IS_HEAP_PTR(v) TEST_TAG(v, TAG_PTR)

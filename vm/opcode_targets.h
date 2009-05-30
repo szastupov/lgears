@@ -23,11 +23,16 @@ static const void* opcode_targets[] = {
 	&&TARGET_OP_MUL,
 	&&TARGET_OP_DIV,
 	&&TARGET_OP_MOD,
+	&&TARGET_OP_BIT_AND,
+	&&TARGET_OP_BIT_IOR,
+	&&TARGET_OP_BIT_XOR,
+	&&TARGET_OP_BIT_NOT,
 	&&TARGET_OP_LT,
 	&&TARGET_OP_GT,
 	&&TARGET_OP_EQ,
 	&&TARGET_OP_EQ_PTR,
 	&&TARGET_OP_NOT,
+	&&TARGET_OP_TYPE_TEST,
 };
 
 #endif

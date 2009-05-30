@@ -18,7 +18,8 @@
  |#
 
 (library (compiler opcode)
-  (export oplist oplist-for-each opcode object-types object-type)
+  (export oplist oplist-for-each opcode object-types object-type
+          type-tests type-test)
   (import (rnrs))
 
   #|
@@ -46,11 +47,16 @@
       (OP_MUL . "*")
       (OP_DIV . "/")
       (OP_MOD . "%")
+      (OP_BIT_AND . "&")
+      (OP_BIT_IOR . "|")
+      (OP_BIT_XOR . "^")
+      (OP_BIT_NOT . "~")
       (OP_LT . "<")
       (OP_GT . ">")
       (OP_EQ . "=")
       (OP_EQ_PTR . "eq?")
-      (OP_NOT . "!")))
+      (OP_NOT . "!")
+      (OP_TYPE_TEST . "type-test")))
 
   (define object-types
     '((OT_FIXNUM . "Fixed number")
@@ -63,6 +69,20 @@
       (OT_STRUCT . "Structure")
       (OT_BOOLEAN . "Boolean")
       (OT_NULL . "Null object")))
+
+  (define type-tests
+    '((TT_FIXNUM . "fixnum?")
+      (TT_NULL . "null?")
+      (TT_LIST . "list?")
+      (TT_PAIR . "pair?")
+      (TT_PROCEDURE . "procedure?")
+      (TT_BOOLEAN . "boolean?")
+      (TT_CHAR . "char?")
+      (TT_SYMBOL . "symbol?")
+      (TT_STRUCT . "struct?")
+      (TT_STRING . "string?")
+      (TT_BYTEVECTOR . "bytevector?")
+      (TT_EOF . "eof-object?")))
 
   (define (oplist-for-each func)
     (fold-left (lambda (idx op)
@@ -86,5 +106,10 @@
     (cond ((ifind x object-types)
            => (lambda (i) i))
           (else (error 'object-type "unknown object type" x))))
+
+  (define (type-test x)
+    (cond ((ifind x type-tests)
+           => (lambda (i) i))
+          (else (error 'type-test "unkonwn type test" x))))
 
   )

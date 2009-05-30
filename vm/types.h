@@ -45,14 +45,15 @@ enum {
  */
 
 #define ADD_TAG(o, tag) (((o) << TAG_SIZE) | tag)
+#define UNTAG(o) ((o) >> TAG_SIZE)
 #define SET_TAG(o, tag) ((o) | tag)
 #define UNSET_TAG(o) ((o) & TAG_UNMASK)
 #define GET_TAG(o) ((o) & TAG_MASK)
 #define TEST_TAG(o, tag) (GET_TAG(o) == tag)
 #define MAKE_OBJ(o, tag) (obj_t)ADD_TAG(o, tag)
 
-#define FIXNUM(o) ((o) >> TAG_SIZE)
-#define MAKE_FIXNUM(v) MAKE_OBJ(v, TAG_FIXNUM)
+#define MAKE_FIXNUM(v) MAKE_OBJ((long)v, TAG_FIXNUM)
+#define FIXNUM(o) UNTAG((long)o)
 #define IS_FIXNUM(v) TEST_TAG(v, TAG_FIXNUM)
 
 #define PTR(o) (void*)UNSET_TAG(o)
@@ -62,7 +63,7 @@ enum {
 #define IS_HEAP_PTR(v) TEST_TAG(v, TAG_PTR)
 #define IS_CONST_PTR(v) TEST_TAG(v, TAG_CONST_PTR)
 
-#define CHAR(o) (short)FIXNUM(o)
+#define CHAR(o) (short)UNTAG(o)
 #define MAKE_CHAR(v) MAKE_OBJ(v, TAG_CHAR)
 #define IS_CHAR(v) TEST_TAG(v, TAG_CHAR)
 

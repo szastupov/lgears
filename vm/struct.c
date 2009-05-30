@@ -98,12 +98,6 @@ static int struct_size(vm_thread_t *thread, obj_t *obj)
 }
 MAKE_NATIVE_UNARY(struct_size);
 
-static int is_struct(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_STRUCT(*obj));
-}
-MAKE_NATIVE_UNARY(is_struct);
-
 static int struct_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 {
 	SAFE_ASSERT(IS_STRUCT(*obj));
@@ -157,7 +151,6 @@ void struct_init()
 	t_struct = register_type("struct", struct_repr, struct_visit);
 	ns_install_global("make-struct", &make_struct_nt);
 	ns_install_global("alloc-struct", &alloc_struct_nt);
-	ns_install_global("struct?", &is_struct_nt);
 	ns_install_global("struct-size", &struct_size_nt);
 	ns_install_global("struct-set!", &struct_set_nt);
 	ns_install_global("struct-ref", &struct_ref_nt);

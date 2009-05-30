@@ -45,6 +45,7 @@ obj_t _list(vm_thread_t *thread, obj_t *argv, int argc);
 obj_t _cons(allocator_t *al, obj_t *car, obj_t *cdr);
 
 #define IS_PAIR(obj) IS_TYPE(obj, t_pair)
+#define IS_LIST(o) ((IS_PAIR(o) && ((pair_t*)PTR(o))->list) || IS_NULL(o))
 
 typedef struct {
 	obj_t func;

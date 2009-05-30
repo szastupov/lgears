@@ -25,11 +25,16 @@
 #define OP_MUL	0x11	/* * */
 #define OP_DIV	0x12	/* / */
 #define OP_MOD	0x13	/* % */
-#define OP_LT	0x14	/* < */
-#define OP_GT	0x15	/* > */
-#define OP_EQ	0x16	/* = */
-#define OP_EQ_PTR	0x17	/* eq? */
-#define OP_NOT	0x18	/* ! */
+#define OP_BIT_AND	0x14	/* & */
+#define OP_BIT_IOR	0x15	/* | */
+#define OP_BIT_XOR	0x16	/* ^ */
+#define OP_BIT_NOT	0x17	/* ~ */
+#define OP_LT	0x18	/* < */
+#define OP_GT	0x19	/* > */
+#define OP_EQ	0x1a	/* = */
+#define OP_EQ_PTR	0x1b	/* eq? */
+#define OP_NOT	0x1c	/* ! */
+#define OP_TYPE_TEST	0x1d	/* type-test */
 
 #define OT_FIXNUM	0x0	/* Fixed number */
 #define OT_CHARACTER	0x1	/* Character */
@@ -41,6 +46,19 @@
 #define OT_STRUCT	0x7	/* Structure */
 #define OT_BOOLEAN	0x8	/* Boolean */
 #define OT_NULL	0x9	/* Null object */
+
+#define TT_FIXNUM	0x0	/* fixnum? */
+#define TT_NULL	0x1	/* null? */
+#define TT_LIST	0x2	/* list? */
+#define TT_PAIR	0x3	/* pair? */
+#define TT_PROCEDURE	0x4	/* procedure? */
+#define TT_BOOLEAN	0x5	/* boolean? */
+#define TT_CHAR	0x6	/* char? */
+#define TT_SYMBOL	0x7	/* symbol? */
+#define TT_STRUCT	0x8	/* struct? */
+#define TT_STRING	0x9	/* string? */
+#define TT_BYTEVECTOR	0xa	/* bytevector? */
+#define TT_EOF	0xb	/* eof-object? */
 
 static inline const char* opcode_name(int code)
 {
@@ -65,11 +83,16 @@ static inline const char* opcode_name(int code)
 		OP_CASE(OP_MUL);
 		OP_CASE(OP_DIV);
 		OP_CASE(OP_MOD);
+		OP_CASE(OP_BIT_AND);
+		OP_CASE(OP_BIT_IOR);
+		OP_CASE(OP_BIT_XOR);
+		OP_CASE(OP_BIT_NOT);
 		OP_CASE(OP_LT);
 		OP_CASE(OP_GT);
 		OP_CASE(OP_EQ);
 		OP_CASE(OP_EQ_PTR);
 		OP_CASE(OP_NOT);
+		OP_CASE(OP_TYPE_TEST);
 	}
 	return "unknown";
 }
@@ -87,6 +110,25 @@ static inline const char* object_type_name(int code)
 		OP_CASE(OT_STRUCT);
 		OP_CASE(OT_BOOLEAN);
 		OP_CASE(OT_NULL);
+	}
+	return "unknown";
+}
+
+static inline const char* type_test_name(int code)
+{
+	switch (code) {
+		OP_CASE(TT_FIXNUM);
+		OP_CASE(TT_NULL);
+		OP_CASE(TT_LIST);
+		OP_CASE(TT_PAIR);
+		OP_CASE(TT_PROCEDURE);
+		OP_CASE(TT_BOOLEAN);
+		OP_CASE(TT_CHAR);
+		OP_CASE(TT_SYMBOL);
+		OP_CASE(TT_STRUCT);
+		OP_CASE(TT_STRING);
+		OP_CASE(TT_BYTEVECTOR);
+		OP_CASE(TT_EOF);
 	}
 	return "unknown";
 }

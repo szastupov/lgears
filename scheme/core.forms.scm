@@ -1,7 +1,9 @@
 (library (core.forms)
   (export quote lambda define if set! begin syntax syntax-case builtin-call
           with-syntax syntax-rules or and let let* cond case unquote unquote-splicing
-          when unless not cons car cdr eq? op-binary op-unary)
+          when unless not cons car cdr eq? op-binary op-unary fixnum?
+          null? list? pair? procedure? boolean? char? symbol? struct?
+          string? bytevector? eof-object?)
   (import ($builtin))
 
   (define-syntax with-syntax
@@ -160,5 +162,51 @@
 
   (define-syntax eq?
     (op-binary $eq?))
+
+  (define-syntax type-test
+    (lambda (x)
+      (syntax-case x ()
+        ((_ tname)
+         #'(lambda (y)
+             (syntax-case y ()
+               ((_ a) #'($type-test tname a))
+               (id (identifier? #'id)
+                   #'(lambda (a) ($type-test tname a)))))))))
+
+  (define-syntax fixnum?
+    (type-test TT_FIXNUM))
+
+  (define-syntax null?
+    (type-test TT_NULL))
+
+  (define-syntax list?
+    (type-test TT_LIST))
+
+  (define-syntax pair?
+    (type-test TT_PAIR))
+
+  (define-syntax procedure?
+    (type-test TT_PROCEDURE))
+
+  (define-syntax boolean?
+    (type-test TT_BOOLEAN))
+
+  (define-syntax char?
+    (type-test TT_CHAR))
+
+  (define-syntax symbol?
+    (type-test TT_SYMBOL))
+
+  (define-syntax struct?
+    (type-test TT_STRUCT))
+
+  (define-syntax string?
+    (type-test TT_STRING))
+
+  (define-syntax bytevector?
+    (type-test TT_BYTEVECTOR))
+
+  (define-syntax eof-object?
+    (type-test TT_EOF))
 
   )

@@ -25,7 +25,6 @@
 				  (syntax->datum sys-syntax->datum)
 				  (datum->syntax sys-datum->syntax))
 		  (format)
-		  (reader)
 		  (config)
 		  (compiler gen-name)                 ; Fresh name generator
 		  (compiler syntax-core)              ; Core routines
@@ -563,6 +562,15 @@
                                               (make-exporter name defines))))))))
                       wrap)
                      env)))))))
+
+  (define (read-source path)
+    (call-with-input-file path
+      (lambda (port)
+        (let loop ((res '())
+                   (datum (get-datum port)))
+          (if (eof-object? datum)
+              (reverse res)
+              (loop (cons datum res) (get-datum port)))))))
 
   (define (expand-file file)
 	(let ((x (read-source file)))

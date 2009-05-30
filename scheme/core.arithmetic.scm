@@ -22,9 +22,12 @@
 ;;;
 
 (library (core.arithmetic)
-  (export + * - / mod < > = __cmp-proc __add/mul_proc __sub/div_proc)
+  (export + * fxand fxior fxxor - / mod < > = __cmp-proc
+          __add/mul_proc __sub/div_proc number?)
   (import (core.forms)
           (core.sequence))
+
+  (define number? fixnum?)
 
   (define (__add/mul_proc init proc)
     (lambda args
@@ -37,7 +40,7 @@
   (define-syntax add/mul
     (lambda (x)
       (syntax-case x ()
-        ((_ op proc init)
+        ((_ op init)
          #'(lambda (y)
              (syntax-case y ()
                ((_) #'init)
@@ -48,15 +51,24 @@
                    #'(__add/mul_proc init (lambda (x y) (op x y))))))))))
 
   (define-syntax +
-    (add/mul $+ f-add 0))
+    (add/mul $+ 0))
 
   (define-syntax *
-    (add/mul $* f-mul 1))
+    (add/mul $* 1))
+
+  (define-syntax fxand
+    (add/mul $and -1))
+
+  (define-syntax fxior
+    (add/mul $ior 1))
+
+  (define-syntax fxxor
+    (add/mul $xor 1))
 
   (define-syntax sub/div
     (lambda (x)
       (syntax-case x ()
-        ((_ op proc init)
+        ((_ op init)
          #'(lambda (y)
              (syntax-case y ()
                ((_) (syntax-error y "required at least 1 argument"))
@@ -67,10 +79,10 @@
                    #'(__sub/div_proc init (lambda (x y) (op x y))))))))))
 
   (define-syntax -
-    (sub/div $- f-sub 0))
+    (sub/div $- 0))
 
   (define-syntax /
-    (sub/div $/ f-div 1))
+    (sub/div $/ 1))
 
   (define-syntax mod
     (op-binary $%))
@@ -105,5 +117,8 @@
 
   (define-syntax =
     (cmp-op $=))
+
+  (define-syntax fxnot
+    (op-unary $not))
 
   )

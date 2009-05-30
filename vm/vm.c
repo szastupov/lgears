@@ -310,14 +310,11 @@ static void eval_thread(vm_thread_t *thread, module_t *module)
 	func = MODULE_FUNC(module, module->entry_point);
 	thread->func = func;
 	opcode = func->opcode;
-	/* FIXME, entry point may not requite heap env */
 	thread->env = env_new(&thread->heap, NULL, func->env_size, func->depth);
 	thread->objects = thread->env->objects;
 	thread->heap_env = 1;
 
 	thread->objects[0] = (obj_t)hash_table_lookup(&builtin, "__exit");
-	thread->lib_cache = cnull;
-	thread->exception_handlers = cnull;
 
 	SET_TRACE();
 
@@ -491,6 +488,12 @@ dispatch_func:
 				STACK_PUSH(CIF(IS_FALSE(STACK_POP())));
 			NEXT();
 
+			TARGET(OP_BIT_NOT) {
+				a = STACK_POP();
+				STACK_PUSH(~FIXNUM(a));
+			}
+			NEXT();
+
 			TARGET(OP_EQ_PTR) {
 				FETCH_AB();
 				STACK_PUSH(CIF(a == b));
@@ -500,7 +503,7 @@ dispatch_func:
 #define COMPARE_TARGET(name, op)							\
 			TARGET(OP_##name) {								\
 				FETCH_AB();									\
-				STACK_PUSH(CIF(a op b));					\
+				STACK_PUSH(CIF(FIXNUM(a) op FIXNUM(b)));	\
 			}												\
 			NEXT();
 
@@ -510,12 +513,12 @@ dispatch_func:
 
 			COMPARE_TARGET(LT, <);
 
-#define ARITHMETIC_TARGET(name, op)				\
-			TARGET(OP_##name) {					\
-				FETCH_AB();						\
-				c = MAKE_FIXNUM(a op b);		\
-				STACK_PUSH(c);					\
-			}									\
+#define ARITHMETIC_TARGET(name, op)							\
+			TARGET(OP_##name) {								\
+				FETCH_AB();									\
+				c = MAKE_FIXNUM(FIXNUM(a) op FIXNUM(b));	\
+				STACK_PUSH(c);								\
+			}												\
 			NEXT();
 
 			ARITHMETIC_TARGET(MOD, %);
@@ -528,6 +531,12 @@ dispatch_func:
 
 			ARITHMETIC_TARGET(SUB, -);
 
+			ARITHMETIC_TARGET(BIT_AND, &);
+
+			ARITHMETIC_TARGET(BIT_IOR, |);
+
+			ARITHMETIC_TARGET(BIT_XOR, ^);
+
 			TARGET(OP_CONS) {
 				DEFINE_LOCAL2(a, b);
 				b = STACK_POP();
@@ -538,20 +547,42 @@ dispatch_func:
 			NEXT();
 
 			TARGET(OP_CAR) {
-				obj_t p = STACK_POP();
-				if (!IS_PAIR(p))
+				a = STACK_POP();
+				if (!IS_PAIR(a))
 					RAISE("car", "expected pair");
-				pair_t *pair = PTR(p);
+				pair_t *pair = PTR(a);
 				STACK_PUSH(pair->car);
 			}
 			NEXT();
 
 			TARGET(OP_CDR) {
-				obj_t p = STACK_POP();
-				if (!IS_PAIR(p))
+				a = STACK_POP();
+				if (!IS_PAIR(a))
 					RAISE("cdr", "expected pair");
-				pair_t *pair = PTR(p);
+				pair_t *pair = PTR(a);
 				STACK_PUSH(pair->cdr);
+			}
+			NEXT();
+
+			TARGET(OP_TYPE_TEST) {
+				a = STACK_POP();
+#define TEST_CASE(tt, pred) case TT_##tt: b = CIF(pred(a)); break
+				switch (op_arg) {
+					TEST_CASE(FIXNUM, IS_FIXNUM);
+					TEST_CASE(NULL, IS_NULL);
+					TEST_CASE(LIST, IS_LIST);
+					TEST_CASE(PAIR, IS_PAIR);
+					TEST_CASE(PROCEDURE, IS_FUNC);
+					TEST_CASE(BOOLEAN, IS_BOOL);
+					TEST_CASE(SYMBOL, IS_SYMBOL);
+					TEST_CASE(STRUCT, IS_STRUCT);
+					TEST_CASE(STRING, IS_STRING);
+					TEST_CASE(BYTEVECTOR, IS_BYTEVECTOR);
+					TEST_CASE(EOF, IS_EOF);
+				default:
+					FATAL("invalid test %d\n", op_arg);
+				}
+				STACK_PUSH(b);
 			}
 			NEXT();
 		}
@@ -601,6 +632,9 @@ static void vm_thread_init(vm_thread_t *thread)
 	int ssize = 4096;
 	thread->opstack = mem_alloc(ssize);
 	thread->op_stack_size = ssize/sizeof(obj_t);
+
+	thread->lib_cache = cnull;
+	thread->exception_handlers = cnull;
 }
 
 /* Cleanup thread */

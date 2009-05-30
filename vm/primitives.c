@@ -237,68 +237,6 @@ static int integer_to_char(vm_thread_t *thread, obj_t *i)
 }
 MAKE_NATIVE_UNARY(integer_to_char);
 
-/*
- * Predicates
- */
-
-static int is_procedure(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_FUNC(*obj));
-}
-MAKE_NATIVE_UNARY(is_procedure);
-
-static int is_boolean(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_BOOL(*obj));
-}
-MAKE_NATIVE_UNARY(is_boolean);
-
-static int is_null(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_NULL(*obj));
-}
-MAKE_NATIVE_UNARY(is_null);
-
-static int is_eof(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_EOF(*obj));
-}
-MAKE_NATIVE_UNARY(is_eof);
-
-static int is_pair(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_PAIR(*obj));
-}
-MAKE_NATIVE_UNARY(is_pair);
-
-static int is_symbol(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_SYMBOL(*obj));
-}
-MAKE_NATIVE_UNARY(is_symbol);
-
-static int is_char(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_CHAR(*obj));
-}
-MAKE_NATIVE_UNARY(is_char);
-
-static int is_number(vm_thread_t *thread, obj_t *obj)
-{
-	RETURN_BOOL(IS_FIXNUM(*obj));
-}
-MAKE_NATIVE_UNARY(is_number);
-
-static int is_list(vm_thread_t *thread, obj_t *obj)
-{
-	if (IS_PAIR(*obj)) {
-		pair_t *pair = PTR(*obj);
-		RETURN_BOOL(pair->list);
-	}
-	RETURN_BOOL(IS_NULL(*obj));
-}
-MAKE_NATIVE_UNARY(is_list);
-
 static native_module_t modules[] = {
 	{ strings_init, strings_cleanup },
 	{ struct_init },
@@ -326,16 +264,6 @@ void primitives_init()
 	ns_install_global("eof-object", &get_eof_nt);
 	ns_install_global("char->integer", &char_to_integer_nt);
 	ns_install_global("integer->char", &integer_to_char_nt);
-
-	ns_install_global("procedure?", &is_procedure_nt);
-	ns_install_global("boolean?", &is_boolean_nt);
-	ns_install_global("null?", &is_null_nt);
-	ns_install_global("char?", &is_char_nt);
-	ns_install_global("number?", &is_number_nt);
-	ns_install_global("pair?", &is_pair_nt);
-	ns_install_global("symbol?", &is_symbol_nt);
-	ns_install_global("list?", &is_list_nt);
-	ns_install_global("eof-object?", &is_eof_nt);
 	ns_install_global("length", &list_length_nt);
 
 	int i;

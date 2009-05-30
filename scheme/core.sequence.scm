@@ -19,10 +19,11 @@
 (library (core.sequence)
   (export for-each map fold-left fold-right reverse append make-list
           vector vector? make-vector vector-ref vector-set!  vector->list
-          vector-for-each vector-map make-vector string->list string-for-each
-          string-append caaaar cdaaar cadaar cddaar caadar cdadar caddar cdddar
+          vector-for-each vector-map make-vector string-for-each
+          caaaar cdaaar cadaar cddaar caadar cdadar caddar cdddar
           caaadr cdaadr cadadr cddadr caaddr cdaddr cadddr cddddr caaar cdaar
-          cadar cddar caadr cdadr caddr cdddr caar cdar cadr cddr)
+          cadar cddar caadr cdadr caddr cdddr caar cdar cadr cddr memq
+          assq)
   (import (core.forms)
           (core.exceptions))
 
@@ -242,19 +243,21 @@
 
   (define vector-map vector-map-1)
 
-  (define (string->list str)
-    (let loop ((pos ($- (string-length str) 1))
-               (res '()))
-      (if ($- pos 0)
-          (cons (string-ref str pos) res)
-          (loop ($- pos 1)
-                (cons (string-ref str pos) res)))))
-
   (define (string-for-each-1 proc vec)
     (vec-for-each-1 string-ref string-length proc vec))
 
   (define string-for-each string-for-each-1)
 
-  (define (string-append . args)
-    (fold-left string-concat "" args))
+  (define (memq val lst)
+    (cond ((null? lst) #f)
+          ((eq? (car lst) val) lst)
+          (else (memq val (cdr lst)))))
+
+  (define (assq obj alist)
+    (cond ((null? alist) #f)
+          ((eq? (caar alist) obj)
+           (car alist))
+          (else
+           (assq obj (cdr alist)))))
+
   )

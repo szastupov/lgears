@@ -65,8 +65,10 @@
 
     (code-defines oplist port)
     (code-defines object-types port)
+    (code-defines type-tests port)
     (code-names "opcode" oplist port)
     (code-names "object_type" object-types port)
+    (code-names "type_test" type-tests port)
 
     (display "#endif\n" port)))
 

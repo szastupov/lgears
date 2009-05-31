@@ -74,7 +74,6 @@ typedef struct env_s {
 
 typedef struct {
 	env_t *env;					/* Parent invironment */
-	obj_t *bindmap;				/* Precreated bindmap */
 	func_t *func;				/* Function */
 } closure_t;
 

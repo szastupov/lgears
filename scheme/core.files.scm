@@ -1,11 +1,8 @@
 (library (core.files)
-  (export file-exists? delete-file current-directory directory-list make-directory)
+  (export file-exists? delete-file current-directory directory-list
+          make-directory)
   (import (core.forms)
           (core.exceptions))
-
-  (define (describe-os-error)
-    (builtin-call os-strerror
-                  (builtin-call os-errno)))
 
   (define (file-exists? path)
     (if (builtin-call fs-stat path) #t #f))

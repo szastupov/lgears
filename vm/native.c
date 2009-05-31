@@ -95,7 +95,7 @@ void print_obj(obj_t obj)
 		printf("%ld", FIXNUM(obj));
 		break;
 	case TAG_CHAR:
-		printf("#\%lc", CHAR(obj));
+		printf("#\\%lc", CHAR(obj));
 		break;
 	case TAG_FUNC:
 		print_func(obj);

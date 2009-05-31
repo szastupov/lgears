@@ -51,11 +51,11 @@ static void env_visit(visitor_t *vs, void *data)
 {
 	env_t *env = data;
 	env->objects = data+sizeof(env_t);
-	if (env->prev)
-		mark_env(&env->prev, vs);
 	int i;
 	for (i = 0; i < env->size; i++)
 		vs->visit(vs, &env->objects[i]);
+	if (env->prev)
+		mark_env(&env->prev, vs);
 }
 
 static env_t* env_new(heap_t *heap, env_t **prev, int size, int depth)
@@ -75,12 +75,6 @@ static void closure_visit(visitor_t *vs, void *data)
 {
 	closure_t *closure = data;
 	mark_env(&closure->env, vs);
-	if (closure->func->bmcount) {
-		closure->bindmap = data+sizeof(closure_t);
-		int i;
-		for (i = 0; i < closure->func->bmcount; i++)
-			vs->visit(vs, &closure->bindmap[i]);
-	}
 }
 
 /* Search environment by depth mark */
@@ -115,11 +109,6 @@ static obj_t closure_new(heap_t *heap, func_t *func, env_t **env)
 	closure->func = func;
 	closure->env = *env;
 
-	if (func->bmcount) {
-		closure->bindmap = mem+sizeof(closure_t);
-		bindmap_init(closure->bindmap, *env, func);
-	} else
-		closure->bindmap = NULL;
 
 	return MAKE_HEAP_PTR(closure);
 }
@@ -374,7 +363,7 @@ dispatch_func:
 						closure_t *closure = PTR(fp);
 						ptr = closure->func;
 						thread->env = closure->env;
-						thread->bindmap = closure->bindmap;
+						thread->bindmap = NULL;
 						thread->closure = closure;
 					} else if (IS_TYPE(fp, t_cont)) {
 						/* Unpack function and dispatch again */
@@ -383,7 +372,7 @@ dispatch_func:
 						op_arg--;
 						goto dispatch_func;
 					} else
-						RAISE("got pointer but it isn't a closure or a continuation");
+						FATAL("got pointer but it isn't a closure or a continuation");
 					break;
 				}
 				case TAG_FUNC:
@@ -574,6 +563,7 @@ dispatch_func:
 					TEST_CASE(PAIR, IS_PAIR);
 					TEST_CASE(PROCEDURE, IS_FUNC);
 					TEST_CASE(BOOLEAN, IS_BOOL);
+					TEST_CASE(CHAR, IS_CHAR);
 					TEST_CASE(SYMBOL, IS_SYMBOL);
 					TEST_CASE(STRUCT, IS_STRUCT);
 					TEST_CASE(STRING, IS_STRING);
@@ -618,8 +608,6 @@ void thread_after_gc(visitor_t *visitor, vm_thread_t *thread)
 {
 	if (thread->heap_env)
 		thread->objects = thread->env->objects;
-	if (thread->closure)
-		thread->bindmap = thread->closure->bindmap;
 }
 
 /* Initialize thread */

@@ -17,8 +17,7 @@
  * <http://www.gnu.org/licenses>.
  */
 #include "primitives.h"
-#include "fd.h"
-#include "fs.h"
+#include "posix.h"
 #ifdef HAVE_LIBFFI
 #include "foreign.h"
 #endif
@@ -98,11 +97,16 @@ MAKE_NATIVE_VARIADIC(list, 0);
 
 static int list_length(vm_thread_t *thread, obj_t *obj)
 {
-	SAFE_ASSERT(IS_PAIR(*obj));
-	pair_t *pair = PTR(*obj);
-	SAFE_ASSERT(pair->list);
-
-	RETURN_FIXNUM(pair->length);
+	if (IS_NULL(*obj)) {
+		RETURN_FIXNUM(0);
+	} else if (IS_PAIR(*obj)) {
+		pair_t *pair = PTR(*obj);
+		SAFE_ASSERT(pair->list);
+		RETURN_FIXNUM(pair->length);
+	} else {
+		fprintf(stderr, "not pair or null");
+		return RC_ERROR;
+	}
 }
 MAKE_NATIVE_UNARY(list_length);
 
@@ -241,8 +245,7 @@ static native_module_t modules[] = {
 	{ strings_init, strings_cleanup },
 	{ struct_init },
 	{ bytevector_init },
-	{ fd_init },
-	{ fs_init },
+	{ posix_init },
 #ifdef HAVE_LIBFFI
 	{ ffi_init, ffi_cleanup }
 #endif

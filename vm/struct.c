@@ -101,10 +101,11 @@ MAKE_NATIVE_UNARY(struct_size);
 static int struct_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 {
 	SAFE_ASSERT(IS_STRUCT(*obj));
-	SAFE_ASSERT(IS_CONST_PTR(*obj));
+	SAFE_ASSERT(IS_HEAP_PTR(*obj));
 	struct_t *st = PTR(*obj);
 	int pos = FIXNUM(*opos);
-	SAFE_ASSERT(st->size > pos);
+	SAFE_ASSERT((pos >= 0)
+				&& (st->size > pos));
 
 	st->fields[pos] = *val;
 	MARK_MODIFIED(&thread->heap, st);
@@ -119,7 +120,8 @@ static int struct_ref(vm_thread_t *thread, obj_t *obj, obj_t *opos)
 	SAFE_ASSERT(IS_FIXNUM(*opos));
 	struct_t *st = PTR(*obj);
 	int pos = FIXNUM(*opos);
-	SAFE_ASSERT(st->size > pos);
+	SAFE_ASSERT((pos >= 0)
+				&& (st->size > pos));
 
 	RETURN_OBJ(st->fields[pos]);
 }

@@ -22,7 +22,7 @@
           vector-for-each vector-map make-vector string-for-each
           caaaar cdaaar cadaar cddaar caadar cdadar caddar cdddar
           caaadr cdaadr cadadr cddadr caaddr cdaddr cadddr cddddr caaar cdaar
-          cadar cddar caadr cdadr caddr cdddr caar cdar cadr cddr memq
+          cadar cddar caadr cdadr caddr cdddr caar cdar cadr cddr memq memv
           assq)
   (import (core.forms)
           (core.exceptions))
@@ -252,6 +252,8 @@
     (cond ((null? lst) #f)
           ((eq? (car lst) val) lst)
           (else (memq val (cdr lst)))))
+
+  (define memv memq) ;Temporary
 
   (define (assq obj alist)
     (cond ((null? alist) #f)

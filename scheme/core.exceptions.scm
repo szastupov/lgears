@@ -18,7 +18,7 @@
  |#
 (library (core.exceptions)
   (export with-exception-handler raise raise-continuable assert error
-          assertion-violation)
+          assertion-violation describe-os-error)
   (import (core.forms))
 
   (define (default-exception obj)
@@ -60,5 +60,9 @@
     (raise (list who msg irritants)))
 
   (define assertion-violation error)
+
+  (define (describe-os-error)
+    (builtin-call os-strerror
+                  (builtin-call os-errno)))
 
   )

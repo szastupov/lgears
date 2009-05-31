@@ -23,8 +23,10 @@
 //#define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
 
 /* TODO: tune it */
-#define FRESH_SIZE 1024*8
-#define SURVIVED_SIZE 1024*16
+//#define FRESH_SIZE 1024*8
+#define FRESH_SIZE 1024*16
+//#define SURVIVED_SIZE 1024*16
+#define SURVIVED_SIZE 1024*20
 #define OLD_SIZE 1024*512
 
 #define HEAP_DBG printf
@@ -191,6 +193,7 @@ static void heap_scan_remebered(heap_t *heap)
  */
 static void heap_gc_old(heap_t *heap)
 {
+	LOG_DBG("GC in old region\n");
 	int i, live_count, dead_count;
 	space_t *space = &heap->old;
 	remembered_set_t live_set = {0};
@@ -251,7 +254,7 @@ static void heap_gc_main(heap_t *heap)
 
 void heap_gc(heap_t *heap)
 {
-	//HEAP_DBG("!!!Starting garbage collection, DON'T PANIC!!!!\n");
+	//HEAP_DBG("!!!Starting garbage collection #%d, DON'T PANIC!!!!\n", heap->gc_count);
 	struct timeval tv1, tv2, tv3;
 	gettimeofday(&tv1, NULL);
 
@@ -375,13 +378,16 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 	void *new_pos;
 	if (hdr->generation == 3) {
 		if (heap->full_gc) {
-			//HEAP_DBG("postpoinig\n");
-			heap_remember(heap, hdr);
+			if (!hdr->remembered) {
+				heap_remember(heap, hdr);
+				hdr->remembered = 1;
+			}
 			return; //Postpone copying
 		}
 		//HEAP_DBG("Got old object\n");
 		new_pos = space_copy(&heap->old, p, ts);
 		heap_remember(heap, new_pos);
+		hdr->remembered = 0;
 	} else {
 		//HEAP_DBG("copying to survived\n");
 		new_pos = space_copy(heap->future_survived, p, ts);

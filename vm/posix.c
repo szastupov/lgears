@@ -18,6 +18,7 @@
  */
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
 #include <dirent.h>
@@ -28,9 +29,9 @@
 #include "strings.h"
 
 /*
- * This module pretend to be a typesafe interface to posix filesystem
- * operations. Only basic amount of operations is supported but you
- * always may use ffi at you own risk :)
+ * This module pretend to be a typesafe interface to posix operations.
+ * Only basic amount of operations is supported, but you always may
+ * use ffi at you own risk :)
  */
 
 /* Remember? we are safe, so we have to make some types */
@@ -221,7 +222,98 @@ static int os_strerror(vm_thread_t *thread, obj_t *oerrnum)
 }
 MAKE_NATIVE_UNARY(os_strerror);
 
-void fs_init()
+/*
+ * Unix file descriptors interface
+ */
+
+static int fd_modes[] = {
+	O_RDONLY,					/* r */
+	O_RDWR,						/* r+ */
+	O_WRONLY|O_TRUNC|O_CREAT,	/* w */
+	O_RDWR|O_TRUNC|O_CREAT,		/* w+ */
+	O_WRONLY|O_APPEND|O_CREAT,	/* a */
+	O_RDWR|O_APPEND|O_CREAT,	/* a+ */
+};
+
+static int fd_open(vm_thread_t *thread, obj_t *opath, obj_t *omode)
+{
+	SAFE_ASSERT(IS_STRING(*opath));
+	SAFE_ASSERT(IS_FIXNUM(*omode));
+
+	string_t *path = PTR(*opath);
+	int mode = FIXNUM(*omode);
+	SAFE_ASSERT(mode >= 0 && mode < sizeof(fd_modes)/sizeof(int));
+	int fd = open(path->str, fd_modes[mode], S_IRWXU);
+
+	RETURN_FIXNUM(fd);
+}
+MAKE_NATIVE_BINARY(fd_open);
+
+static int fd_close(vm_thread_t *thread, obj_t *fd)
+{
+	SAFE_ASSERT(IS_FIXNUM(*fd));
+	RETURN_FIXNUM(close(FIXNUM(*fd)));
+}
+MAKE_NATIVE_UNARY(fd_close);
+
+static int fd_seek(vm_thread_t *thread, obj_t *fd, obj_t *offt, obj_t *omode)
+{
+	SAFE_ASSERT(IS_FIXNUM(*fd));
+	SAFE_ASSERT(IS_FIXNUM(*omode));
+	SAFE_ASSERT(IS_FIXNUM(*offt));
+
+	int mode = 0;
+	switch (FIXNUM(*omode)) {
+		case 0:
+			mode = SEEK_SET;
+			break;
+		case 1:
+			mode = SEEK_CUR;
+			break;
+		case 2:
+			mode = SEEK_END;
+			break;
+		default:
+			mode = SEEK_SET;
+	}
+
+	off_t offset = lseek(FIXNUM(*fd), FIXNUM(*offt), mode);
+	RETURN_FIXNUM(offset);
+}
+MAKE_NATIVE_TERNARY(fd_seek);
+
+static int fd_write(vm_thread_t *thread, obj_t *fd, obj_t *data)
+{
+	SAFE_ASSERT(IS_FIXNUM(*fd));
+	SAFE_ASSERT(IS_STRING(*data)); /* TODO: accept bytevectors too */
+
+	string_t *str = PTR(*data);
+	int wrote = write(FIXNUM(*fd), str->str, str->size-1);
+
+	RETURN_FIXNUM(wrote);
+}
+MAKE_NATIVE_BINARY(fd_write);
+
+static int fd_read_string(vm_thread_t *thread, obj_t *ofd, obj_t *odest)
+{
+	SAFE_ASSERT(IS_FIXNUM(*ofd));
+	SAFE_ASSERT(IS_STRING(*odest));
+	SAFE_ASSERT(IS_HEAP_PTR(*odest));
+
+	int fd = FIXNUM(*ofd);
+	string_t *str = PTR(*odest);
+	SAFE_ASSERT(str->allocated);
+
+	int rec = read(fd, str->str, str->size-1);
+	if (rec > 0) {
+		RETURN_FIXNUM(rec);
+	} else {
+		RETURN_OBJ(ceof);
+	}
+}
+MAKE_NATIVE_BINARY(fd_read_string);
+
+void posix_init()
 {
 	t_dir = register_type("directory", dir_repr, dir_visit);
 
@@ -234,11 +326,16 @@ void fs_init()
 	ns_install_global("fs-chdir", &fs_chdir_nt);
 	ns_install_global("fs-mkdir", &fs_mkdir_nt);
 
-	// Move it out of fs
 	ns_install_global("os-getenv", &os_getenv_nt);
 	ns_install_global("os-unsetenv", &os_unsetenv_nt);
 	ns_install_global("os-setenv", &os_setenv_nt);
 	ns_install_global("os-system", &os_system_nt);
 	ns_install_global("os-errno", &os_errno_nt);
 	ns_install_global("os-strerror", &os_strerror_nt);
+
+	ns_install_global("fd-write", &fd_write_nt);
+	ns_install_global("fd-seek", &fd_seek_nt);
+	ns_install_global("fd-open", &fd_open_nt);
+	ns_install_global("fd-close", &fd_close_nt);
+	ns_install_global("fd-read-string!", &fd_read_string_nt);
 }

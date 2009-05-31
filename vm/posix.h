@@ -16,9 +16,9 @@
  * Public Licens along with this program, if not; see
  * <http://www.gnu.org/licenses>.
  */
-#ifndef FS_H
-#define FS_H
+#ifndef POSIX_H
+#define POSIX_H
 
-void fs_init();
+void posix_init();
 
 #endif

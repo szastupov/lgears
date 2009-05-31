@@ -57,6 +57,7 @@ obj_t make_symbol(const char *str)
 	return MAKE_CONST_PTR(res);
 }
 
+
 obj_t _string(allocator_t *al, char *str, int copy)
 {
 	int hsize = sizeof(string_t);

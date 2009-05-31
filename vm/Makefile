@@ -2,8 +2,8 @@ CFLAGS += -Wall -g3
 LDFLAGS += -pthread
 
 vm_obj = vm.o heap.o native.o primitives.o hash.o \
-		 module.o strings.o fd.o bytevector.o struct.o \
-		fs.o const_allocator.o types.o
+		 module.o strings.o bytevector.o struct.o \
+		posix.o const_allocator.o types.o
 programs = vm
 
 ifdef JARI

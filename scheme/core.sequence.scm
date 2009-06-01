@@ -23,7 +23,7 @@
           caaaar cdaaar cadaar cddaar caadar cdadar caddar cdddar
           caaadr cdaadr cadadr cddadr caaddr cdaddr cadddr cddddr caaar cdaar
           cadar cddar caadr cdadr caddr cdddr caar cdar cadr cddr memq memv
-          assq)
+          assq assp)
   (import (core.forms)
           (core.exceptions))
 
@@ -254,6 +254,13 @@
           (else (memq val (cdr lst)))))
 
   (define memv memq) ;Temporary
+
+  (define (assp proc alist)
+    (cond ((null? alist) #f)
+          ((proc (caar alist))
+           (car alist))
+          (else
+           (assp proc (cdr alist)))))
 
   (define (assq obj alist)
     (cond ((null? alist) #f)

@@ -129,6 +129,7 @@ MAKE_NATIVE_BINARY(make_list);
 static int display(vm_thread_t *thread, obj_t *obj)
 {
 	print_obj(*obj);
+	fflush(stdout);
 	RETURN_OBJ(cvoid);
 }
 MAKE_NATIVE_UNARY(display);

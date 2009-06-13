@@ -49,19 +49,20 @@ struct module_hdr_s {
 typedef struct {
 	void *addr;
 	size_t size;
+	int fd;
 } map_t;
 
 int mapfile(const char *path, map_t *map)
 {
-	int fd = open(path, O_RDONLY);
-	if (fd == -1) {
+	map->fd = open(path, O_RDONLY);
+	if (map->fd == -1) {
 		fprintf(stderr, "Failed to open file %s : %s\n", path, strerror(errno));
 		return -1;
 	}
 	struct stat st;
-	fstat(fd, &st);
+	fstat(map->fd, &st);
 
-	void *res = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	void *res = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, map->fd, 0);
 	int ret = -1;
 	if (res == MAP_FAILED)
 		fprintf(stderr, "mmap() failed %s\n", strerror(errno));
@@ -70,9 +71,14 @@ int mapfile(const char *path, map_t *map)
 		map->addr = res;
 		map->size = st.st_size;
 	}
-	close(fd);
 
 	return ret;
+}
+
+void unmapfile(map_t *map)
+{
+	munmap(map->addr, map->size);
+	close(map->fd);
 }
 
 typedef struct {
@@ -318,8 +324,8 @@ module_t* module_load(const char *path)
 	if (mapfile(path, &map) == -1)
 		FATAL("Failed to read %s\n", path);
 
-	module_t *mod = module_parse(map.addr, map.size); //TODO add error check
-	munmap(map.addr, map.size);
+	module_t *mod = module_parse(map.addr, map.size);
+	unmapfile(&map);
 
 	char *dbg_path = mem_alloc(strlen(path)+5);
 	sprintf(dbg_path, "%s.dbg", path);

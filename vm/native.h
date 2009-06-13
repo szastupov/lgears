@@ -22,11 +22,15 @@
 
 enum { RC_OK, RC_ERROR, RC_EXIT };
 
-typedef struct {
-	func_hdr_t hdr;
-	void *fp;
-	int arity;
-	const char *name;
+typedef struct native_func_s {
+	func_hdr_t hdr;				/* Function header */
+	void *fp;					/* Real function */
+	/* Arity wrapper */
+	int (*call)(vm_thread_t *thread,
+				struct native_func_s *native,
+				obj_t *argv,
+				int argc);
+	const char *name;			/* Name */
 } native_func_t;
 
 typedef struct {
@@ -41,30 +45,51 @@ typedef int (*native_binary)(vm_thread_t*, obj_t*, obj_t*);
 typedef int (*native_ternary)(vm_thread_t*, obj_t*, obj_t*, obj_t*);
 typedef int (*native_variadic)(vm_thread_t*, obj_t*, int);
 
-#define MAKE_NATIVE(func, farity, fargc, fswallow)					\
+int native_call_variadic(vm_thread_t *thread,
+						 native_func_t *native,
+						 obj_t *argv,
+						 int argc);
+int native_call_nullary(vm_thread_t *thread,
+						native_func_t *native,
+						obj_t *argv,
+						int argc);
+int native_call_unary(vm_thread_t *thread,
+					  native_func_t *native,
+					  obj_t *argv,
+					  int argc);
+int native_call_binary(vm_thread_t *thread,
+					   native_func_t *native,
+					   obj_t *argv,
+					   int argc);
+int native_call_ternary(vm_thread_t *thread,
+						native_func_t *native,
+						obj_t *argv,
+						int argc);
+
+#define MAKE_NATIVE(func, fcall, fargc, fswallow)					\
 	const native_func_t __attribute__((aligned(8))) func##_nt = {	\
 		.hdr.type = func_native,									\
 		.hdr.argc = fargc+1,										\
 		.hdr.swallow = fswallow,									\
-		.arity = farity,											\
+		.call = fcall,												\
 		.fp = func,													\
 		.name = #func												\
 	}
 
-#define MAKE_NATIVE_VARIADIC(func, fargc)		\
-	MAKE_NATIVE(func, -1, fargc, 1)
+#define MAKE_NATIVE_VARIADIC(func, fargc)				\
+	MAKE_NATIVE(func, native_call_variadic, fargc, 1)
 
-#define MAKE_NATIVE_NULLARY(func)				\
-	MAKE_NATIVE(func, 0, 0, 0)
+#define MAKE_NATIVE_NULLARY(func)					\
+	MAKE_NATIVE(func, native_call_nullary, 0, 0)
 
 #define MAKE_NATIVE_UNARY(func)					\
-	MAKE_NATIVE(func, 1, 1, 0)
+	MAKE_NATIVE(func, native_call_unary, 1, 0)
 
 #define MAKE_NATIVE_BINARY(func)				\
-	MAKE_NATIVE(func, 2, 2, 0)
+	MAKE_NATIVE(func, native_call_binary, 2, 0)
 
-#define MAKE_NATIVE_TERNARY(func)				\
-	MAKE_NATIVE(func, 3, 3, 0)
+#define MAKE_NATIVE_TERNARY(func)					\
+	MAKE_NATIVE(func, native_call_ternary, 3, 0)
 
 #define PROTECT_LOCAL1(x)						\
 	local_roots_t __lr = {						\

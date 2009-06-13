@@ -168,7 +168,7 @@ static int call_cc(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(call_cc, -1, 1, 0);
+MAKE_NATIVE(call_cc, native_call_variadic, 1, 0);
 
 static int exception_handlers(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -207,7 +207,7 @@ static int apply(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(apply, -1, 2, 0);
+MAKE_NATIVE(apply, native_call_variadic, 2, 0);
 
 static int get_void(vm_thread_t *thread)
 {

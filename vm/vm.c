@@ -136,7 +136,7 @@ static int load_library(vm_thread_t *thread, obj_t *argv, int argc)
 
 	return RC_OK;
 }
-MAKE_NATIVE(load_library, -1, 1, 0);
+MAKE_NATIVE(load_library, native_call_variadic, 1, 0);
 
 static int library_cache(vm_thread_t *thread, obj_t *argv, int argc)
 {
@@ -409,7 +409,7 @@ dispatch_func:
 					thread->tramp.argc = 1;
 					thread->tramp.func = 0;
 
-					switch (native_call(thread, func, argv, op_arg)) {
+					switch (func->call(thread, func, argv, op_arg)) {
 					case RC_EXIT:
 						/* Terminate thread */
 						return;

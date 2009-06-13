@@ -13,10 +13,6 @@ ifdef JARI
 	LDFLAGS = -nostdlib -Wl,-z,combreloc,-T,$(JARI_LIBDIR)/lib/ejo.ld \
 		-Wl,-static,-e,__entry_point
 	LIBS = -L$(JARI_LIBDIR)/lib -lpthread -lsys -lc
-else
-	vm_obj += foreign.o
-	CFLAGS += -DHAVE_LIBFFI
-	LDFLAGS += -lffi -ldl
 endif
 
 include include.mk

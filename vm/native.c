@@ -18,22 +18,44 @@
  */
 #include "native.h"
 
-int native_call(vm_thread_t *thread, native_func_t *native, obj_t *argv, int argc)
+int native_call_variadic(vm_thread_t *thread,
+						 native_func_t *native,
+						 obj_t *argv,
+						 int argc)
 {
-	switch (native->arity) {
-	case -1:
-		return ((native_variadic)native->fp)(thread, argv, argc);
-	case 0:
-		return ((native_nullary)native->fp)(thread);
-	case 1:
-		return ((native_unary)native->fp)(thread, &argv[1]);
-	case 2:
-		return ((native_binary)native->fp)(thread, &argv[1], &argv[2]);
-	case 3:
-		return ((native_ternary)native->fp)(thread, &argv[1], &argv[2], &argv[3]);
-	default:
-		FATAL("wrong arity %d of %s\n", native->arity, native->name);
-	}
+	return ((native_variadic)native->fp)(thread, argv, argc);
+}
+
+int native_call_nullary(vm_thread_t *thread,
+						native_func_t *native,
+						obj_t *argv,
+						int argc)
+{
+	return ((native_nullary)native->fp)(thread);
+}
+
+int native_call_unary(vm_thread_t *thread,
+					  native_func_t *native,
+					  obj_t *argv,
+					  int argc)
+{
+	return ((native_unary)native->fp)(thread, &argv[1]);
+}
+
+int native_call_binary(vm_thread_t *thread,
+					   native_func_t *native,
+					   obj_t *argv,
+					   int argc)
+{
+	return ((native_binary)native->fp)(thread, &argv[1], &argv[2]);
+}
+
+int native_call_ternary(vm_thread_t *thread,
+						native_func_t *native,
+						obj_t *argv,
+						int argc)
+{
+	return ((native_ternary)native->fp)(thread, &argv[1], &argv[2], &argv[3]);
 }
 
 static void print_const(obj_t obj)

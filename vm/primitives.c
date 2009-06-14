@@ -18,9 +18,6 @@
  */
 #include "primitives.h"
 #include "posix.h"
-#ifdef HAVE_LIBFFI
-#include "foreign.h"
-#endif
 
 int t_pair, t_cont;
 

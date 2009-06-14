@@ -116,19 +116,20 @@ typedef struct {
 	visitor_fun visit;
 } type_t;
 
-/* Don't forget about block_hdr_t::type_id when changing it */
-#define VM_MAX_TYPES 16
+#define VM_MAX_TYPES 16 		/* Must fit in unsigned short */
 extern type_t type_table[VM_MAX_TYPES];
-int register_type(const char *name, void (*repr)(void*), visitor_fun visit);
+int register_type(const char *name,
+				  void (*repr)(void*),
+				  visitor_fun visit);
 extern int t_closure, t_cont;
 
 /* Header attached to each object on heap */
 typedef struct {
-	unsigned size;			/* Size of block (with padding if need) */
-	unsigned type_id:4;		/* Type id @see type_table */
+	unsigned short type_id;		/* Type id @see type_table */
 	unsigned forward:1;	/* Indicate that pointer should be forwarded */
-	unsigned generation:2;	  /* Generation */
-	unsigned remembered:1;	  /* Indicate that object is remembered */
+	unsigned generation:2;	/* Generation */
+	unsigned remembered:1;	/* Indicate that object is remembered */
+	unsigned size;			/* Size of block (with padding if need) */
 } block_hdr_t;
 
 #define BHDR_SIZE sizeof(block_hdr_t)

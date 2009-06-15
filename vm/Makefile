@@ -1,21 +1,23 @@
-CFLAGS += -Wall -g3
+CFLAGS += -MD # Used to generate dependencies
+CFLAGS += -pipe -Wall -g3
 LDFLAGS += -pthread
 
 vm_obj = vm.o heap.o native.o primitives.o hash.o \
 		 module.o strings.o bytevector.o struct.o \
 		posix.o const_allocator.o types.o
-programs = vm
 
-ifdef JARI
-	JARI_LIBDIR ?= /usr/local/jos
-	CFLAGS += -fomit-frame-pointer -nostdinc -nostdlib -fno-builtin	\
-		-I$(JARI_LIBDIR)/include -DJARI
-	LDFLAGS = -nostdlib -Wl,-z,combreloc,-T,$(JARI_LIBDIR)/lib/ejo.ld \
-		-Wl,-static,-e,__entry_point
-	LIBS = -L$(JARI_LIBDIR)/lib -lpthread -lsys -lc
-endif
+.PHONY: all clean
+all: vm
 
-include include.mk
+-include *.d
+
+clean:
+	rm -f *.o *.d vm
+
+vm: $(vm_obj)
+
+install: vm
+	install -D $< $(DESTDIR)/$(PREFIX)/bin/$<
 
 # FIXME
 # Add mzscheme variant

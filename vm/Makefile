@@ -15,7 +15,6 @@ clean:
 	rm -f *.o *.d vm
 
 vm: $(vm_obj)
-	$(LINK.o) $^ -o $@
 
 # FIXME
 # Add mzscheme variant

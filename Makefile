@@ -1,11 +1,8 @@
 export PREFIX ?= /usr/local
 export PROG = lgears
 
-all:
-	@$(MAKE) -C vm
-
-clean:
-	@$(MAKE) -C vm clean
+all clean:
+	@$(MAKE) -C vm $@
 
 install:
 	@mkdir -p -m755 $(DESTDIR)$(PREFIX)/share/$(PROG)

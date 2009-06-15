@@ -16,6 +16,9 @@ clean:
 
 vm: $(vm_obj)
 
+install: vm
+	install -D $< $(DESTDIR)/$(PREFIX)/bin/$<
+
 # FIXME
 # Add mzscheme variant
 r6rs = ypsilon --sitelib=../scheme

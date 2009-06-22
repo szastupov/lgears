@@ -437,17 +437,14 @@ dispatch_func:
 			}
 			NEXT();
 
-			TARGET(SET_LOCAL) {
+			TARGET(SET_LOCAL)
 				thread->objects[op_arg] = STACK_POP();
-				MARK_MODIFIED(&thread->heap, thread->env);
-			}
 			NEXT();
 
 			TARGET(SET_BIND) {
 				bind_t *bind = &func->bindings[op_arg];
 				env_t *env = ENV(thread->bindmap[bind->up]);
 				env->objects[bind->idx] = STACK_POP();
-				MARK_MODIFIED(&thread->heap, env);
 			}
 			NEXT();
 

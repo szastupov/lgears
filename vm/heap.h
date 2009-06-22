@@ -24,12 +24,6 @@
 
 #define IS_OLD(hp, ptr) ((void*)ptr >= (hp)->old.mem)
 
-#define MARK_MODIFIED(hp, ptr)							\
-	if (!HTYPE(ptr)->remembered && IS_OLD(hp, ptr)) {	\
-		heap_remember(hp, HTYPE(ptr));					\
-		HTYPE(ptr)->remembered  = 1;					\
-	}
-
 /* Heap space */
 typedef struct {
 	void *mem;					/* Memory */

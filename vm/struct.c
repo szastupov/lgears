@@ -108,7 +108,6 @@ static int struct_set(vm_thread_t *thread, obj_t *obj, obj_t *opos, obj_t *val)
 				&& (st->size > pos));
 
 	st->fields[pos] = *val;
-	MARK_MODIFIED(&thread->heap, st);
 
 	RETURN_OBJ(cvoid);
 }

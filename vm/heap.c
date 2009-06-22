@@ -23,13 +23,12 @@
 //#define mem_idx(shift, block) (align_up(shift+1, block)/block-1)
 
 /* TODO: tune it */
-//#define FRESH_SIZE 1024*8
-#define FRESH_SIZE 1024*16
-//#define SURVIVED_SIZE 1024*16
-#define SURVIVED_SIZE 1024*20
+#define FRESH_SIZE 1024*128
+#define SURVIVED_SIZE 1024*128
 #define OLD_SIZE 1024*512
 
 #define HEAP_DBG printf
+#define NEXT_HDR(h) (BHDR_SIZE + (h)->size + (void*)h)
 
 static void space_reset(space_t *space)
 {
@@ -168,7 +167,7 @@ static void heap_scan_references(heap_t *heap, scan_cont_t *cont)
 	int i = cont->i;
 	block_hdr_t *hdr = cont->hdr;
 	for (; i < space->blocks; i++,
-			 hdr = BHDR_SIZE + hdr->size + (void*)hdr)
+			 hdr = NEXT_HDR(hdr))
 	{
 		visit_hdr(heap, hdr);
 	}
@@ -187,6 +186,24 @@ static void heap_scan_remebered(heap_t *heap)
 }
 
 /*
+ * Sometimes, young object may be referenced only by old. In order to
+ * remove marks on write, GC scans old heap, because it's better to
+ * loose some performance during collection than runtime.
+ */
+static void heap_scan_old(heap_t *heap)
+{
+	int i;
+	space_t *space = &heap->old;
+	block_hdr_t *hdr = space->mem;
+
+	for (i = 0; i < space->blocks;
+		 i++, hdr = NEXT_HDR(hdr))
+	{
+		visit_hdr(heap, hdr);
+	}
+}
+
+/*
  * 1. Collect all reached objects
  * 2. Reset the old space
  * 3. Move obects to the begining of the old space creating mappings
@@ -201,7 +218,7 @@ static void heap_gc_old(heap_t *heap)
 
 	block_hdr_t *hdr = space->mem;
 	for (i = 0; i < space->blocks;
-		 i++, hdr = BHDR_SIZE + hdr->size + (void*)hdr)
+		 i++, hdr = NEXT_HDR(hdr))
 	{
 		if (hdr->remembered) {
 			remembered_t *new = new0(remembered_t);
@@ -238,6 +255,9 @@ static void heap_gc_old(heap_t *heap)
 static void heap_gc_main(heap_t *heap)
 {
 	thread_get_roots(&heap->visitor, heap->thread);
+
+	if (!heap->full_gc)
+		heap_scan_old(heap);
 
 	scan_cont_t cont = {
 		.hdr = heap->future_survived->mem,

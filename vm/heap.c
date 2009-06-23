@@ -25,7 +25,7 @@
 /* TODO: tune it */
 #define FRESH_SIZE 1024*128
 #define SURVIVED_SIZE 1024*128
-#define OLD_SIZE 1024*512
+#define OLD_SIZE SURVIVED_SIZE*5
 
 #define HEAP_DBG printf
 #define NEXT_HDR(h) (BHDR_SIZE + (h)->size + (void*)h)
@@ -295,8 +295,13 @@ void heap_gc(heap_t *heap)
 	heap_swap_survived(heap);
 	thread_after_gc(&heap->visitor, heap->thread);
 
-	if (heap->old.free_mem < SURVIVED_SIZE)
-		heap->full_gc = 1;		/* Tell to perform full gc next time */
+	/*
+	 * Schedule full gc for the next time if old space present and may
+	 * not feet survived space
+	 */
+	if (heap->old.mem
+		&& (heap->old.free_mem < SURVIVED_SIZE))
+		heap->full_gc = 1;
 
 	gettimeofday(&tv2, NULL);
 	timersub(&tv2, &tv1, &tv3);
@@ -350,7 +355,8 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 		return;
 
 	void *p = PTR(*obj);
-	if (p < heap->mem || p > heap->mem+heap->mem_size)
+	if ((p < heap->mem || p > heap->mem+heap->mem_size)
+		&& !in_space(&heap->old, p))
 		FATAL("Trying to mark %p which doesn't belong to this heap\n", p);
 
 	if (in_space(heap->future_survived, p)) {
@@ -404,7 +410,13 @@ static void heap_mark(visitor_t *visitor, obj_t *obj)
 			}
 			return; //Postpone copying
 		}
-		//HEAP_DBG("Got old object\n");
+
+		/* Allocate old space on demand */
+		if (!heap->old.mem) {
+			void *old_mem = mem_alloc(OLD_SIZE);
+			space_init(&heap->old, old_mem, OLD_SIZE);
+		}
+
 		new_pos = space_copy(&heap->old, p, ts);
 		heap_remember(heap, new_pos);
 		hdr->remembered = 0;
@@ -431,7 +443,7 @@ static void* heap_allocator_alloc(allocator_t *al, size_t size, int type_id)
 
 void heap_init(heap_t *heap, vm_thread_t *thread)
 {
-	heap->mem_size = FRESH_SIZE+SURVIVED_SIZE*2+OLD_SIZE;
+	heap->mem_size = FRESH_SIZE+SURVIVED_SIZE*2;
 	heap->mem = mem_alloc(heap->mem_size);
 
 	void *memp = heap->mem;
@@ -446,7 +458,6 @@ void heap_init(heap_t *heap, vm_thread_t *thread)
 	INIT_SPACE(&heap->fresh, FRESH_SIZE);
 	INIT_SPACE(&heap->survived_spaces[0], SURVIVED_SIZE);
 	INIT_SPACE(&heap->survived_spaces[1], SURVIVED_SIZE);
-	INIT_SPACE(&heap->old, OLD_SIZE);
 
 	heap->visitor.visit = heap_mark;
 	heap->visitor.user_data = heap;
@@ -463,4 +474,8 @@ void heap_destroy(heap_t *heap)
 			heap->gc_count,
 			heap->gc_time.tv_sec,
 			heap->gc_time.tv_usec);
+	if (heap->old.mem) {
+		LOG_DBG("%d object remained in the old space\n", heap->old.blocks);
+		mem_free(heap->old.mem);
+	}
 }

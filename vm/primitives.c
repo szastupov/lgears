@@ -17,7 +17,6 @@
  * <http://www.gnu.org/licenses>.
  */
 #include "primitives.h"
-#include "posix.h"
 
 int t_pair, t_cont;
 
@@ -243,10 +242,6 @@ static native_module_t modules[] = {
 	{ strings_init, strings_cleanup },
 	{ struct_init },
 	{ bytevector_init },
-	{ posix_init },
-#ifdef HAVE_LIBFFI
-	{ ffi_init, ffi_cleanup }
-#endif
 };
 
 void primitives_init()

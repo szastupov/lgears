@@ -245,7 +245,7 @@ bad_exception:
 static void eval_thread(vm_thread_t *thread, module_t *module)
 {
 	/* This variables updated every time a new function takes control */
-	int16_t *opcode;
+	const int16_t *opcode;
 	int op_code, op_arg;
 	func_t *func;
 

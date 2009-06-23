@@ -46,7 +46,7 @@ typedef struct {
 	int bcount;
 	int bmcount;
 
-	int16_t *opcode;			/* Opcode */
+	const int16_t *opcode;		/* Opcode */
 	bind_t *bindings;			/* Bindings */
 	int *bindmap;				/* Bindmap */
 	module_t *module;			/* Module */
@@ -55,8 +55,15 @@ typedef struct {
 	const char **dbg_table;
 } func_t;
 
+typedef struct {
+	void *addr;
+	size_t size;
+	int fd;
+} map_t;
+
 /* Module representation */
 struct module_s {
+	map_t map;
 	func_t *functions;			/* Functions */
 	int entry_point;			/* Entry point */
 	int fun_count;				/* Functions count */

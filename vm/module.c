@@ -46,12 +46,6 @@ struct module_hdr_s {
 #define MODULE_HDR_OFFSET	sizeof(struct module_hdr_s)
 #define FUN_HDR_SIZE sizeof(struct func_hdr_s)
 
-typedef struct {
-	void *addr;
-	size_t size;
-	int fd;
-} map_t;
-
 int mapfile(const char *path, map_t *map)
 {
 	map->fd = open(path, O_RDONLY);
@@ -186,7 +180,7 @@ static obj_t fasl_read_datum(code_t *code, allocator_t *al)
 	}
 	case OT_STRING: {
 		const char *str = code_read_string(code);
-		return _string(al, (char*)str, 1);
+		return _string(al, (char*)str, 0);
 	}
 	case OT_STATIC: {
 		const char *str = code_read_string(code);
@@ -242,13 +236,12 @@ static void load_consts(module_t *mod, code_t *code)
 	}
 }
 
-static module_t* module_parse(const uint8_t *code_src, size_t code_size)
+static void module_parse(module_t *mod)
 {
 	code_t code = {
-		.code = code_src,
-		.code_size = code_size
+		.code = mod->map.addr,
+		.code_size = mod->map.size
 	};
-	module_t *mod = new0(module_t);
 	const_allocator_init(&mod->allocator);
 
 	/* Read module header */
@@ -307,27 +300,21 @@ static module_t* module_parse(const uint8_t *code_src, size_t code_size)
 			func->bindings = NULL;
 
 		int opcode_size = hdr->op_count * 4;
-		func->opcode = mem_alloc(opcode_size);
-		memcpy(func->opcode,
-			   code_read_bytes(&code, opcode_size),
-			   opcode_size);
+		func->opcode = code_read_bytes(&code, opcode_size);
 		func->module = mod;
 	}
-
-	return mod;
 }
 
 module_t* module_load(const char *path)
 {
-	map_t map;
+	module_t *mod = new0(module_t);
 
-	if (mapfile(path, &map) == -1)
+	if (mapfile(path, &mod->map) == -1)
 		FATAL("Failed to read %s\n", path);
 
-	module_t *mod = module_parse(map.addr, map.size);
-	unmapfile(&map);
+	module_parse(mod);
 
-	char *dbg_path = mem_alloc(strlen(path)+5);
+	char *dbg_path = alloca(strlen(path)+5);
 	sprintf(dbg_path, "%s.dbg", path);
 	struct stat st;
 	if (stat(dbg_path, &st) == 0) {
@@ -350,14 +337,8 @@ module_t* module_load(const char *path)
 		}
 		close(fd);
 	}
-	mem_free(dbg_path);
 
 	return mod;
-}
-
-module_t* module_load_static(const uint8_t *mem, int size)
-{
-	return module_parse(mem, size);
 }
 
 void module_free(module_t *module)
@@ -365,7 +346,6 @@ void module_free(module_t *module)
 	int i;
 	for (i = 0; i < module->fun_count; i++) {
 		func_t *func = &module->functions[i];
-		mem_free(func->opcode);
 		if (func->bindings)
 			mem_free(func->bindings);
 		if (func->bindmap)
@@ -378,5 +358,6 @@ void module_free(module_t *module)
 	mem_free(module->functions);
 	mem_free(module->consts);
 	const_allocator_clean(&module->allocator);
+	unmapfile(&module->map);
 	mem_free(module);
 }
